@@ -1,0 +1,3 @@
+[submodule "harnass"]
+	path = harnass
+	url = git@github.com:katphlab/harnass-docs.git

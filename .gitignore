@@ -30,4 +30,4 @@ report/
 # pnpm
 pnpm-debug.log*
 
-harnass/
+.pi/
