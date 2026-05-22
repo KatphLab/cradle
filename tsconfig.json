@@ -2,6 +2,7 @@
   "compilerOptions": {
     "target": "ES2024",
     "lib": ["ES2024"],
+    "types": ["node"],
     "allowJs": false,
     "skipLibCheck": true,
     "strict": true,
@@ -31,6 +32,6 @@
       "@types/*": ["./src/types/*"]
     }
   },
-  "include": ["**/*.ts", "**/*.mts"],
+  "include": ["src/**/*.ts", "src/**/*.mts"],
   "exclude": ["node_modules", "dist", "coverage"]
 }
