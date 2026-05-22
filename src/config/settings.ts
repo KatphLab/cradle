@@ -39,13 +39,28 @@ function getConfigFilePath(cwd: string): string {
   return path.join(cwd, CONFIG_FILE_PATH)
 }
 
-function getPiSdkDirectory(): string {
-  return path.resolve(
-    path.dirname(
-      fileURLToPath(import.meta.resolve('@earendil-works/pi-coding-agent')),
-    ),
-    '..',
-  )
+function getEarendilWorksDirectories(): string[] {
+  const packages = [
+    '@earendil-works/pi-coding-agent',
+    '@earendil-works/pi-agent-core',
+    '@earendil-works/pi-ai',
+    '@earendil-works/pi-tui',
+  ]
+
+  const directories = new Set<string>()
+
+  for (const package_ of packages) {
+    try {
+      const packageDirectory = path.dirname(
+        fileURLToPath(import.meta.resolve(package_)),
+      )
+      directories.add(path.resolve(packageDirectory, '..'))
+    } catch {
+      // Package not resolvable, skip
+    }
+  }
+
+  return [...directories]
 }
 
 function resolveDirectory(directory: string, cwd: string): string {
@@ -111,7 +126,7 @@ export async function getAllowedReadDirectories(
 
   return uniqueDirectories([
     path.resolve(cwd),
-    getPiSdkDirectory(),
+    ...getEarendilWorksDirectories(),
     ...extraDirectories.map((directory) => resolveDirectory(directory, cwd)),
   ])
 }
