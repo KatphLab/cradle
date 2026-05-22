@@ -58,7 +58,7 @@ Git workflow
 
 - Before feature work, verify current branch is not `main` or `master`.
 - If it is, create descriptive feature branch before making changes.
-- Do not use git worktrees in this repo.
+- For worktrees, use .worktrees folder.
 
 Branch and commit conventions
 
