@@ -12,9 +12,6 @@
   "pi": {
     "extensions": [
       "./src"
-    ],
-    "skills": [
-      "./skills"
     ]
   },
   "scripts": {
