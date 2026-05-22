@@ -56,6 +56,18 @@ const eslintConfig = defineConfig([
           type: 'entry',
           pattern: 'src/index.ts',
         },
+        {
+          type: 'tools',
+          pattern: 'src/tools/**',
+        },
+        {
+          type: 'commands',
+          pattern: 'src/commands/**',
+        },
+        {
+          type: 'hooks',
+          pattern: 'src/hooks/**',
+        },
       ],
     },
     rules: {
@@ -141,7 +153,19 @@ const eslintConfig = defineConfig([
             },
             {
               from: { type: 'entry' },
-              allow: { to: { type: ['lib', 'utils', 'config', 'types'] } },
+              allow: {
+                to: {
+                  type: [
+                    'lib',
+                    'utils',
+                    'config',
+                    'types',
+                    'tools',
+                    'commands',
+                    'hooks',
+                  ],
+                },
+              },
             },
           ],
         },
@@ -235,7 +259,9 @@ const eslintConfig = defineConfig([
     'dist/**',
     'coverage/**',
     '.opencode/**',
+    'vitest.config.ts',
     'vitest.setup.ts',
+    'vitest.strict-reporter.ts',
   ]),
 ])
 

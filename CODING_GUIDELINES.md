@@ -109,12 +109,12 @@ Mark class properties that are never reassigned after construction as `readonly`
 
 Do not use `../` in import or export paths inside `src/`. Use the declared aliases:
 
-| Alias           | Resolves to          |
-| --------------- | -------------------- |
-| `@lib/*`        | `./src/lib/*`        |
-| `@utils/*`      | `./src/utils/*`      |
-| `@config/*`     | `./src/config/*`     |
-| `@types/*`      | `./src/types/*`      |
+| Alias       | Resolves to      |
+| ----------- | ---------------- |
+| `@lib/*`    | `./src/lib/*`    |
+| `@utils/*`  | `./src/utils/*`  |
+| `@config/*` | `./src/config/*` |
+| `@types/*`  | `./src/types/*`  |
 
 ### Type-only imports and exports
 
@@ -151,23 +151,23 @@ Do not suppress linting with `// eslint-disable` comments anywhere in source fil
 
 The project is divided into layers. The following dependency rules are strictly enforced:
 
-| Layer                 | May depend on                                      |
-| --------------------- | -------------------------------------------------- |
+| Layer                 | May depend on                                                 |
+| --------------------- | ------------------------------------------------------------- |
 | `src/lib/**`          | `src/lib/**`, `src/utils/**`, `src/config/**`, `src/types/**` |
-| `src/utils/**`        | `src/utils/**`, `src/config/**`, `src/types/**`    |
-| `src/config/**`       | `src/config/**`, `src/types/**`                    |
-| `src/types/**`        | `src/types/**`                                     |
-| `src/**` (production) | Must not import from `__tests__`                    |
+| `src/utils/**`        | `src/utils/**`, `src/config/**`, `src/types/**`               |
+| `src/config/**`       | `src/config/**`, `src/types/**`                               |
+| `src/types/**`        | `src/types/**`                                                |
+| `src/**` (production) | Must not import from `__tests__`                              |
 
 Or using path aliases:
 
-| Layer                 | May depend on                          |
-| --------------------- | -------------------------------------- |
+| Layer                 | May depend on                                 |
+| --------------------- | --------------------------------------------- |
 | `@lib/*`              | `@lib/*`, `@utils/*`, `@config/*`, `@types/*` |
-| `@utils/*`            | `@utils/*`, `@config/*`, `@types/*`    |
-| `@config/*`           | `@config/*`, `@types/*`                |
-| `@types/*`            | `@types/*`                             |
-| `src/**` (production) | Must not import from `__tests__`       |
+| `@utils/*`            | `@utils/*`, `@config/*`, `@types/*`           |
+| `@config/*`           | `@config/*`, `@types/*`                       |
+| `@types/*`            | `@types/*`                                    |
+| `src/**` (production) | Must not import from `__tests__`              |
 
 Violating these boundaries is a lint error that blocks merging.
 
@@ -191,11 +191,11 @@ Violating these boundaries is a lint error that blocks merging.
 Keep functions simple and focused. The hard limits are:
 
 | What                  | Limit                                         |
-| --------------------- | ----------------------------------------------- |
-| Cyclomatic complexity | 10 branches                                     |
-| Cognitive complexity  | 12                                              |
-| Function body length  | 80 lines (excluding blank lines and comments)   |
-| Function parameters   | 7                                               |
+| --------------------- | --------------------------------------------- |
+| Cyclomatic complexity | 10 branches                                   |
+| Cognitive complexity  | 12                                            |
+| Function body length  | 80 lines (excluding blank lines and comments) |
+| Function parameters   | 7                                             |
 
 When a function approaches these limits, extract helpers or restructure control flow. Do not raise the limits.
 

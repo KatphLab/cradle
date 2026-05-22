@@ -1,6 +1,7 @@
 {
   "threshold": 1,
-  "reporters": ["console"],
+  "noTips": true,
+  "reporters": ["ai"],
   "ignore": [
     "**/dist/**",
     "**/build/**",

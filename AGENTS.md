@@ -1,9 +1,3 @@
-Operating mode
-
-- Before any response or code action, load `caveman`.
-- Stay in caveman mode unless user says `stop caveman` or `normal mode`.
-- If another skill applies, use it too, but keep caveman style.
-
 Repo standards
 
 - See `CODING_GUIDELINES.md` for coding, testing, and secure implementation guidelines.

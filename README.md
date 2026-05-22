@@ -1,114 +1,95 @@
-# ts-pnpm-template
+# cradle
 
-A production-ready TypeScript template for Node.js scripts, CLIs, and libraries with comprehensive tooling for code quality, testing, security, and CI/CD.
+A **pi extension package** providing sample tools, commands, hooks, and skills for the pi coding agent.
 
-## Features
+## Pi Manifest
 
-- **[TypeScript](https://www.typescriptlang.org)** with strict configuration for Node.js
-- **[tsx](https://github.com/privatenumber/tsx)** for fast TypeScript execution in development
-- **[Vitest](https://vitest.dev)** for testing with coverage (90% threshold)
-- **Code Quality**: ESLint, Prettier, Husky, lint-staged
-- **Architecture Enforcement**: ESLint boundaries, dependency-cruiser, knip
-- **Security**: Semgrep, ESLint security plugins, duplicate code detection
-- **CI/CD**: GitHub Actions with comprehensive PR checks
+Registered in `package.json`:
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js >=24.0.0 <25 (managed via `packageManager: pnpm@10.33.4`)
-- pnpm (Corepack enabled)
-
-### Installation
-
-```bash
-pnpm install
+```json
+"pi": {
+  "extensions": ["./src"],
+  "skills": ["./skills"]
+}
 ```
 
-### Development
+## Structure
 
-```bash
-pnpm dev
+```
+src/
+  index.ts              ← extension entry point (configureExtension)
+  cradle.test.ts        ← entry point tests
+  tools/
+    hello.ts            ← greeting tool with call counter
+    hello.test.ts
+  commands/
+    stats.ts            ← stats command with invocation counter
+    stats.test.ts
+  hooks/
+    session.ts          ← session lifecycle hooks with Map tracking
+    session.test.ts
+skills/
+  my-skill/
+    SKILL.md            ← sample skill documentation
 ```
 
-Runs `src/index.ts` in watch mode with tsx.
+## Extension Samples
 
-### Build
+| Module          | What it does                                                                                                                                  |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hello` tool    | Greets by name. Tracks total calls in module state (`details.count`).                                                                         |
+| `stats` command | Shows session entry count. Tracks how many times the command was invoked.                                                                     |
+| `session` hooks | `session_start` creates a session ID in a Map. `tool_call` increments the most recent session's counter. `agent_end` reports active sessions. |
 
-```bash
-pnpm build
-```
-
-Compiles TypeScript to `dist/` using `tsc`.
-
-### Run
+## Development
 
 ```bash
-pnpm start
+pnpm check      # full gate: format, lint, typecheck, tests, depcruise, knip, dupcheck
+pnpm test       # run tests
+pnpm test:ci    # tests with coverage
+pnpm build      # compile to dist/ (tsc + tsc-alias)
 ```
-
-Executes the compiled output from `dist/`.
-
-## Scripts
-
-| Script              | Description                                                                      |
-| ------------------- | -------------------------------------------------------------------------------- |
-| `pnpm dev`          | Run in development with tsx watch                                                |
-| `pnpm build`        | Compile TypeScript to dist/                                                      |
-| `pnpm start`        | Run compiled output                                                              |
-| `pnpm lint`         | Run ESLint                                                                       |
-| `pnpm lint:fix`     | Fix ESLint issues                                                                |
-| `pnpm typecheck`    | Run TypeScript compiler (no emit)                                                |
-| `pnpm format`       | Format code with Prettier                                                        |
-| `pnpm format:check` | Check formatting                                                                 |
-| `pnpm test`         | Run tests with Vitest                                                            |
-| `pnpm test:ci`      | Run tests with coverage                                                          |
-| `pnpm test:watch`   | Run tests in watch mode                                                          |
-| `pnpm test:coverage`| Run tests with coverage report                                                   |
-| `pnpm check`        | **Full quality gate**: format, lint, typecheck, tests, depcruise, knip, dupcheck |
-| `pnpm fix`          | Auto-fix issues: format, lint, knip                                              |
-| `pnpm depcruise`    | Check architecture boundaries                                                    |
-| `pnpm knip`         | Find unused dependencies/exports                                                 |
-| `pnpm dupcheck`     | Check for code duplication                                                       |
 
 ## Quality Gates
 
-This repository enforces high standards:
+`pnpm check` runs in order:
 
-- **Coverage**: 90% per file for statements, branches, functions, and lines
-- **No skipped/todo tests**: Vitest strict reporter fails builds
-- **Architecture boundaries**: Enforced via ESLint and dependency-cruiser
-- **No code duplication**: jscpd detects copy-pasted code
-- **Security**: Semgrep scans for OWASP Top 10, Node.js, TypeScript, and secrets
+1. `pnpm format` — Prettier
+2. `pnpm lint` — ESLint
+3. `pnpm typecheck` — TypeScript
+4. `pnpm test:ci` — Vitest with coverage
+5. `pnpm depcruise` — architecture boundary checks
+6. `pnpm knip` — unused exports / dead code
+7. `pnpm dupcheck` — jscpd duplicate detection
 
-## GitHub Security Settings
+**Coverage thresholds** (v8 provider):
 
-> **Note**: To enable the full security scanning pipeline (Semgrep), you may need to enable **Advanced Security** in your GitHub repository settings.
->
-> **Settings** → **Security** → **Code security and analysis** → **GitHub Advanced Security**
->
-> This enables:
->
-> - Secret scanning
-> - Dependency review
-> - Code scanning with Semgrep
+- Statements: 100%
+- Branches: 90%
+- Functions: 100%
+- Lines: 100%
 
-## CI/CD
+## Conventions
 
-Pull requests automatically run:
+- **ESM** with `NodeNext` module resolution — relative imports use `.js` extensions
+- **Co-located tests** — test files live next to source (no `__tests__/` subfolders)
+- **No parent imports** — `../` is banned; all imports are current-directory `./`
+- **Narrow API types** — handlers use `Pick<ExtensionAPI, ...>` for testability
+- **Module-level state** — counters and Maps live in modules; reset functions exported for tests
 
-1. Lint, typecheck, format checks
-2. Vitest with coverage (strict mode)
-3. Architecture validation (dependency-cruiser)
-4. Unused code detection (knip)
-5. Duplicate code detection (jscpd)
-6. Security scanning (Semgrep)
+## Peer Dependencies
 
-All checks must pass before merging.
+The extension expects the host (pi) to provide:
+
+- `@earendil-works/pi-coding-agent`
+- `@earendil-works/pi-ai`
+- `@earendil-works/pi-agent-core`
+- `@earendil-works/pi-tui`
+- `typebox`
 
 ## AI Agent Guidelines
 
-See [AGENTS.md](./AGENTS.md) for coding rules and conventions when using AI assistants.
+See [AGENTS.md](./AGENTS.md) for coding rules and conventions.
 
 ## License
 

@@ -1,5 +1,5 @@
 /** @type {import('dependency-cruiser').IConfiguration} */
-module.exports = {
+export default {
   forbidden: [
     {
       name: 'no-circular',
@@ -82,7 +82,7 @@ module.exports = {
         "This module depends on an npm package that isn't in the 'dependencies' section of your package.json. " +
         "That's problematic as the package either (1) won't be available on live (2 - worse) will be " +
         'available on live with an non-guaranteed version. Fix it by adding the package to the dependencies ' +
-        "in your package.json.",
+        'in your package.json.',
       from: {},
       to: {
         dependencyTypes: ['npm-no-pkg', 'npm-unknown'],
@@ -150,8 +150,7 @@ module.exports = {
         'from.pathNot re of the not-to-dev-dep rule in the dependency-cruiser configuration',
       from: {
         path: '^src',
-        pathNot:
-          '[.](?:spec|test)[.](?:js|mjs|cjs|ts|mts|cts)$|test-utils/',
+        pathNot: '[.](?:spec|test)[.](?:js|mjs|cjs|ts|mts|cts)$|test-utils/',
       },
       to: {
         dependencyTypes: ['npm-dev'],
@@ -172,19 +171,6 @@ module.exports = {
       from: {},
       to: {
         dependencyTypes: ['npm-optional'],
-      },
-    },
-    {
-      name: 'peer-deps-used',
-      comment:
-        'This module depends on an npm package that is declared as a peer dependency ' +
-        'in your package.json. This makes sense if your package is e.g. a plugin, but in ' +
-        'other cases - maybe not so much. If the use of a peer dependency is intentional ' +
-        'add an exception to your dependency-cruiser configuration.',
-      severity: 'warn',
-      from: {},
-      to: {
-        dependencyTypes: ['npm-peer'],
       },
     },
   ],

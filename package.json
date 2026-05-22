@@ -1,10 +1,21 @@
 {
-  "name": "ts-pnpm-template",
+  "name": "cradle",
   "version": "0.1.0",
   "private": true,
+  "keywords": [
+    "pi-package"
+  ],
   "type": "module",
   "engines": {
     "node": ">=24.0.0 <25"
+  },
+  "pi": {
+    "extensions": [
+      "./src"
+    ],
+    "skills": [
+      "./skills"
+    ]
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -13,7 +24,7 @@
     "lint": "eslint . --cache",
     "lint:fix": "eslint . --fix --cache",
     "typecheck": "tsc --noEmit",
-    "format": "prettier . --write",
+    "format": "prettier . --log-level silent --write",
     "format:check": "prettier . --check",
     "prepare": "husky",
     "knip": "knip",
@@ -29,6 +40,13 @@
     "fix": "pnpm format && pnpm lint:fix && pnpm knip:fix"
   },
   "dependencies": {},
+  "peerDependencies": {
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
   "devDependencies": {
     "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^4.1.4",
@@ -50,6 +68,7 @@
     "tsx": "^4.19.0",
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.58.1",
+    "dependency-cruiser": "^17.4.0",
     "vitest": "^4.1.4"
   },
   "packageManager": "pnpm@10.33.4+sha512.1c67b3b359b2d408119ba1ed289f34b8fc3c6873412bec6fd264fbdc82489e510fcbecb9ce9d22dae7f3b76269d8441046014bdca53b9979cd7a561ad631b800"

@@ -1,11 +1,14 @@
-import { buildFarewell, buildGreeting } from '@lib/greeter.js'
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
-const run = (): void => {
-  const greeting = buildGreeting({ name: 'World' })
-  process.stdout.write(`${greeting}\n`)
+import { registerStatsCommand } from './commands/stats.js'
+import { registerSessionHooks } from './hooks/session.js'
+import { helloTool } from './tools/hello.js'
 
-  const farewell = buildFarewell('World')
-  process.stdout.write(`${farewell}\n`)
+/** @public */
+export default function configureExtension(
+  pi: Pick<ExtensionAPI, 'registerTool' | 'registerCommand' | 'on'>,
+): void {
+  pi.registerTool(helloTool)
+  registerStatsCommand(pi)
+  registerSessionHooks(pi)
 }
-
-run()
