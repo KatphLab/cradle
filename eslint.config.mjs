@@ -127,6 +127,7 @@ const eslintConfig = defineConfig([
         },
       ],
       '@typescript-eslint/prefer-readonly': 'error',
+      '@typescript-eslint/ban-ts-comment': 'error',
 
       // Script project rules
       'unused-imports/no-unused-imports': 'error',
@@ -181,6 +182,7 @@ const eslintConfig = defineConfig([
         { max: 80, skipBlankLines: true, skipComments: true },
       ],
       'security/detect-object-injection': 'off',
+      'security/detect-non-literal-fs-filename': 'off',
       'max-params': 'off',
       '@typescript-eslint/max-params': ['error', { max: 7 }],
       'no-restricted-syntax': [
@@ -240,15 +242,10 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Allow relative parent imports in test files (tests import the module they test)
-  // Also allow longer test functions and empty function mocks
   {
-    files: ['**/__tests__/**', '**/test-utils/**'],
+    files: ['*.test.ts'],
     rules: {
-      'no-restricted-syntax': 'off',
       'max-lines-per-function': 'off',
-      '@typescript-eslint/no-empty-function': 'off',
-      'unicorn/no-useless-undefined': 'off',
     },
   },
   globalIgnores([
