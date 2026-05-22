@@ -1,0 +1,15 @@
+{
+  "threshold": 1,
+  "reporters": ["console"],
+  "ignore": [
+    "**/dist/**",
+    "**/build/**",
+    "**/coverage/**",
+    "**/node_modules/**",
+    "**/*.d.ts",
+    "**/.opencode/**",
+    "**/*.test.ts",
+    "**/*.test.mts",
+    "**/*.json"
+  ]
+}
