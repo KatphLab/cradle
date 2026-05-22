@@ -23,6 +23,7 @@ export default defineConfig({
       ...configDefaults.exclude,
       '**/.opencode/**',
       '**/.worktrees/**',
+      '**/.pi/**',
       '**/*.cjs',
       '**/*.mjs',
     ],
@@ -36,6 +37,7 @@ export default defineConfig({
         '.opencode/**',
         'src/types/**',
         '.worktrees/**',
+        '.pi/**',
       ],
       thresholds: {
         perFile: true,

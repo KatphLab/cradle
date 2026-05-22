@@ -10,6 +10,7 @@
     "**/*.d.ts",
     "**/.opencode/**",
     "**/.worktrees/**",
+    "**/.pi/**",
     "**/*.test.ts",
     "**/*.test.mts",
     "**/*.json"

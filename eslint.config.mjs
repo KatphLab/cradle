@@ -257,6 +257,7 @@ const eslintConfig = defineConfig([
     'coverage/**',
     '.opencode/**',
     '.worktrees/**',
+    '.pi/**',
     'vitest.config.ts',
     'vitest.setup.ts',
     'vitest.strict-reporter.ts',
