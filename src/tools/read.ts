@@ -3,6 +3,8 @@ import { defineTool } from '@earendil-works/pi-coding-agent'
 import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 
+import { assertReadAllowed } from '../config/settings.js'
+
 const MAX_LINES = 2000
 const MAX_BYTES = 50 * 1024
 
@@ -87,6 +89,7 @@ export const readTool = defineTool({
   }),
   async execute(_toolCallId, parameters, _signal, _onUpdate, context) {
     const filePath = path.resolve(context.cwd, normalizePath(parameters.path))
+    await assertReadAllowed(filePath, context.cwd)
     const fileStat = await stat(filePath)
 
     if (!fileStat.isFile()) {

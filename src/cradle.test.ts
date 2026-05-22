@@ -6,14 +6,14 @@ describe('configureExtension', () => {
   it('registers tool, command, and hooks', () => {
     const registeredTools: unknown[] = []
     const handlers: { event: string; fn: unknown }[] = []
-    let commandName: string | undefined
+    const commandNames: string[] = []
 
     const pi: Pick<ExtensionAPI, 'registerTool' | 'registerCommand' | 'on'> = {
       registerTool: (tool) => {
         registeredTools.push(tool)
       },
       registerCommand: (name) => {
-        commandName = name
+        commandNames.push(name)
       },
       on: (event, handler) => {
         handlers.push({ event, fn: handler })
@@ -23,7 +23,7 @@ describe('configureExtension', () => {
     configureExtension(pi)
 
     expect(registeredTools).toHaveLength(1)
-    expect(commandName).toBe('stats')
+    expect(commandNames).toEqual(['cradle-settings', 'stats'])
     expect(handlers).toHaveLength(3)
     expect(handlers.map((h) => h.event)).toEqual([
       'session_start',
