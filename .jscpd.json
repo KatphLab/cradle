@@ -9,6 +9,7 @@
     "**/node_modules/**",
     "**/*.d.ts",
     "**/.opencode/**",
+    "**/.worktrees/**",
     "**/*.test.ts",
     "**/*.test.mts",
     "**/*.json"

@@ -243,7 +243,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ['*.test.ts'],
+    files: ['**/*.test.ts'],
     rules: {
       'max-lines-per-function': 'off',
     },
@@ -256,6 +256,7 @@ const eslintConfig = defineConfig([
     'dist/**',
     'coverage/**',
     '.opencode/**',
+    '.worktrees/**',
     'vitest.config.ts',
     'vitest.setup.ts',
     'vitest.strict-reporter.ts',

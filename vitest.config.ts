@@ -35,6 +35,7 @@ export default defineConfig({
         '**/test-utils/**',
         '.opencode/**',
         'src/types/**',
+        '.worktrees/**',
       ],
       thresholds: {
         perFile: true,
