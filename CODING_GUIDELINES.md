@@ -105,27 +105,16 @@ Mark class properties that are never reassigned after construction as `readonly`
 
 ## Imports and Exports
 
-### Path aliases
-
-Do not use `../` in import or export paths inside `src/`. Use the declared aliases:
-
-| Alias       | Resolves to      |
-| ----------- | ---------------- |
-| `@lib/*`    | `./src/lib/*`    |
-| `@utils/*`  | `./src/utils/*`  |
-| `@config/*` | `./src/config/*` |
-| `@types/*`  | `./src/types/*`  |
-
 ### Type-only imports and exports
 
 When an import is used only as a type, add the `type` qualifier inline. Do the same for type-only re-exports. This keeps runtime bundles free of type-only references.
 
 ```ts
 // BAD — no qualifier on a type-only import
-import { MyFunction, MyOptions } from '@lib/myModule'
+import { MyFunction, MyOptions } from './myModule'
 
 // GOOD — inline type qualifier on the type-only specifier
-import { MyFunction, type MyOptions } from '@lib/myModule'
+import { MyFunction, type MyOptions } from './myModule'
 ```
 
 ### No barrel files or pass-through re-exports
@@ -158,16 +147,6 @@ The project is divided into layers. The following dependency rules are strictly 
 | `src/config/**`       | `src/config/**`, `src/types/**`                               |
 | `src/types/**`        | `src/types/**`                                                |
 | `src/**` (production) | Must not import from `__tests__`                              |
-
-Or using path aliases:
-
-| Layer                 | May depend on                                 |
-| --------------------- | --------------------------------------------- |
-| `@lib/*`              | `@lib/*`, `@utils/*`, `@config/*`, `@types/*` |
-| `@utils/*`            | `@utils/*`, `@config/*`, `@types/*`           |
-| `@config/*`           | `@config/*`, `@types/*`                       |
-| `@types/*`            | `@types/*`                                    |
-| `src/**` (production) | Must not import from `__tests__`              |
 
 Violating these boundaries is a lint error that blocks merging.
 
@@ -216,7 +195,7 @@ Do not reference a class, variable, enum, or type alias before it is declared in
 - Minimum contract: at least one happy-path assertion and one failure/error-path assertion per changed behavior.
 - Do not leave skipped or todo tests. Enforced by `no-restricted-syntax` (catches `it.skip`, `test.todo`, etc.). Note: test files override `no-restricted-syntax` for parent-import flexibility, so the skipped-test check applies in non-test source files. In test files, this is enforced by code review.
 - Keep per-file coverage at or above 90% for statements, branches, functions, and lines.
-- Test files are exempt from the no-relative-parent-import rule, the function-length limit, empty-function restrictions, and the useless-undefined restriction. All other rules apply.
+- Test files are exempt from the function-length limit, empty-function restrictions, and the useless-undefined restriction. All other rules apply.
 - Before claiming work complete, run the verification checklist:
   - `pnpm check`
   - targeted tests for changed files and features

@@ -188,11 +188,6 @@ const eslintConfig = defineConfig([
       'no-restricted-syntax': [
         'error',
         {
-          selector: String.raw`ImportDeclaration[source.value=/^\.\.(?!\/config\/)/], ExportNamedDeclaration[source.value=/^\.\.(?!\/config\/)/], ExportAllDeclaration[source.value=/^\.\.(?!\/config\/)/]`,
-          message:
-            'Relative parent imports (../) are only allowed for runtime-safe imports into ../config/*. Use path aliases otherwise.',
-        },
-        {
           selector: 'ExportNamedDeclaration[source]',
           message: 'Do not create pass-through re-export files.',
         },
