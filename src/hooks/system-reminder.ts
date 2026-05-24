@@ -2,13 +2,33 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
+import {
+  estimateTokens,
+  type ExtensionAPI,
+} from '@earendil-works/pi-coding-agent'
 
 const SYSTEM_REMINDER_FILE = 'SYSTEM_REMINDER.md'
 const SYSTEM_REMINDER_TYPE = 'cradle-system-reminder'
+const SYSTEM_REMINDER_TOKEN_LIMIT = 500
 
 /** @public */
 export function registerSystemReminderHook(pi: Pick<ExtensionAPI, 'on'>): void {
+  pi.on('session_start', async (_event, context) => {
+    const reminder = await loadSystemReminder(context.cwd)
+
+    if (!reminder) {
+      return
+    }
+
+    const tokens = countSystemReminderTokens(reminder)
+    if (tokens > SYSTEM_REMINDER_TOKEN_LIMIT) {
+      context.ui.notify(
+        `SYSTEM_REMINDER.md exceeds ${String(SYSTEM_REMINDER_TOKEN_LIMIT)} tokens (~${String(tokens)}). Consider shortening it.`,
+        'warning',
+      )
+    }
+  })
+
   pi.on('context', async (event, context) => {
     const messages = event.messages.filter(
       (message) => !isSystemReminder(message),
@@ -22,6 +42,16 @@ export function registerSystemReminderHook(pi: Pick<ExtensionAPI, 'on'>): void {
     return {
       messages: [...messages, createSystemReminderMessage(reminder)],
     }
+  })
+}
+
+function countSystemReminderTokens(reminder: string): number {
+  return estimateTokens({
+    role: 'custom',
+    customType: SYSTEM_REMINDER_TYPE,
+    content: reminder,
+    display: false,
+    timestamp: Date.now(),
   })
 }
 

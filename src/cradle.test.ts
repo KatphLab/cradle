@@ -32,11 +32,12 @@ describe('configureExtension', () => {
       expect.objectContaining({ name: 'create' }),
     ])
     expect(commandNames).toEqual(['cradle-settings', 'stats'])
-    expect(handlers).toHaveLength(4)
+    expect(handlers).toHaveLength(5)
     expect(handlers.map((h) => h.event)).toEqual([
       'session_start',
       'tool_call',
       'agent_end',
+      'session_start',
       'context',
     ])
   })
