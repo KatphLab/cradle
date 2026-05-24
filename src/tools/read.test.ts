@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { saveCradleSettings } from '@config/settings.js'
+import { saveCradleSettings } from '../config/settings.js'
 import { readTool } from './read.js'
 
 const cwd = process.cwd()

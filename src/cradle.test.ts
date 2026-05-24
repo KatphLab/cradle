@@ -22,7 +22,15 @@ describe('configureExtension', () => {
 
     configureExtension(pi)
 
-    expect(registeredTools).toHaveLength(1)
+    expect(registeredTools).toHaveLength(6)
+    expect(registeredTools).toEqual([
+      expect.objectContaining({ name: 'read' }),
+      expect.objectContaining({ name: 'ls' }),
+      expect.objectContaining({ name: 'grep' }),
+      expect.objectContaining({ name: 'glob' }),
+      expect.objectContaining({ name: 'edit' }),
+      expect.objectContaining({ name: 'create' }),
+    ])
     expect(commandNames).toEqual(['cradle-settings', 'stats'])
     expect(handlers).toHaveLength(3)
     expect(handlers.map((h) => h.event)).toEqual([

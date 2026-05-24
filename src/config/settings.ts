@@ -131,8 +131,8 @@ export async function getAllowedReadDirectories(
   ])
 }
 
-/** @public */
-export async function assertReadAllowed(
+async function assertAllowed(
+  operation: 'read' | 'write',
   filePath: string,
   cwd: string,
 ): Promise<void> {
@@ -148,6 +148,22 @@ export async function assertReadAllowed(
   }
 
   throw new Error(
-    `read denied: ${filePath} is outside allowed directories. Configure extra directories with /cradle-settings.`,
+    `${operation} denied: ${filePath} is outside allowed directories. Configure extra directories with /cradle-settings.`,
   )
+}
+
+/** @public */
+export async function assertReadAllowed(
+  filePath: string,
+  cwd: string,
+): Promise<void> {
+  return assertAllowed('read', filePath, cwd)
+}
+
+/** @public */
+export async function assertWriteAllowed(
+  filePath: string,
+  cwd: string,
+): Promise<void> {
+  return assertAllowed('write', filePath, cwd)
 }

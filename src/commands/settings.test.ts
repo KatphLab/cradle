@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { loadCradleSettings } from '@config/settings.js'
+import { loadCradleSettings } from '../config/settings.js'
 import {
   DirectoryAllowlistEditor,
   formatDirectoryPath,

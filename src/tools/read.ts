@@ -6,10 +6,8 @@ import {
 import path from 'node:path'
 
 import { assertReadAllowed } from '../config/settings.js'
-
-function normalizePath(inputPath: string): string {
-  return inputPath.replace(/^@/, '')
-}
+import { normalizePath } from '../utils/path.js'
+import { optionalNumber } from '../utils/typebox.js'
 
 /** @public */
 export const readTool = defineTool({
@@ -21,14 +19,8 @@ export const readTool = defineTool({
     path: Type.String({
       description: 'Path to the file to read (relative or absolute)',
     }),
-    offset: Type.Optional(
-      Type.Number({
-        description: 'Line number to start reading from (1-indexed)',
-      }),
-    ),
-    limit: Type.Optional(
-      Type.Number({ description: 'Maximum number of lines to read' }),
-    ),
+    offset: optionalNumber('Line number to start reading from (1-indexed)'),
+    limit: optionalNumber('Maximum number of lines to read'),
   }),
   async execute(toolCallId, parameters, signal, onUpdate, context) {
     const filePath = path.resolve(context.cwd, normalizePath(parameters.path))

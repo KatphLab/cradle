@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { loadCradleSettings, parseDirectoryList } from '@config/settings.js'
+import { loadCradleSettings, parseDirectoryList } from './settings.js'
 
 let tempRoot: string
 
