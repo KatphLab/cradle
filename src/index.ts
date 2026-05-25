@@ -6,6 +6,7 @@ import { registerStatsCommand } from './commands/stats.js'
 import { registerShellHook } from './hooks/shell.js'
 import { registerSpecModeHook } from './hooks/spec-mode.js'
 import { registerSystemReminderHook } from './hooks/system-reminder.js'
+import { applyPatchTool } from './tools/apply-patch.js'
 import { bashTool } from './tools/bash.js'
 import { editTool } from './tools/edit.js'
 import { globTool } from './tools/glob.js'
@@ -34,6 +35,7 @@ export default function configureExtension(
   pi.registerTool(globTool)
   pi.registerTool(editTool)
   pi.registerTool(writeTool)
+  pi.registerTool(applyPatchTool)
   pi.registerTool(bashTool)
   pi.registerTool(todoTool)
 

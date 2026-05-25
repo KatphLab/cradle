@@ -33,7 +33,7 @@ describe('configureExtension', () => {
 
     configureExtension(pi)
 
-    expect(registeredTools).toHaveLength(8)
+    expect(registeredTools).toHaveLength(9)
     expect(registeredTools).toEqual([
       expect.objectContaining({ name: 'read' }),
       expect.objectContaining({ name: 'ls' }),
@@ -41,6 +41,7 @@ describe('configureExtension', () => {
       expect.objectContaining({ name: 'glob' }),
       expect.objectContaining({ name: 'edit' }),
       expect.objectContaining({ name: 'write' }),
+      expect.objectContaining({ name: 'apply_patch' }),
       expect.objectContaining({ name: 'bash' }),
       expect.objectContaining({ name: 'todo' }),
     ])
