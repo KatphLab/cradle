@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import configureExtension from './index.js'
 
 describe('configureExtension', () => {
@@ -8,7 +8,15 @@ describe('configureExtension', () => {
     const handlers: { event: string; fn: unknown }[] = []
     const commandNames: string[] = []
 
-    const pi: Pick<ExtensionAPI, 'registerTool' | 'registerCommand' | 'on'> = {
+    const pi: Pick<
+      ExtensionAPI,
+      | 'registerTool'
+      | 'registerCommand'
+      | 'on'
+      | 'appendEntry'
+      | 'getActiveTools'
+      | 'setActiveTools'
+    > = {
       registerTool: (tool) => {
         registeredTools.push(tool)
       },
@@ -18,11 +26,14 @@ describe('configureExtension', () => {
       on: (event, handler) => {
         handlers.push({ event, fn: handler })
       },
+      appendEntry: vi.fn(),
+      getActiveTools: () => [],
+      setActiveTools: vi.fn(),
     }
 
     configureExtension(pi)
 
-    expect(registeredTools).toHaveLength(8)
+    expect(registeredTools).toHaveLength(9)
     expect(registeredTools).toEqual([
       expect.objectContaining({ name: 'read' }),
       expect.objectContaining({ name: 'ls' }),
@@ -32,13 +43,17 @@ describe('configureExtension', () => {
       expect.objectContaining({ name: 'write' }),
       expect.objectContaining({ name: 'bash' }),
       expect.objectContaining({ name: 'todo' }),
+      expect.objectContaining({ name: 'create_spec' }),
     ])
-    expect(commandNames).toEqual(['cradle-settings', 'stats'])
-    expect(handlers).toHaveLength(3)
+    expect(commandNames).toEqual(['cradle-settings', 'stats', 'spec'])
+    expect(handlers).toHaveLength(6)
     expect(handlers.map((h) => h.event)).toEqual([
       'tool_call',
       'session_start',
       'context',
+      'session_start',
+      'before_agent_start',
+      'tool_call',
     ])
   })
 })
