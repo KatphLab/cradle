@@ -248,6 +248,7 @@ const eslintConfig = defineConfig([
       'max-lines-per-function': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/ban-ts-comment': 'off',
+      'unicorn/no-null': 'off',
     },
   },
   {

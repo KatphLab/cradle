@@ -9,14 +9,14 @@ import { assertWriteAllowed } from '../config/settings.js'
 import { normalizePath } from '../utils/path.js'
 
 /** @public */
-export const createTool = defineTool({
-  name: 'create',
-  label: 'Create',
+export const writeTool = defineTool({
+  name: 'write',
+  label: 'Write',
   description:
     'Create or overwrite a file with the provided content. Parent directories are created automatically.',
   parameters: Type.Object({
     path: Type.String({
-      description: 'Path to the file to create (relative or absolute)',
+      description: 'Path to the file to write (relative or absolute)',
     }),
     content: Type.String({
       description: 'Content to write to the file',

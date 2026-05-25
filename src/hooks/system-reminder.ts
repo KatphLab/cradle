@@ -7,6 +7,8 @@ import {
   type ExtensionAPI,
 } from '@earendil-works/pi-coding-agent'
 
+import { formatTodoReminder, reconstructTodos } from '../utils/todo-state.js'
+
 const SYSTEM_REMINDER_FILE = 'SYSTEM_REMINDER.md'
 const SYSTEM_REMINDER_TYPE = 'cradle-system-reminder'
 const SYSTEM_REMINDER_TOKEN_LIMIT = 500
@@ -33,14 +35,28 @@ export function registerSystemReminderHook(pi: Pick<ExtensionAPI, 'on'>): void {
     const messages = event.messages.filter(
       (message) => !isSystemReminder(message),
     )
-    const reminder = await loadSystemReminder(context.cwd)
 
-    if (!reminder) {
+    const parts: string[] = []
+
+    // File-based reminder
+    const fileReminder = await loadSystemReminder(context.cwd)
+    if (fileReminder) {
+      parts.push(fileReminder)
+    }
+
+    // Active task list reminder
+    const currentTodos = reconstructTodos(event.messages)
+    const hasActiveTodos = currentTodos.some((t) => t.status !== 'completed')
+    if (hasActiveTodos) {
+      parts.push(formatTodoReminder(currentTodos))
+    }
+
+    if (parts.length === 0) {
       return { messages }
     }
 
     return {
-      messages: [...messages, createSystemReminderMessage(reminder)],
+      messages: [...messages, createSystemReminderMessage(parts.join('\n\n'))],
     }
   })
 }

@@ -93,6 +93,17 @@ function createStaleReminder(content: string): AgentMessage {
   }
 }
 
+function createTodoToolResult(text: string): AgentMessage {
+  return {
+    role: 'toolResult',
+    toolName: 'todo',
+    toolCallId: 'call_1',
+    content: [{ type: 'text', text }],
+    isError: false,
+    timestamp: Date.now(),
+  }
+}
+
 describe('registerSystemReminderHook', () => {
   beforeEach(async () => {
     vi.useFakeTimers()
@@ -201,6 +212,36 @@ describe('registerSystemReminderHook', () => {
     )
 
     expect(result?.messages).toEqual([userMessage])
+  })
+
+  it('adds active todo reminder alongside file reminder', async () => {
+    const handlers: RegisteredHandler[] = []
+    registerSystemReminderHook(createPi(handlers))
+    await writeFile(
+      path.join(tempRoot, 'SYSTEM_REMINDER.md'),
+      'Always prefer tiny changes.\n',
+    )
+
+    const userMessage = createUserMessage('please fix this')
+    const todoResult = createTodoToolResult('1. [in_progress] Fix bug')
+    const handler = getContextHandler(handlers)
+    const result = await handler(
+      { messages: [userMessage, todoResult] },
+      { cwd: tempRoot },
+    )
+
+    expect(result?.messages).toEqual([
+      userMessage,
+      todoResult,
+      {
+        role: 'custom',
+        customType: 'cradle-system-reminder',
+        content:
+          '<system-reminder>\nAlways prefer tiny changes.\n\n## Current Todos\n1. [in_progress] Fix bug\n</system-reminder>',
+        display: false,
+        timestamp: Date.now(),
+      },
+    ])
   })
 
   it('throws unexpected file read errors', async () => {

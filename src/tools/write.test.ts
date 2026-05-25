@@ -3,16 +3,16 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTool } from './create.js'
+import { writeTool } from './write.js'
 
 const cwd = process.cwd()
 
-async function execCreate(
+async function execWrite(
   filePath: string,
   content: string,
   workingDirectory = cwd,
 ) {
-  return createTool.execute(
+  return writeTool.execute(
     'test-call',
     { path: filePath, content },
     undefined,
@@ -26,8 +26,8 @@ let tempRoot: string
 let deniedRoot: string
 
 beforeAll(async () => {
-  tempRoot = await mkdtemp(path.join(tmpdir(), 'pi-create-test-'))
-  deniedRoot = await mkdtemp(path.join(tmpdir(), 'pi-create-denied-'))
+  tempRoot = await mkdtemp(path.join(tmpdir(), 'pi-write-test-'))
+  deniedRoot = await mkdtemp(path.join(tmpdir(), 'pi-write-denied-'))
 })
 
 afterAll(async () => {
@@ -35,9 +35,9 @@ afterAll(async () => {
   await rm(deniedRoot, { force: true, recursive: true })
 })
 
-describe('createTool', () => {
-  it('creates a file', async () => {
-    const result = await execCreate('new-file.txt', 'hello world', tempRoot)
+describe('writeTool', () => {
+  it('writes a file', async () => {
+    const result = await execWrite('new-file.txt', 'hello world', tempRoot)
     expect(result.content).toHaveLength(1)
     expect(result.content[0]).toMatchObject({ type: 'text' })
 
@@ -49,7 +49,7 @@ describe('createTool', () => {
     const deniedFile = path.join(deniedRoot, 'denied.txt')
     await writeFile(deniedFile, 'denied')
     await expect(
-      execCreate(path.join(deniedRoot, 'denied.txt'), 'changed', tempRoot),
+      execWrite(path.join(deniedRoot, 'denied.txt'), 'changed', tempRoot),
     ).rejects.toThrow('write denied')
   })
 })
