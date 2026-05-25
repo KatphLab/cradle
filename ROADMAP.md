@@ -6,7 +6,7 @@
 
 ## Tools
 
-- [ ] ApplyPatch — harnass patch grammar (`src/tools/apply-patch.ts`)
+- [x] ApplyPatch — harnass patch grammar (`src/tools/apply-patch.ts`)
 - [ ] AskUser — standardized questionnaire TUI (`src/tools/ask-user.ts`)
 - [ ] CreateMission — mission metadata scaffolding (`src/tools/create-mission.ts`)
 - [ ] EndFeatureRun — worker completion boundary (`src/tools/end-feature-run.ts`)
@@ -62,4 +62,4 @@
 
 ---
 
-_Last updated: `7175374e6c1cca6202ef70310619a332a77db4f6`_
+_Last updated: `b7984b1`_
