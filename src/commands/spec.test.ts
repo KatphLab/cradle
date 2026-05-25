@@ -6,34 +6,34 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { registerSpecCommand, setSpecModeEnabled } from './spec.js'
 
-const NORMAL_MODE_TOOLS = [
-  'read',
-  'ls',
-  'grep',
-  'glob',
-  'edit',
-  'write',
-  'bash',
-  'todo',
-]
+type ToolInfo = ReturnType<ExtensionAPI['getAllTools']>[number]
+
+const ALL_TOOL_NAMES = ['read', 'write', 'apply_patch']
 const SPEC_MODE_TOOLS = ['read', 'glob', 'grep', 'ls', 'edit', 'write', 'todo']
+
+function createToolInfo(name: string): ToolInfo {
+  return {
+    name,
+    description: `${name} description`,
+    parameters: { type: 'object', properties: {} },
+    sourceInfo: {
+      path: `<test:${name}>`,
+      source: 'builtin',
+      scope: 'temporary',
+      origin: 'top-level',
+    },
+  }
+}
 
 function createMockSpecModeState(): {
   isEnabled: () => boolean
   setEnabled: (enabled: boolean) => void
-  getPreviousActiveTools: () => string[] | undefined
-  setPreviousActiveTools: (tools: string[] | undefined) => void
 } {
   let enabled = false
-  let previousTools: string[] | undefined
   return {
     isEnabled: () => enabled,
     setEnabled: (v: boolean) => {
       enabled = v
-    },
-    getPreviousActiveTools: () => previousTools,
-    setPreviousActiveTools: (tools: string[] | undefined) => {
-      previousTools = tools
     },
   }
 }
@@ -42,17 +42,19 @@ function setupCommand() {
   let handler:
     | ((args: string, context: ExtensionCommandContext) => Promise<void>)
     | undefined
-  const getActiveTools = vi.fn(() => ['read', 'write'])
+  const getAllTools = vi.fn(() =>
+    ALL_TOOL_NAMES.map((name) => createToolInfo(name)),
+  )
   const setActiveTools = vi.fn()
   const appendEntry = vi.fn()
   const pi: Pick<
     ExtensionAPI,
-    'registerCommand' | 'getActiveTools' | 'setActiveTools' | 'appendEntry'
+    'registerCommand' | 'getAllTools' | 'setActiveTools' | 'appendEntry'
   > = {
     registerCommand: (_name, options) => {
       handler = options.handler
     },
-    getActiveTools,
+    getAllTools,
     setActiveTools,
     appendEntry,
   }
@@ -60,7 +62,7 @@ function setupCommand() {
 
   registerSpecCommand(pi, state)
 
-  return { appendEntry, getActiveTools, handler, setActiveTools, state }
+  return { appendEntry, getAllTools, handler, setActiveTools, state }
 }
 
 function createContext() {
@@ -78,8 +80,8 @@ describe('registerSpecCommand', () => {
     vi.restoreAllMocks()
   })
 
-  it('enables spec mode and stores previous active tools', async () => {
-    const { appendEntry, getActiveTools, handler, setActiveTools, state } =
+  it('enables spec mode', async () => {
+    const { appendEntry, getAllTools, handler, setActiveTools, state } =
       setupCommand()
     const context = createContext()
 
@@ -87,7 +89,7 @@ describe('registerSpecCommand', () => {
     await handler?.('', context)
 
     expect(state.isEnabled()).toBe(true)
-    expect(getActiveTools).toHaveBeenCalledOnce()
+    expect(getAllTools).not.toHaveBeenCalled()
     expect(setActiveTools).toHaveBeenCalledWith(SPEC_MODE_TOOLS)
     expect(appendEntry).toHaveBeenCalledWith('cradle-spec-mode', {
       enabled: true,
@@ -95,7 +97,7 @@ describe('registerSpecCommand', () => {
     expect(context.ui.setStatus).toHaveBeenCalledWith('spec-mode', 'spec')
   })
 
-  it('disables spec mode and restores previous active tools', async () => {
+  it('disables spec mode and enables all registered tools', async () => {
     const { appendEntry, handler, setActiveTools, state } = setupCommand()
     const context = createContext()
 
@@ -105,7 +107,7 @@ describe('registerSpecCommand', () => {
     await handler?.('', context)
 
     expect(state.isEnabled()).toBe(false)
-    expect(setActiveTools).toHaveBeenLastCalledWith(['read', 'write'])
+    expect(setActiveTools).toHaveBeenLastCalledWith(ALL_TOOL_NAMES)
     expect(appendEntry).toHaveBeenLastCalledWith('cradle-spec-mode', {
       enabled: false,
     })
@@ -115,7 +117,7 @@ describe('registerSpecCommand', () => {
     expect(lastStatusCall?.[1]).toBeUndefined()
   })
 
-  it('disables spec mode to normal tools when no previous tools exist', () => {
+  it('enables all registered tools when disabling spec mode directly', () => {
     const setActiveTools = vi.fn()
     const appendEntry = vi.fn()
     const state = createMockSpecModeState()
@@ -124,7 +126,7 @@ describe('registerSpecCommand', () => {
     setSpecModeEnabled(
       {
         appendEntry,
-        getActiveTools: () => [],
+        getAllTools: () => ALL_TOOL_NAMES.map((name) => createToolInfo(name)),
         setActiveTools,
       },
       // @ts-expect-error minimal command context mock
@@ -133,28 +135,23 @@ describe('registerSpecCommand', () => {
       false,
     )
 
-    expect(setActiveTools).toHaveBeenCalledWith(NORMAL_MODE_TOOLS)
+    expect(setActiveTools).toHaveBeenCalledWith(ALL_TOOL_NAMES)
   })
 
-  it('does not replace previous active tools when enabling twice', () => {
+  it('does not query all tools while enabling spec mode repeatedly', () => {
     const setActiveTools = vi.fn()
     const appendEntry = vi.fn()
-    const getActiveTools = vi
-      .fn()
-      .mockReturnValueOnce(['read'])
-      .mockReturnValueOnce(['write'])
+    const getAllTools = vi.fn(() => [])
     const state = createMockSpecModeState()
     const context = createContext()
 
-    const pi = { appendEntry, getActiveTools, setActiveTools }
+    const pi = { appendEntry, getAllTools, setActiveTools }
     // @ts-expect-error minimal command context mock
     setSpecModeEnabled(pi, context, state, true)
     // @ts-expect-error minimal command context mock
     setSpecModeEnabled(pi, context, state, true)
-    // @ts-expect-error minimal command context mock
-    setSpecModeEnabled(pi, context, state, false)
 
-    expect(getActiveTools).toHaveBeenCalledOnce()
-    expect(setActiveTools).toHaveBeenLastCalledWith(['read'])
+    expect(getAllTools).not.toHaveBeenCalled()
+    expect(setActiveTools).toHaveBeenLastCalledWith(SPEC_MODE_TOOLS)
   })
 })

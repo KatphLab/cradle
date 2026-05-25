@@ -4,7 +4,6 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 
 import {
-  NORMAL_MODE_TOOLS,
   SPEC_MODE_STATE_TYPE,
   SPEC_MODE_TOOLS,
   type SpecModeState,
@@ -17,14 +16,15 @@ function persistSpecModeState(
   pi.appendEntry(SPEC_MODE_STATE_TYPE, { enabled })
 }
 
+function getAllToolNames(pi: Pick<ExtensionAPI, 'getAllTools'>): string[] {
+  return pi.getAllTools().map((tool) => tool.name)
+}
+
 function enableSpecMode(
-  pi: Pick<ExtensionAPI, 'getActiveTools' | 'setActiveTools' | 'appendEntry'>,
+  pi: Pick<ExtensionAPI, 'setActiveTools' | 'appendEntry'>,
   context: ExtensionContext,
   state: SpecModeState,
 ): void {
-  if (!state.isEnabled()) {
-    state.setPreviousActiveTools(pi.getActiveTools())
-  }
   state.setEnabled(true)
   pi.setActiveTools(SPEC_MODE_TOOLS)
   persistSpecModeState(pi, true)
@@ -36,14 +36,12 @@ function enableSpecMode(
 }
 
 function disableSpecMode(
-  pi: Pick<ExtensionAPI, 'setActiveTools' | 'appendEntry'>,
+  pi: Pick<ExtensionAPI, 'getAllTools' | 'setActiveTools' | 'appendEntry'>,
   context: ExtensionContext,
   state: SpecModeState,
 ): void {
-  const restoredTools = state.getPreviousActiveTools() ?? NORMAL_MODE_TOOLS
   state.setEnabled(false)
-  state.setPreviousActiveTools(undefined)
-  pi.setActiveTools(restoredTools)
+  pi.setActiveTools(getAllToolNames(pi))
   persistSpecModeState(pi, false)
   context.ui.setStatus('spec-mode', undefined)
   context.ui.notify('Spec mode disabled. Full tool access restored.', 'info')
@@ -51,7 +49,7 @@ function disableSpecMode(
 
 /** @public */
 export function setSpecModeEnabled(
-  pi: Pick<ExtensionAPI, 'getActiveTools' | 'setActiveTools' | 'appendEntry'>,
+  pi: Pick<ExtensionAPI, 'getAllTools' | 'setActiveTools' | 'appendEntry'>,
   context: ExtensionContext,
   state: SpecModeState,
   enabled: boolean,
@@ -67,7 +65,7 @@ export function setSpecModeEnabled(
 export function registerSpecCommand(
   pi: Pick<
     ExtensionAPI,
-    'registerCommand' | 'getActiveTools' | 'setActiveTools' | 'appendEntry'
+    'registerCommand' | 'getAllTools' | 'setActiveTools' | 'appendEntry'
   >,
   state: SpecModeState,
 ): void {

@@ -1,14 +1,4 @@
 export const SPEC_MODE_STATE_TYPE = 'cradle-spec-mode'
-export const NORMAL_MODE_TOOLS = [
-  'read',
-  'ls',
-  'grep',
-  'glob',
-  'edit',
-  'write',
-  'bash',
-  'todo',
-]
 export const SPEC_MODE_TOOLS = [
   'read',
   'glob',
@@ -26,8 +16,6 @@ interface SpecModeEntryData {
 export interface SpecModeState {
   isEnabled: () => boolean
   setEnabled: (enabled: boolean) => void
-  getPreviousActiveTools: () => string[] | undefined
-  setPreviousActiveTools: (tools: string[] | undefined) => void
 }
 
 interface SessionEntryLike {
@@ -50,16 +38,11 @@ function isSpecModeEntryData(value: unknown): value is SpecModeEntryData {
 
 export function createSpecModeState(): SpecModeState {
   let enabled = false
-  let previousActiveTools: string[] | undefined
 
   return {
     isEnabled: () => enabled,
     setEnabled: (nextEnabled) => {
       enabled = nextEnabled
-    },
-    getPreviousActiveTools: () => previousActiveTools,
-    setPreviousActiveTools: (tools) => {
-      previousActiveTools = tools
     },
   }
 }

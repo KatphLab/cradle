@@ -7,7 +7,6 @@ import type {
 
 import { SPEC_MODE_SYSTEM_PROMPT } from '../prompts/spec.js'
 import {
-  NORMAL_MODE_TOOLS,
   SPEC_MODE_TOOLS,
   restoreSpecModeEnabled,
   type SpecModeState,
@@ -43,29 +42,28 @@ function updateSpecStatus(context: ExtensionContext, enabled: boolean): void {
   )
 }
 
+function getAllToolNames(pi: Pick<ExtensionAPI, 'getAllTools'>): string[] {
+  return pi.getAllTools().map((tool) => tool.name)
+}
+
 function restoreToolMode(
-  pi: Pick<ExtensionAPI, 'setActiveTools'>,
+  pi: Pick<ExtensionAPI, 'getAllTools' | 'setActiveTools'>,
   context: ExtensionContext,
   state: SpecModeState,
 ): void {
-  if (state.isEnabled()) {
-    pi.setActiveTools(SPEC_MODE_TOOLS)
-  } else {
-    pi.setActiveTools(NORMAL_MODE_TOOLS)
-  }
+  pi.setActiveTools(state.isEnabled() ? SPEC_MODE_TOOLS : getAllToolNames(pi))
   updateSpecStatus(context, state.isEnabled())
 }
 
 /** @public */
 export function registerSpecModeHook(
-  pi: Pick<ExtensionAPI, 'on' | 'setActiveTools'>,
+  pi: Pick<ExtensionAPI, 'on' | 'getAllTools' | 'setActiveTools'>,
   state: SpecModeState,
 ): void {
   pi.on('session_start', (_event, context) => {
     state.setEnabled(
       restoreSpecModeEnabled(context.sessionManager.getEntries()),
     )
-    state.setPreviousActiveTools(undefined)
     restoreToolMode(pi, context, state)
   })
 
@@ -92,7 +90,7 @@ export function registerSpecModeHook(
     return {
       block: true,
       reason:
-        'Spec mode blocks bash, edit, and write. You may use edit and write for .pi/specs/*.md files. Use read, glob, grep, ls, and todo otherwise.',
+        'Spec mode blocks bash, edit, and write outside .pi/specs/*.md. Disable spec mode to mutate implementation files.',
     }
   })
 }

@@ -3,34 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { registerSpecModeHook } from './spec-mode.js'
 
-const NORMAL_MODE_TOOLS = [
-  'read',
-  'ls',
-  'grep',
-  'glob',
-  'edit',
-  'write',
-  'bash',
-  'todo',
-]
+const ALL_TOOL_NAMES = ['read', 'write', 'apply_patch']
 const SPEC_MODE_TOOLS = ['read', 'glob', 'grep', 'ls', 'edit', 'write', 'todo']
 
 function createMockSpecModeState(): {
   isEnabled: () => boolean
   setEnabled: (enabled: boolean) => void
-  getPreviousActiveTools: () => string[] | undefined
-  setPreviousActiveTools: (tools: string[] | undefined) => void
 } {
   let enabled = false
-  let previousTools: string[] | undefined
   return {
     isEnabled: () => enabled,
     setEnabled: (v: boolean) => {
       enabled = v
-    },
-    getPreviousActiveTools: () => previousTools,
-    setPreviousActiveTools: (tools: string[] | undefined) => {
-      previousTools = tools
     },
   }
 }
@@ -38,10 +22,22 @@ function createMockSpecModeState(): {
 function registerHook() {
   const handlers: { event: string; fn: unknown }[] = []
   const setActiveTools = vi.fn()
-  const pi: Pick<ExtensionAPI, 'on' | 'setActiveTools'> = {
+  const pi: Pick<ExtensionAPI, 'on' | 'getAllTools' | 'setActiveTools'> = {
     on: (event, handler) => {
       handlers.push({ event, fn: handler })
     },
+    getAllTools: () =>
+      ALL_TOOL_NAMES.map((name) => ({
+        name,
+        description: `${name} description`,
+        parameters: { type: 'object', properties: {} },
+        sourceInfo: {
+          path: `<test:${name}>`,
+          source: 'builtin',
+          scope: 'temporary',
+          origin: 'top-level',
+        },
+      })),
     setActiveTools,
   }
   const state = createMockSpecModeState()
@@ -90,7 +86,7 @@ describe('registerSpecModeHook', () => {
     expect(context.ui.setStatus).toHaveBeenCalledWith('spec-mode', 'spec')
   })
 
-  it('restores normal tools on session start when spec mode is disabled', async () => {
+  it('enables all registered tools on session start when spec mode is disabled', async () => {
     const { handlers, setActiveTools } = registerHook()
     const sessionStart = getHandler(handlers, 'session_start')
     const context = createContext([])
@@ -98,7 +94,7 @@ describe('registerSpecModeHook', () => {
     // @ts-expect-error minimal handler mock
     await sessionStart?.({}, context)
 
-    expect(setActiveTools).toHaveBeenCalledWith(NORMAL_MODE_TOOLS)
+    expect(setActiveTools).toHaveBeenCalledWith(ALL_TOOL_NAMES)
     expect(context.ui.setStatus).toHaveBeenCalledWith('spec-mode', undefined)
   })
 
@@ -147,7 +143,6 @@ describe('registerSpecModeHook', () => {
     const { handlers } = registerHook()
     const toolCall = getHandler(handlers, 'tool_call')
 
-    // state starts disabled
     // @ts-expect-error minimal handler mock
     const result = toolCall?.({ toolName: 'bash' }, {})
     expect(result).toBeUndefined()

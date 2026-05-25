@@ -26,6 +26,7 @@ export default function configureExtension(
     | 'on'
     | 'appendEntry'
     | 'getActiveTools'
+    | 'getAllTools'
     | 'setActiveTools'
   >,
 ): void {

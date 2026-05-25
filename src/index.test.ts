@@ -15,6 +15,7 @@ describe('configureExtension', () => {
       | 'on'
       | 'appendEntry'
       | 'getActiveTools'
+      | 'getAllTools'
       | 'setActiveTools'
     > = {
       registerTool: (tool) => {
@@ -28,6 +29,7 @@ describe('configureExtension', () => {
       },
       appendEntry: vi.fn(),
       getActiveTools: () => [],
+      getAllTools: () => [],
       setActiveTools: vi.fn(),
     }
 
