@@ -1,17 +1,8 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { classifyShellRisk, clearShellRiskCache } from '../config/shell-risk.js'
 import { bashTool } from './bash.js'
 
 let withPatternsDirectory: string
@@ -30,74 +21,14 @@ beforeAll(async () => {
       reason: 'Recursive force deletion',
     },
     {
-      pattern: String.raw`\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r`,
-      level: 'critical',
-      reason: 'Recursive force deletion',
-    },
-    {
-      pattern: String.raw`\brm\s+.*--recursive.*--force`,
-      level: 'critical',
-      reason: 'Recursive force deletion',
-    },
-    {
-      pattern: String.raw`\brm\s+.*--force.*--recursive`,
-      level: 'critical',
-      reason: 'Recursive force deletion',
-    },
-    {
       pattern: String.raw`\bsudo\b`,
       level: 'high',
       reason: 'Elevated privileges',
     },
     {
-      pattern: String.raw`curl\s+.*\|\s*(sh|bash)\b`,
-      level: 'critical',
-      reason: 'Remote code execution',
-    },
-    {
-      pattern: String.raw`wget\s+.*\|\s*(sh|bash)\b`,
-      level: 'critical',
-      reason: 'Remote code execution',
-    },
-    {
-      pattern: String.raw`\bgit\s+push\s+.*(--force\b|-f\b)`,
-      level: 'high',
-      reason: 'Force push to remote',
-    },
-    {
-      pattern: String.raw`\bfind\s+.*-delete\b`,
-      level: 'high',
-      reason: 'Destructive find deletion',
-    },
-    {
-      pattern: String.raw`\bdd\s+if=`,
-      level: 'high',
-      reason: 'Direct disk write',
-    },
-    {
-      pattern: String.raw`\bmkfs\b`,
-      level: 'critical',
-      reason: 'Filesystem formatting',
-    },
-    {
       pattern: String.raw`\bchmod\s+.*777`,
       level: 'medium',
       reason: 'Broad permission change',
-    },
-    {
-      pattern: String.raw`\bchown\s+-R`,
-      level: 'medium',
-      reason: 'Recursive ownership change',
-    },
-    {
-      pattern: String.raw`\bdocker\s+system\s+prune`,
-      level: 'high',
-      reason: 'Destructive container cleanup',
-    },
-    {
-      pattern: String.raw`>\s*\/(etc|usr|var|home)\/`,
-      level: 'high',
-      reason: 'Writing to system directory',
     },
   ]
 
@@ -110,53 +41,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await rm(withPatternsDirectory, { force: true, recursive: true })
   await rm(withoutPatternsDirectory, { force: true, recursive: true })
-})
-
-beforeEach(() => {
-  clearShellRiskCache()
-})
-
-describe('classifyShellRisk', () => {
-  it('returns undefined when no patterns provided', () => {
-    expect(classifyShellRisk('rm -rf /', [])).toBeUndefined()
-  })
-
-  it('classifies rm -rf as critical', () => {
-    expect(
-      classifyShellRisk('rm -rf /', [
-        {
-          pattern: /\brm -rf\b/,
-          level: 'critical',
-          reason: 'Deletion',
-        },
-      ]),
-    ).toEqual({
-      level: 'critical',
-      reason: 'Deletion',
-    })
-  })
-
-  it('classifies sudo as high', () => {
-    expect(
-      classifyShellRisk('sudo apt update', [
-        { pattern: /\bsudo\b/, level: 'high', reason: 'Elevated privileges' },
-      ]),
-    ).toEqual({
-      level: 'high',
-      reason: 'Elevated privileges',
-    })
-  })
-
-  it('classifies ls as low', () => {
-    expect(
-      classifyShellRisk('ls -la', [
-        { pattern: /\brm\b/, level: 'critical', reason: 'Deletion' },
-      ]),
-    ).toEqual({
-      level: 'low',
-      reason: 'No known risk patterns detected',
-    })
-  })
 })
 
 describe('bashTool', () => {

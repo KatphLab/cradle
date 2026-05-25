@@ -1,9 +1,8 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { saveCradleSettings } from '../config/settings.js'
 import { readTool } from './read.js'
 
 const cwd = process.cwd()
@@ -65,9 +64,15 @@ describe('readTool', () => {
   })
 
   it('reads from configured directories with read permission', async () => {
-    await saveCradleSettings(tempRoot, {
-      permissions: [{ path: extraRoot, read: true, write: false, bash: false }],
-    })
+    await mkdir(path.join(tempRoot, '.pi', 'cradle'), { recursive: true })
+    await writeFile(
+      path.join(tempRoot, '.pi', 'cradle', 'settings.json'),
+      JSON.stringify({
+        permissions: [
+          { path: extraRoot, read: true, write: false, bash: false },
+        ],
+      }),
+    )
 
     const result = await execRead(extraFile, tempRoot)
     expect(result.content).toEqual([{ type: 'text', text: 'extra' }])

@@ -33,8 +33,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function getStringProperty(value: unknown, key: string): string | undefined {
   if (!isRecord(value)) return undefined
   if (!(key in value)) return undefined
-  const property = value[key]
-  return typeof property === 'string' ? property : undefined
+  return typeof value[key] === 'string' ? value[key] : undefined
 }
 
 function updateSpecStatus(context: ExtensionContext, enabled: boolean): void {

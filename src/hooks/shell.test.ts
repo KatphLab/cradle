@@ -2,17 +2,8 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { clearShellRiskCache } from '../config/shell-risk.js'
 import { registerShellHook } from './shell.js'
 
 let withPatternsDirectory: string
@@ -46,10 +37,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await rm(withPatternsDirectory, { force: true, recursive: true })
   await rm(withoutPatternsDirectory, { force: true, recursive: true })
-})
-
-beforeEach(() => {
-  clearShellRiskCache()
 })
 
 describe('registerShellHook', () => {

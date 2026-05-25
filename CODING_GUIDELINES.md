@@ -193,6 +193,7 @@ Do not reference a class, variable, enum, or type alias before it is declared in
 - Test any change to: state transitions, side effects (file I/O, network, environment), data contract or output shape, and error/edge cases.
 - For every behavior change, add or update tests covering both the success path and the failure path.
 - Minimum contract: at least one happy-path assertion and one failure/error-path assertion per changed behavior.
+- Test public APIs only, using varied data scenarios. Do not test internal helper functions directly. If a helper has complex logic worth testing, test it through the public API that consumes it.
 - Do not leave skipped or todo tests. Enforced by `no-restricted-syntax` (catches `it.skip`, `test.todo`, etc.). Note: test files override `no-restricted-syntax` for parent-import flexibility, so the skipped-test check applies in non-test source files. In test files, this is enforced by code review.
 - Keep per-file coverage at or above 90% for statements, branches, functions, and lines.
 - Test files are exempt from the function-length limit, empty-function restrictions, and the useless-undefined restriction. All other rules apply.

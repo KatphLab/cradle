@@ -1,5 +1,10 @@
 [
   {
+    "pattern": "\\brm\\s+-f\\s+\\.eslintcache(?:\\s|$)",
+    "level": "low",
+    "reason": "Removing a transient cache file is reversible"
+  },
+  {
     "pattern": "\\brm\\b.*(-[a-zA-Z]*[rf]|--recursive|--force)\\b",
     "level": "critical",
     "reason": "Recursive or force deletion can destroy data irreversibly"

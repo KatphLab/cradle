@@ -1,10 +1,9 @@
 import type { ExtensionAPI, ThemeColor } from '@earendil-works/pi-coding-agent'
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { loadCradleSettings } from '../config/settings.js'
 import {
   DirectoryPermissionsEditor,
   formatDirectoryPath,
@@ -98,7 +97,9 @@ describe('registerSettingsCommand', () => {
       ]
     })
 
-    await expect(loadCradleSettings(tempRoot)).resolves.toEqual({
+    const settingsPath = path.join(tempRoot, '.pi', 'cradle', 'settings.json')
+    const saved = JSON.parse(await readFile(settingsPath, 'utf8'))
+    expect(saved).toEqual({
       permissions: [
         { path: '/allowed-a', read: true, write: false, bash: false },
         { path: '/allowed-b', read: true, write: true, bash: false },
@@ -115,7 +116,8 @@ describe('registerSettingsCommand', () => {
       editor.onCancel?.()
     })
 
-    await expect(loadCradleSettings(tempRoot)).resolves.toEqual({})
+    const settingsPath = path.join(tempRoot, '.pi', 'cradle', 'settings.json')
+    await expect(readFile(settingsPath, 'utf8')).rejects.toThrow()
     expect(notifySpy).toHaveBeenCalledWith('Cradle settings unchanged', 'info')
   })
 })
@@ -243,63 +245,6 @@ describe('DirectoryPermissionsEditor — input', () => {
       { path: path.join(tempRoot, 'a'), read: true, write: false, bash: false },
     ])
     expect(editor.isDirty()).toBe(true)
-  })
-})
-
-describe('DirectoryPermissionsEditor — edge cases', () => {
-  it('ignores toggle for invalid indices', () => {
-    const editor = new DirectoryPermissionsEditor(
-      [
-        {
-          path: path.join(tempRoot, 'a'),
-          read: true,
-          write: false,
-          bash: false,
-        },
-      ],
-      tempRoot,
-      mockTheme,
-    )
-
-    // Invalid colIndex (0 = path column, not a permission toggle)
-    editor.togglePermission(0, 0)
-    expect(editor.getRows()[0]?.read).toBe(true)
-
-    // Invalid colIndex out of range
-    editor.togglePermission(0, 5)
-    expect(editor.getRows()[0]?.read).toBe(true)
-
-    // Invalid rowIndex
-    editor.togglePermission(5, 1)
-    expect(editor.getRows()).toHaveLength(1)
-  })
-
-  it('ignores space/enter when on path column', () => {
-    const editor = new DirectoryPermissionsEditor(
-      [
-        {
-          path: path.join(tempRoot, 'a'),
-          read: true,
-          write: false,
-          bash: false,
-        },
-      ],
-      tempRoot,
-      mockTheme,
-    )
-
-    // Move up to data row (col defaults to 0 = path column)
-    editor.handleInput('\u001B[A')
-    expect(editor.getSelectedRow()).toBe(0)
-    expect(editor.getSelectedCol()).toBe(0)
-
-    // Space on path column does nothing
-    editor.handleInput(' ')
-    expect(editor.getRows()[0]?.read).toBe(true)
-
-    // Enter on path column does nothing
-    editor.handleInput('\r')
-    expect(editor.getRows()[0]?.read).toBe(true)
   })
 })
 

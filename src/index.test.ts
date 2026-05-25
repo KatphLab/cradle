@@ -33,7 +33,7 @@ describe('configureExtension', () => {
 
     configureExtension(pi)
 
-    expect(registeredTools).toHaveLength(9)
+    expect(registeredTools).toHaveLength(8)
     expect(registeredTools).toEqual([
       expect.objectContaining({ name: 'read' }),
       expect.objectContaining({ name: 'ls' }),
@@ -43,7 +43,6 @@ describe('configureExtension', () => {
       expect.objectContaining({ name: 'write' }),
       expect.objectContaining({ name: 'bash' }),
       expect.objectContaining({ name: 'todo' }),
-      expect.objectContaining({ name: 'create_spec' }),
     ])
     expect(commandNames).toEqual(['cradle-settings', 'stats', 'spec'])
     expect(handlers).toHaveLength(6)

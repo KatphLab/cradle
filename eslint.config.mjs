@@ -187,6 +187,10 @@ const eslintConfig = defineConfig([
         'error',
         { max: 80, skipBlankLines: true, skipComments: true },
       ],
+      'max-lines': [
+        'error',
+        { max: 500, skipBlankLines: true, skipComments: true },
+      ],
       'security/detect-object-injection': 'off',
       'security/detect-non-literal-fs-filename': 'off',
       'max-params': 'off',
@@ -270,6 +274,7 @@ const eslintConfig = defineConfig([
     'vitest.config.ts',
     'vitest.setup.ts',
     'vitest.strict-reporter.ts',
+    'eslint-rules/**',
   ]),
 ])
 

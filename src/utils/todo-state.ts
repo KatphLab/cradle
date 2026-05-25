@@ -34,19 +34,6 @@ class TodoParseError extends Error {
   }
 }
 
-export function isTodoItem(value: unknown): value is TodoItem {
-  if (typeof value !== 'object' || value === null) return false
-  if (!('id' in value)) return false
-  if (!('description' in value)) return false
-  if (!('status' in value)) return false
-  return (
-    typeof value.id === 'number' &&
-    typeof value.description === 'string' &&
-    typeof value.status === 'string' &&
-    isTodoStatus(value.status)
-  )
-}
-
 function parseTodoLine(line: string): TodoItem | undefined {
   const trimmed = line.trim()
   if (!trimmed) return undefined
@@ -93,7 +80,7 @@ function validateTodoText(text: string): TodoParseResult {
   return { todos: todos.toSorted((a, b) => a.id - b.id), errors }
 }
 
-export function parseTodoText(text: string): TodoItem[] {
+function parseTodoText(text: string): TodoItem[] {
   const result = validateTodoText(text)
   if (result.errors.length > 0) {
     throw new TodoParseError(result.errors)
@@ -101,7 +88,7 @@ export function parseTodoText(text: string): TodoItem[] {
   return result.todos
 }
 
-export function findLatestTodoToolResult(
+function findLatestTodoToolResult(
   messages: AgentMessage[],
 ): AgentMessage | undefined {
   for (let index = messages.length - 1; index >= 0; index--) {
@@ -119,7 +106,7 @@ export function findLatestTodoToolResult(
   return undefined
 }
 
-export function isTextContent(
+function isTextContent(
   block: unknown,
 ): block is { type: 'text'; text: string } {
   if (typeof block !== 'object' || block === null) return false
@@ -129,7 +116,7 @@ export function isTextContent(
   return typeof block.text === 'string'
 }
 
-export function extractTodosFromToolResult(message: AgentMessage): TodoItem[] {
+function extractTodosFromToolResult(message: AgentMessage): TodoItem[] {
   if (message.role !== 'toolResult') return []
   const content = message.content
   if (content.length === 0) return []

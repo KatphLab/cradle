@@ -4,12 +4,39 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  createSpecModeState,
-  NORMAL_MODE_TOOLS,
-  SPEC_MODE_TOOLS,
-} from '../utils/spec-state.js'
 import { registerSpecCommand, setSpecModeEnabled } from './spec.js'
+
+const NORMAL_MODE_TOOLS = [
+  'read',
+  'ls',
+  'grep',
+  'glob',
+  'edit',
+  'write',
+  'bash',
+  'todo',
+]
+const SPEC_MODE_TOOLS = ['read', 'glob', 'grep', 'ls', 'edit', 'write', 'todo']
+
+function createMockSpecModeState(): {
+  isEnabled: () => boolean
+  setEnabled: (enabled: boolean) => void
+  getPreviousActiveTools: () => string[] | undefined
+  setPreviousActiveTools: (tools: string[] | undefined) => void
+} {
+  let enabled = false
+  let previousTools: string[] | undefined
+  return {
+    isEnabled: () => enabled,
+    setEnabled: (v: boolean) => {
+      enabled = v
+    },
+    getPreviousActiveTools: () => previousTools,
+    setPreviousActiveTools: (tools: string[] | undefined) => {
+      previousTools = tools
+    },
+  }
+}
 
 function setupCommand() {
   let handler:
@@ -29,7 +56,7 @@ function setupCommand() {
     setActiveTools,
     appendEntry,
   }
-  const state = createSpecModeState()
+  const state = createMockSpecModeState()
 
   registerSpecCommand(pi, state)
 
@@ -91,7 +118,7 @@ describe('registerSpecCommand', () => {
   it('disables spec mode to normal tools when no previous tools exist', () => {
     const setActiveTools = vi.fn()
     const appendEntry = vi.fn()
-    const state = createSpecModeState()
+    const state = createMockSpecModeState()
     const context = createContext()
 
     setSpecModeEnabled(
@@ -116,7 +143,7 @@ describe('registerSpecCommand', () => {
       .fn()
       .mockReturnValueOnce(['read'])
       .mockReturnValueOnce(['write'])
-    const state = createSpecModeState()
+    const state = createMockSpecModeState()
     const context = createContext()
 
     const pi = { appendEntry, getActiveTools, setActiveTools }
