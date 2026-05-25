@@ -1,2 +1,3 @@
 - Before starting implementation, confirm the plan with the user and wait for approval.
 - If stuck for a while, stop and tell the user what is blocking progress instead of trying indefinitely.
+- Do not maintain backwards compatibility for any feature — always prefer the cleanest, most modern implementation.
