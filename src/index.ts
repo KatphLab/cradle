@@ -2,8 +2,9 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 import { registerSettingsCommand } from './commands/settings.js'
 import { registerStatsCommand } from './commands/stats.js'
-import { registerSessionHooks } from './hooks/session.js'
+import { registerShellHook } from './hooks/shell.js'
 import { registerSystemReminderHook } from './hooks/system-reminder.js'
+import { bashTool } from './tools/bash.js'
 import { createTool } from './tools/create.js'
 import { editTool } from './tools/edit.js'
 import { globTool } from './tools/glob.js'
@@ -21,8 +22,9 @@ export default function configureExtension(
   pi.registerTool(globTool)
   pi.registerTool(editTool)
   pi.registerTool(createTool)
+  pi.registerTool(bashTool)
   registerSettingsCommand(pi)
   registerStatsCommand(pi)
-  registerSessionHooks(pi)
+  registerShellHook(pi)
   registerSystemReminderHook(pi)
 }

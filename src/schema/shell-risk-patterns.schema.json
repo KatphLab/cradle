@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "array",
+  "description": "Shell command risk patterns for auto-classification. Place this file as SHELL_RISK_PATTERNS.json in your project root.",
+  "items": {
+    "type": "object",
+    "properties": {
+      "pattern": {
+        "type": "string",
+        "description": "JavaScript RegExp pattern string. Will be passed to new RegExp()."
+      },
+      "level": {
+        "enum": ["low", "medium", "high", "critical"],
+        "description": "Risk level assigned when the pattern matches"
+      },
+      "reason": {
+        "type": "string",
+        "description": "Human-readable explanation shown in confirmation dialogs"
+      }
+    },
+    "required": ["pattern", "level", "reason"],
+    "additionalProperties": false
+  }
+}

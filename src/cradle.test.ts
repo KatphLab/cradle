@@ -22,7 +22,7 @@ describe('configureExtension', () => {
 
     configureExtension(pi)
 
-    expect(registeredTools).toHaveLength(6)
+    expect(registeredTools).toHaveLength(7)
     expect(registeredTools).toEqual([
       expect.objectContaining({ name: 'read' }),
       expect.objectContaining({ name: 'ls' }),
@@ -30,13 +30,12 @@ describe('configureExtension', () => {
       expect.objectContaining({ name: 'glob' }),
       expect.objectContaining({ name: 'edit' }),
       expect.objectContaining({ name: 'create' }),
+      expect.objectContaining({ name: 'bash' }),
     ])
     expect(commandNames).toEqual(['cradle-settings', 'stats'])
-    expect(handlers).toHaveLength(5)
+    expect(handlers).toHaveLength(3)
     expect(handlers.map((h) => h.event)).toEqual([
-      'session_start',
       'tool_call',
-      'agent_end',
       'session_start',
       'context',
     ])
