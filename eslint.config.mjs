@@ -127,7 +127,13 @@ const eslintConfig = defineConfig([
         },
       ],
       '@typescript-eslint/prefer-readonly': 'error',
-      '@typescript-eslint/ban-ts-comment': 'error',
+      '@typescript-eslint/ban-ts-comment': [
+        'error',
+        {
+          'ts-expect-error': true,
+        },
+      ],
+      '@typescript-eslint/max-params': ['error', { max: 7 }],
 
       // Script project rules
       'unused-imports/no-unused-imports': 'error',
@@ -184,7 +190,6 @@ const eslintConfig = defineConfig([
       'security/detect-object-injection': 'off',
       'security/detect-non-literal-fs-filename': 'off',
       'max-params': 'off',
-      '@typescript-eslint/max-params': ['error', { max: 7 }],
       'no-restricted-syntax': [
         'error',
         {
@@ -241,6 +246,14 @@ const eslintConfig = defineConfig([
     files: ['**/*.test.ts'],
     rules: {
       'max-lines-per-function': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
+    },
+  },
+  {
+    files: ['src/config/shell-risk.ts'],
+    rules: {
+      'security/detect-non-literal-regexp': 'off',
     },
   },
   globalIgnores([
