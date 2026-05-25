@@ -371,10 +371,19 @@ export class DirectoryPermissionsEditor implements Component, Focusable {
       10,
       width - prefixWidth - 3 * (TOGGLE_WIDTH + GAP),
     )
-    const pathHeader = truncateToWidth('Path', pathWidth)
-    const readHeader = truncateToWidth(PERMISSION_LABELS.read, TOGGLE_WIDTH)
-    const writeHeader = truncateToWidth(PERMISSION_LABELS.write, TOGGLE_WIDTH)
-    const bashHeader = truncateToWidth(PERMISSION_LABELS.bash, TOGGLE_WIDTH)
+    const pathHeader = truncateToWidth('Path', pathWidth).padEnd(pathWidth)
+    const readHeader = truncateToWidth(
+      PERMISSION_LABELS.read,
+      TOGGLE_WIDTH,
+    ).padEnd(TOGGLE_WIDTH)
+    const writeHeader = truncateToWidth(
+      PERMISSION_LABELS.write,
+      TOGGLE_WIDTH,
+    ).padEnd(TOGGLE_WIDTH)
+    const bashHeader = truncateToWidth(
+      PERMISSION_LABELS.bash,
+      TOGGLE_WIDTH,
+    ).padEnd(TOGGLE_WIDTH)
     return [
       `  ${pathHeader}${' '.repeat(GAP)}${readHeader}${' '.repeat(GAP)}${writeHeader}${' '.repeat(GAP)}${bashHeader}`,
     ]
@@ -401,7 +410,7 @@ export class DirectoryPermissionsEditor implements Component, Focusable {
       const isSelected = index === this.selectedRow
       const prefix = isSelected ? '> ' : '  '
       const displayPath = formatDirectoryPath(row.path, this.cwd)
-      const pathText = truncateToWidth(displayPath, pathWidth)
+      const pathText = truncateToWidth(displayPath, pathWidth).padEnd(pathWidth)
 
       const readText = this.renderToggle(
         row.read,
@@ -426,10 +435,11 @@ export class DirectoryPermissionsEditor implements Component, Focusable {
 
   private renderToggle(value: boolean, isSelected: boolean): string {
     const box = value ? '[✓]' : '[ ]'
+    const padded = box.padEnd(TOGGLE_WIDTH)
     if (isSelected) {
-      return this.theme.fg('accent', this.theme.bold(box))
+      return this.theme.fg('accent', this.theme.bold(padded))
     }
-    return box
+    return padded
   }
 
   private renderInput(width: number): string[] {

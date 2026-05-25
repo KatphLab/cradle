@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -76,6 +77,10 @@ function getEarendilWorksDirectories(): string[] {
   return [...directories]
 }
 
+function getDefaultReadDirectories(): string[] {
+  return [path.join(homedir(), '.agents'), path.join(homedir(), '.pi')]
+}
+
 function isPathInDirectory(filePath: string, directory: string): boolean {
   const relativePath = path.relative(directory, filePath)
   return (
@@ -143,11 +148,14 @@ export async function assertPermission(
     return
   }
 
-  // SDK packages always have read permission
+  // Implicit read directories (SDK packages + defaults)
   if (operation === 'read') {
-    const sdkDirectories = getEarendilWorksDirectories()
+    const implicitDirectories = [
+      ...getEarendilWorksDirectories(),
+      ...getDefaultReadDirectories(),
+    ]
     if (
-      sdkDirectories.some((directory) =>
+      implicitDirectories.some((directory) =>
         isPathInDirectory(resolvedFilePath, directory),
       )
     ) {

@@ -1,5 +1,5 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -198,6 +198,26 @@ describe('assertPermission', () => {
 
     await expect(
       assertPermission(sdkFile, tempRoot, 'read'),
+    ).resolves.toBeUndefined()
+  })
+
+  it('allows read in default directories (~/.agents and ~/.pi)', async () => {
+    const home = homedir()
+
+    await expect(
+      assertPermission(
+        path.join(home, '.agents', 'skill.md'),
+        tempRoot,
+        'read',
+      ),
+    ).resolves.toBeUndefined()
+
+    await expect(
+      assertPermission(
+        path.join(home, '.pi', 'settings.json'),
+        tempRoot,
+        'read',
+      ),
     ).resolves.toBeUndefined()
   })
 
