@@ -5,7 +5,7 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import path from 'node:path'
 
-import { assertReadAllowed } from '../config/settings.js'
+import { assertPermission } from '../config/settings.js'
 import { normalizePath } from '../utils/path.js'
 import { optionalNumber } from '../utils/typebox.js'
 
@@ -24,7 +24,7 @@ export const readTool = defineTool({
   }),
   async execute(toolCallId, parameters, signal, onUpdate, context) {
     const filePath = path.resolve(context.cwd, normalizePath(parameters.path))
-    await assertReadAllowed(filePath, context.cwd)
+    await assertPermission(filePath, context.cwd, 'read')
 
     const piRead = createReadToolDefinition(context.cwd)
     return piRead.execute(toolCallId, parameters, signal, onUpdate, context)

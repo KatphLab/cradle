@@ -4,34 +4,47 @@ import { fileURLToPath } from 'node:url'
 
 const CONFIG_FILE_PATH = path.join('.pi', 'cradle', 'settings.json')
 
-interface ReadSettings {
-  extraAllowedDirectories?: string[]
+export interface DirectoryPermission {
+  path: string
+  read: boolean
+  write: boolean
+  bash: boolean
 }
 
-interface CradleSettings {
-  read?: ReadSettings
+export interface CradleSettings {
+  permissions?: DirectoryPermission[]
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && Boolean(value) && !Array.isArray(value)
 }
 
-function normalizeSettings(value: unknown): CradleSettings {
+function isDirectoryPermission(value: unknown): value is DirectoryPermission {
+  if (!isRecord(value)) return false
+  if (typeof value['path'] !== 'string') return false
+  if (typeof value['read'] !== 'boolean') return false
+  if (typeof value['write'] !== 'boolean') return false
+  if (typeof value['bash'] !== 'boolean') return false
+  return true
+}
+
+function normalizeSettings(value: unknown, cwd: string): CradleSettings {
   if (!isRecord(value)) return {}
 
-  const read = isRecord(value['read']) ? value['read'] : undefined
-  const extraAllowedDirectories = Array.isArray(
-    read?.['extraAllowedDirectories'],
-  )
-    ? read['extraAllowedDirectories'].filter(
-        (entry) => typeof entry === 'string',
-      )
+  const rawPermissions = Array.isArray(value['permissions'])
+    ? value['permissions']
     : undefined
 
+  const permissions =
+    rawPermissions?.filter(isDirectoryPermission).map((permission) => ({
+      path: path.resolve(cwd, permission.path),
+      read: permission.read,
+      write: permission.write,
+      bash: permission.bash,
+    })) ?? undefined
+
   return {
-    ...(extraAllowedDirectories && {
-      read: { extraAllowedDirectories },
-    }),
+    ...(permissions !== undefined && { permissions }),
   }
 }
 
@@ -63,14 +76,6 @@ function getEarendilWorksDirectories(): string[] {
   return [...directories]
 }
 
-function resolveDirectory(directory: string, cwd: string): string {
-  return path.resolve(cwd, directory)
-}
-
-function uniqueDirectories(directories: string[]): string[] {
-  return [...new Set(directories)]
-}
-
 function isPathInDirectory(filePath: string, directory: string): boolean {
   const relativePath = path.relative(directory, filePath)
   return (
@@ -79,11 +84,30 @@ function isPathInDirectory(filePath: string, directory: string): boolean {
   )
 }
 
+function resolveClosestDirectoryPermission(
+  filePath: string,
+  permissions: readonly DirectoryPermission[],
+): DirectoryPermission | undefined {
+  let closest: DirectoryPermission | undefined
+  let closestDepth = -1
+
+  for (const permission of permissions) {
+    if (!isPathInDirectory(filePath, permission.path)) continue
+    const depth = permission.path.split(path.sep).length
+    if (depth > closestDepth) {
+      closest = permission
+      closestDepth = depth
+    }
+  }
+
+  return closest
+}
+
 /** @public */
 export async function loadCradleSettings(cwd: string): Promise<CradleSettings> {
   try {
     const content = await readFile(getConfigFilePath(cwd), 'utf8')
-    return normalizeSettings(JSON.parse(content))
+    return normalizeSettings(JSON.parse(content), cwd)
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
       return {}
@@ -101,69 +125,48 @@ export async function saveCradleSettings(
   await mkdir(path.dirname(configFilePath), { recursive: true })
   await writeFile(
     configFilePath,
-    `${JSON.stringify(normalizeSettings(settings), undefined, 2)}\n`,
+    `${JSON.stringify(normalizeSettings(settings, cwd), undefined, 2)}\n`,
   )
 }
 
 /** @public */
-export function parseDirectoryList(input: string): string[] {
-  return [
-    ...new Set(
-      input
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean),
-    ),
-  ]
-}
-
-/** @public */
-export async function getAllowedReadDirectories(
-  cwd: string,
-): Promise<string[]> {
-  const settings = await loadCradleSettings(cwd)
-  const extraDirectories = settings.read?.extraAllowedDirectories ?? []
-
-  return uniqueDirectories([
-    path.resolve(cwd),
-    ...getEarendilWorksDirectories(),
-    ...extraDirectories.map((directory) => resolveDirectory(directory, cwd)),
-  ])
-}
-
-async function assertAllowed(
-  operation: 'read' | 'write',
+export async function assertPermission(
   filePath: string,
   cwd: string,
+  operation: 'read' | 'write' | 'bash',
 ): Promise<void> {
   const resolvedFilePath = path.resolve(cwd, filePath)
-  const allowedDirectories = await getAllowedReadDirectories(cwd)
+  const resolvedCwd = path.resolve(cwd)
 
-  if (
-    allowedDirectories.some((directory) =>
-      isPathInDirectory(resolvedFilePath, directory),
-    )
-  ) {
+  // CWD always has all permissions
+  if (isPathInDirectory(resolvedFilePath, resolvedCwd)) {
+    return
+  }
+
+  // SDK packages always have read permission
+  if (operation === 'read') {
+    const sdkDirectories = getEarendilWorksDirectories()
+    if (
+      sdkDirectories.some((directory) =>
+        isPathInDirectory(resolvedFilePath, directory),
+      )
+    ) {
+      return
+    }
+  }
+
+  const settings = await loadCradleSettings(cwd)
+  const permissions = settings.permissions ?? []
+  const closest = resolveClosestDirectoryPermission(
+    resolvedFilePath,
+    permissions,
+  )
+
+  if (closest?.[operation] === true) {
     return
   }
 
   throw new Error(
-    `${operation} denied: ${filePath} is outside allowed directories. Configure extra directories with /cradle-settings.`,
+    `${operation} denied: ${filePath} is outside allowed directories. Configure permissions with /cradle-settings.`,
   )
-}
-
-/** @public */
-export async function assertReadAllowed(
-  filePath: string,
-  cwd: string,
-): Promise<void> {
-  return assertAllowed('read', filePath, cwd)
-}
-
-/** @public */
-export async function assertWriteAllowed(
-  filePath: string,
-  cwd: string,
-): Promise<void> {
-  return assertAllowed('write', filePath, cwd)
 }

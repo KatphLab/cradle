@@ -1,6 +1,6 @@
 import path from 'node:path'
 
-import { assertReadAllowed } from '../config/settings.js'
+import { assertPermission } from '../config/settings.js'
 import { normalizePath } from './path.js'
 
 export async function resolveSearchPath(
@@ -10,6 +10,6 @@ export async function resolveSearchPath(
   const searchPath = parameters.path
     ? path.resolve(context.cwd, normalizePath(parameters.path))
     : context.cwd
-  await assertReadAllowed(searchPath, context.cwd)
+  await assertPermission(searchPath, context.cwd, 'read')
   return searchPath
 }

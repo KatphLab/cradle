@@ -6,7 +6,7 @@ import {
 import { readdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 
-import { assertReadAllowed } from '../config/settings.js'
+import { assertPermission } from '../config/settings.js'
 import { normalizePath } from '../utils/path.js'
 import { optionalNumber } from '../utils/typebox.js'
 
@@ -40,7 +40,7 @@ export const lsTool = defineTool({
       context.cwd,
       normalizePath(parameters.path),
     )
-    await assertReadAllowed(directoryPath, context.cwd)
+    await assertPermission(directoryPath, context.cwd, 'read')
 
     const piLs = createLsToolDefinition(context.cwd, {
       operations: {

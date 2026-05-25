@@ -4,6 +4,7 @@ import {
   defineTool,
 } from '@earendil-works/pi-coding-agent'
 
+import { assertPermission } from '../config/settings.js'
 import {
   classifyShellRisk,
   loadShellRiskPatterns,
@@ -61,6 +62,7 @@ export const bashTool = defineTool({
     { additionalProperties: false },
   ),
   async execute(toolCallId, parameters, signal, onUpdate, context) {
+    await assertPermission(context.cwd, context.cwd, 'bash')
     const patterns = await loadShellRiskPatterns(context.cwd)
     const detected = classifyShellRisk(parameters.command, patterns)
 

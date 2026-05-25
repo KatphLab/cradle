@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { loadCradleSettings } from '../config/settings.js'
 import {
-  DirectoryAllowlistEditor,
+  DirectoryPermissionsEditor,
   formatDirectoryPath,
   registerSettingsCommand,
   scanDirectorySuggestions,
@@ -29,7 +29,9 @@ const mockTheme = {
 
 async function invokeRegisteredHandler(
   action: (editor: {
-    onSave?: (directories: string[]) => void
+    onSave?: (
+      rows: { path: string; read: boolean; write: boolean; bash: boolean }[],
+    ) => void
     onCancel?: () => void
     tuiRequestRender?: () => void
   }) => unknown,
@@ -53,7 +55,14 @@ async function invokeRegisteredHandler(
       custom: vi.fn(
         (
           factory: (...args: unknown[]) => {
-            onSave?: (directories: string[]) => void
+            onSave?: (
+              rows: {
+                path: string
+                read: boolean
+                write: boolean
+                bash: boolean
+              }[],
+            ) => void
             onCancel?: () => void
             tuiRequestRender?: () => void
           },
@@ -77,17 +86,26 @@ async function invokeRegisteredHandler(
 }
 
 describe('registerSettingsCommand', () => {
-  it('saves edited directories and notifies', async () => {
+  it('saves edited permissions and notifies', async () => {
     const { notifySpy } = await invokeRegisteredHandler((editor) => {
-      editor.onSave?.(['allowed-a', 'allowed-b'])
-      return ['allowed-a', 'allowed-b']
+      editor.onSave?.([
+        { path: '/allowed-a', read: true, write: false, bash: false },
+        { path: '/allowed-b', read: true, write: true, bash: false },
+      ])
+      return [
+        { path: '/allowed-a', read: true, write: false, bash: false },
+        { path: '/allowed-b', read: true, write: true, bash: false },
+      ]
     })
 
     await expect(loadCradleSettings(tempRoot)).resolves.toEqual({
-      read: { extraAllowedDirectories: ['allowed-a', 'allowed-b'] },
+      permissions: [
+        { path: '/allowed-a', read: true, write: false, bash: false },
+        { path: '/allowed-b', read: true, write: true, bash: false },
+      ],
     })
     expect(notifySpy).toHaveBeenCalledWith(
-      'Cradle settings saved: 2 extra read directories',
+      'Cradle settings saved: 2 directory permissions',
       'info',
     )
   })
@@ -139,114 +157,245 @@ describe('formatDirectoryPath', () => {
   })
 })
 
-describe('DirectoryAllowlistEditor — input', () => {
-  it('manages directory list and tracks dirty state', () => {
-    const editor = new DirectoryAllowlistEditor([], tempRoot, mockTheme)
+describe('DirectoryPermissionsEditor — input', () => {
+  it('manages rows and tracks dirty state', () => {
+    const editor = new DirectoryPermissionsEditor([], tempRoot, mockTheme)
 
-    // Add via input
     editor.getInput().setValue('my-dir')
     editor.addCurrentInput()
-    expect(editor.getDirectories()).toEqual([path.resolve(tempRoot, 'my-dir')])
+    expect(editor.getRows()).toEqual([
+      {
+        path: path.resolve(tempRoot, 'my-dir'),
+        read: true,
+        write: false,
+        bash: false,
+      },
+    ])
     expect(editor.isDirty()).toBe(true)
 
     // Duplicate ignored
     editor.getInput().setValue('my-dir')
     editor.addCurrentInput()
-    expect(editor.getDirectories()).toHaveLength(1)
+    expect(editor.getRows()).toHaveLength(1)
 
-    // Printable chars go to input when no item selected
-    const freshEditor = new DirectoryAllowlistEditor([], tempRoot, mockTheme)
+    // Printable chars go to input when on input row
+    const freshEditor = new DirectoryPermissionsEditor([], tempRoot, mockTheme)
     freshEditor.handleInput('a')
     expect(freshEditor.getInput().getValue()).toBe('a')
   })
 
-  it('navigates and deletes items via keyboard', () => {
-    const editor = new DirectoryAllowlistEditor(
-      [path.join(tempRoot, 'a'), path.join(tempRoot, 'b')],
+  it('navigates and deletes rows via keyboard', () => {
+    const editor = new DirectoryPermissionsEditor(
+      [
+        {
+          path: path.join(tempRoot, 'a'),
+          read: true,
+          write: false,
+          bash: false,
+        },
+        {
+          path: path.join(tempRoot, 'b'),
+          read: true,
+          write: false,
+          bash: false,
+        },
+      ],
       tempRoot,
       mockTheme,
     )
 
-    // Delete does nothing when nothing selected
-    editor.deleteSelected()
-    expect(editor.getDirectories()).toHaveLength(2)
+    // Initial state: on input row
+    expect(editor.getSelectedRow()).toBe(2)
 
-    // Navigate down
-    editor.handleInput('\u001B[B')
-    expect(editor.getSelectedIndex()).toBe(0)
-    editor.handleInput('\u001B[B')
-    expect(editor.getSelectedIndex()).toBe(1)
-    // Stops at last item
-    editor.handleInput('\u001B[B')
-    expect(editor.getSelectedIndex()).toBe(1)
-
-    // Navigate up back to input
-    editor.handleInput('\u001B[A')
-    expect(editor.getSelectedIndex()).toBe(0)
-    editor.handleInput('\u001B[A')
-    expect(editor.getSelectedIndex()).toBe(-1)
-
-    // Delete selected item via handleInput (delete key)
-    editor.handleInput('\u001B[B')
+    // Delete key does nothing when on input row
     editor.handleInput('\u001B[3~')
-    expect(editor.getDirectories()).toEqual([path.join(tempRoot, 'b')])
+    expect(editor.getRows()).toHaveLength(2)
+
+    // Navigate up to last data row (row 1)
+    editor.handleInput('\u001B[A')
+    expect(editor.getSelectedRow()).toBe(1)
+
+    // Navigate up to first data row (row 0)
+    editor.handleInput('\u001B[A')
+    expect(editor.getSelectedRow()).toBe(0)
+
+    // Stops at first row
+    editor.handleInput('\u001B[A')
+    expect(editor.getSelectedRow()).toBe(0)
+
+    // Navigate down to row 1
+    editor.handleInput('\u001B[B')
+    expect(editor.getSelectedRow()).toBe(1)
+
+    // Navigate down to input row
+    editor.handleInput('\u001B[B')
+    expect(editor.getSelectedRow()).toBe(2)
+
+    // Stops at input row
+    editor.handleInput('\u001B[B')
+    expect(editor.getSelectedRow()).toBe(2)
+
+    // Navigate back up and delete row 1
+    editor.handleInput('\u001B[A')
+    expect(editor.getSelectedRow()).toBe(1)
+    editor.handleInput('\u001B[3~')
+    expect(editor.getRows()).toEqual([
+      { path: path.join(tempRoot, 'a'), read: true, write: false, bash: false },
+    ])
     expect(editor.isDirty()).toBe(true)
   })
 })
 
-describe('DirectoryAllowlistEditor — suggestions', () => {
+describe('DirectoryPermissionsEditor — edge cases', () => {
+  it('ignores toggle for invalid indices', () => {
+    const editor = new DirectoryPermissionsEditor(
+      [
+        {
+          path: path.join(tempRoot, 'a'),
+          read: true,
+          write: false,
+          bash: false,
+        },
+      ],
+      tempRoot,
+      mockTheme,
+    )
+
+    // Invalid colIndex (0 = path column, not a permission toggle)
+    editor.togglePermission(0, 0)
+    expect(editor.getRows()[0]?.read).toBe(true)
+
+    // Invalid colIndex out of range
+    editor.togglePermission(0, 5)
+    expect(editor.getRows()[0]?.read).toBe(true)
+
+    // Invalid rowIndex
+    editor.togglePermission(5, 1)
+    expect(editor.getRows()).toHaveLength(1)
+  })
+
+  it('ignores space/enter when on path column', () => {
+    const editor = new DirectoryPermissionsEditor(
+      [
+        {
+          path: path.join(tempRoot, 'a'),
+          read: true,
+          write: false,
+          bash: false,
+        },
+      ],
+      tempRoot,
+      mockTheme,
+    )
+
+    // Move up to data row (col defaults to 0 = path column)
+    editor.handleInput('\u001B[A')
+    expect(editor.getSelectedRow()).toBe(0)
+    expect(editor.getSelectedCol()).toBe(0)
+
+    // Space on path column does nothing
+    editor.handleInput(' ')
+    expect(editor.getRows()[0]?.read).toBe(true)
+
+    // Enter on path column does nothing
+    editor.handleInput('\r')
+    expect(editor.getRows()[0]?.read).toBe(true)
+  })
+})
+
+describe('DirectoryPermissionsEditor — permissions', () => {
+  it('toggles permissions with space', () => {
+    const editor = new DirectoryPermissionsEditor(
+      [
+        {
+          path: path.join(tempRoot, 'a'),
+          read: true,
+          write: false,
+          bash: false,
+        },
+      ],
+      tempRoot,
+      mockTheme,
+    )
+
+    // Start on input row; move up to first data row
+    editor.handleInput('\u001B[A')
+    expect(editor.getSelectedRow()).toBe(0)
+    expect(editor.getSelectedCol()).toBe(0)
+
+    // Move to read column
+    editor.handleInput('\u001B[C')
+    expect(editor.getSelectedCol()).toBe(1)
+
+    // Toggle read off
+    editor.handleInput(' ')
+    expect(editor.getRows()[0]?.read).toBe(false)
+
+    // Move to write column
+    editor.handleInput('\u001B[C')
+    expect(editor.getSelectedCol()).toBe(2)
+
+    // Toggle write on
+    editor.handleInput(' ')
+    expect(editor.getRows()[0]?.write).toBe(true)
+  })
+
+  it('navigates between permission columns', () => {
+    const editor = new DirectoryPermissionsEditor(
+      [
+        {
+          path: path.join(tempRoot, 'a'),
+          read: true,
+          write: false,
+          bash: false,
+        },
+      ],
+      tempRoot,
+      mockTheme,
+    )
+
+    // Move up to data row
+    editor.handleInput('\u001B[A')
+    editor.handleInput('\u001B[C')
+    expect(editor.getSelectedCol()).toBe(1)
+    editor.handleInput('\u001B[C')
+    expect(editor.getSelectedCol()).toBe(2)
+    editor.handleInput('\u001B[C')
+    expect(editor.getSelectedCol()).toBe(3)
+    editor.handleInput('\u001B[C')
+    expect(editor.getSelectedCol()).toBe(3) // clamped
+    editor.handleInput('\u001B[D')
+    expect(editor.getSelectedCol()).toBe(2)
+  })
+})
+
+describe('DirectoryPermissionsEditor — suggestions', () => {
   it('accepts and completes suggestions via enter and tab', async () => {
     await mkdir(path.join(tempRoot, 'testdir'))
 
-    const editor = new DirectoryAllowlistEditor([], tempRoot, mockTheme)
+    const editor = new DirectoryPermissionsEditor([], tempRoot, mockTheme)
     editor.tuiRequestRender = vi.fn()
 
-    // Enter adds to list
     editor.getInput().setValue('te')
     await editor.updateSuggestions()
     expect(editor.getSuggestions().length).toBeGreaterThan(0)
     editor.handleInput('\r')
     expect(editor.getSuggestions()).toEqual([])
-    expect(editor.getDirectories()).toEqual([path.join(tempRoot, 'testdir')])
-    expect(editor.getInput().getValue()).toBe('')
-
-    // Tab completes without adding, cursor at end
-    const tabEditor = new DirectoryAllowlistEditor([], tempRoot, mockTheme)
-    tabEditor.tuiRequestRender = vi.fn()
-    tabEditor.getInput().setValue('te')
-    await tabEditor.updateSuggestions()
-    tabEditor.handleInput('\t')
-    expect(tabEditor.getSuggestions()).toEqual([])
-    expect(tabEditor.getDirectories()).toEqual([])
-    expect(tabEditor.getInput().getValue()).toBe('testdir')
-    tabEditor.handleInput('x')
-    expect(tabEditor.getInput().getValue()).toBe('testdirx')
-  })
-
-  it('browses inside directories and completes nested paths', async () => {
-    await mkdir(path.join(tempRoot, 'parent'))
-    await mkdir(path.join(tempRoot, 'parent', 'child-a'))
-    await mkdir(path.join(tempRoot, 'parent', 'child-b'))
-
-    const editor = new DirectoryAllowlistEditor([], tempRoot, mockTheme)
-    editor.tuiRequestRender = vi.fn()
-
-    editor.getInput().setValue('parent/')
-    await editor.updateSuggestions()
-    expect(editor.getSuggestions()).toEqual([
-      path.join(tempRoot, 'parent', 'child-a'),
-      path.join(tempRoot, 'parent', 'child-b'),
+    expect(editor.getRows()).toEqual([
+      {
+        path: path.join(tempRoot, 'testdir'),
+        read: true,
+        write: false,
+        bash: false,
+      },
     ])
-
-    editor.handleInput('\t')
-    expect(editor.getSuggestions()).toEqual([])
-    expect(editor.getInput().getValue()).toBe('parent/child-a')
+    expect(editor.getInput().getValue()).toBe('')
   })
 
   it('dismisses suggestions on escape and renders them', async () => {
     await mkdir(path.join(tempRoot, 'testdir'))
 
-    const editor = new DirectoryAllowlistEditor([], tempRoot, mockTheme)
+    const editor = new DirectoryPermissionsEditor([], tempRoot, mockTheme)
     editor.tuiRequestRender = vi.fn()
 
     editor.getInput().setValue('te')
@@ -258,12 +407,6 @@ describe('DirectoryAllowlistEditor — suggestions', () => {
     const linesBefore = editor.render(80)
     expect(linesBefore.some((line) => line.includes('▸'))).toBe(true)
 
-    // Press up arrow while suggestions open (covers suggestion navigation)
-    editor.handleInput('\u001B[A')
-
-    // Press an unhandled key while suggestions open (covers dismiss false branch)
-    editor.handleInput('z')
-
     // Escape dismisses
     editor.handleInput('\u001B')
     expect(editor.getSuggestions()).toEqual([])
@@ -273,11 +416,11 @@ describe('DirectoryAllowlistEditor — suggestions', () => {
   })
 })
 
-describe('DirectoryAllowlistEditor — keys', () => {
+describe('DirectoryPermissionsEditor — keys', () => {
   it('handles save, cancel, and ignores printable keys when list focused', () => {
     const saveSpy = vi.fn()
     const cancelSpy = vi.fn()
-    const editor = new DirectoryAllowlistEditor([], tempRoot, mockTheme)
+    const editor = new DirectoryPermissionsEditor([], tempRoot, mockTheme)
     editor.onSave = saveSpy
     editor.onCancel = cancelSpy
 
@@ -287,37 +430,51 @@ describe('DirectoryAllowlistEditor — keys', () => {
     editor.handleInput('\u001B') // escape
     expect(cancelSpy).toHaveBeenCalled()
 
-    // Printable char ignored when list is focused
-    const editorWithItems = new DirectoryAllowlistEditor(
-      [path.join(tempRoot, 'a')],
+    // Printable char ignored when on a data row
+    const editorWithItems = new DirectoryPermissionsEditor(
+      [
+        {
+          path: path.join(tempRoot, 'a'),
+          read: true,
+          write: false,
+          bash: false,
+        },
+      ],
       tempRoot,
       mockTheme,
     )
-    editorWithItems.handleInput('\u001B[B')
-    expect(editorWithItems.getSelectedIndex()).toBe(0)
+    editorWithItems.handleInput('\u001B[A') // move up to data row
+    expect(editorWithItems.getSelectedRow()).toBe(0)
     editorWithItems.handleInput('x')
-    expect(editorWithItems.getSelectedIndex()).toBe(0)
+    expect(editorWithItems.getSelectedRow()).toBe(0)
   })
 })
 
-describe('DirectoryAllowlistEditor — rendering', () => {
+describe('DirectoryPermissionsEditor — rendering', () => {
   it('renders in various states and edge cases', () => {
     // With items
-    const editor = new DirectoryAllowlistEditor(
-      [path.join(tempRoot, 'a')],
+    const editor = new DirectoryPermissionsEditor(
+      [
+        {
+          path: path.join(tempRoot, 'a'),
+          read: true,
+          write: false,
+          bash: false,
+        },
+      ],
       tempRoot,
       mockTheme,
     )
     editor.focused = true
     const lines = editor.render(80)
     expect(lines.length).toBeGreaterThan(0)
-    expect(lines.some((line) => line.includes('Extra Read Directories'))).toBe(
+    expect(lines.some((line) => line.includes('Directory Permissions'))).toBe(
       true,
     )
     expect(lines.some((line) => line.includes('a'))).toBe(true)
 
     // Empty state
-    const emptyEditor = new DirectoryAllowlistEditor([], tempRoot, mockTheme)
+    const emptyEditor = new DirectoryPermissionsEditor([], tempRoot, mockTheme)
     emptyEditor.focused = true
     const emptyLines = emptyEditor.render(80)
     expect(
@@ -325,7 +482,7 @@ describe('DirectoryAllowlistEditor — rendering', () => {
     ).toBe(true)
 
     // Dirty state
-    const dirtyEditor = new DirectoryAllowlistEditor([], tempRoot, mockTheme)
+    const dirtyEditor = new DirectoryPermissionsEditor([], tempRoot, mockTheme)
     dirtyEditor.getInput().setValue('x')
     dirtyEditor.addCurrentInput()
     dirtyEditor.focused = true
@@ -337,15 +494,6 @@ describe('DirectoryAllowlistEditor — rendering', () => {
     // Narrow width
     const narrowLines = emptyEditor.render(1)
     expect(narrowLines.length).toBeGreaterThan(0)
-
-    // Empty input render (mocked)
-    const mockedEditor = new DirectoryAllowlistEditor([], tempRoot, mockTheme)
-    vi.spyOn(mockedEditor.getInput(), 'render').mockReturnValue([])
-    mockedEditor.focused = true
-    const mockedLines = mockedEditor.render(80)
-    expect(
-      mockedLines.some((line) => line.includes('Extra Read Directories')),
-    ).toBe(true)
 
     // Invalidation does not throw
     expect(() => {

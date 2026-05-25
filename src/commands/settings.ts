@@ -10,7 +10,11 @@ import {
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 
-import { loadCradleSettings, saveCradleSettings } from '../config/settings.js'
+import {
+  loadCradleSettings,
+  saveCradleSettings,
+  type DirectoryPermission,
+} from '../config/settings.js'
 
 interface EditorTheme {
   fg: (color: ThemeColor, text: string) => string
@@ -61,25 +65,39 @@ export function formatDirectoryPath(directory: string, cwd: string): string {
     : relative || '.'
 }
 
-export class DirectoryAllowlistEditor implements Component, Focusable {
-  private readonly input: Input
-  private readonly directories: string[]
+const PERMISSION_COLUMNS = ['read', 'write', 'bash'] as const
+const PERMISSION_LABELS: Record<(typeof PERMISSION_COLUMNS)[number], string> = {
+  read: 'Read',
+  write: 'Write',
+  bash: 'Bash',
+}
+const TOGGLE_WIDTH = 5
+const GAP = 2
+
+export class DirectoryPermissionsEditor implements Component, Focusable {
+  private readonly rows: DirectoryPermission[]
   private readonly cwd: string
   private readonly theme: EditorTheme
-  private selectedIndex = -1
+  private readonly input: Input
+  private selectedRow: number
+  private selectedCol: number
+  private dirty = false
   private suggestions: string[] = []
   private suggestionIndex = -1
   private lastInputValue = ''
-  private dirty = false
   tuiRequestRender?: () => void
 
-  onSave?: (directories: string[]) => void
+  onSave?: (rows: DirectoryPermission[]) => void
   onCancel?: () => void
 
   focused = false
 
-  constructor(initialDirectories: string[], cwd: string, theme: EditorTheme) {
-    this.directories = [...initialDirectories]
+  constructor(
+    initialRows: DirectoryPermission[],
+    cwd: string,
+    theme: EditorTheme,
+  ) {
+    this.rows = initialRows.map((row) => ({ ...row }))
     this.cwd = cwd
     this.theme = theme
     this.input = new Input()
@@ -87,18 +105,24 @@ export class DirectoryAllowlistEditor implements Component, Focusable {
       this.addCurrentInput()
     }
     this.input.onEscape = () => this.onCancel?.()
+    this.selectedRow = this.rows.length
+    this.selectedCol = 0
   }
 
-  getDirectories(): string[] {
-    return [...this.directories]
+  getRows(): DirectoryPermission[] {
+    return this.rows.map((row) => ({ ...row }))
   }
 
   getSuggestions(): string[] {
     return [...this.suggestions]
   }
 
-  getSelectedIndex(): number {
-    return this.selectedIndex
+  getSelectedRow(): number {
+    return this.selectedRow
+  }
+
+  getSelectedCol(): number {
+    return this.selectedCol
   }
 
   getInput(): Input {
@@ -114,27 +138,35 @@ export class DirectoryAllowlistEditor implements Component, Focusable {
     if (!value) return
 
     const resolved = path.resolve(this.cwd, value)
-    if (!this.directories.includes(resolved)) {
-      this.directories.push(resolved)
+    if (!this.rows.some((row) => row.path === resolved)) {
+      this.rows.push({ path: resolved, read: true, write: false, bash: false })
       this.dirty = true
+      this.selectedRow = this.rows.length - 1
+      this.selectedCol = 1
     }
     this.input.setValue('')
     this.suggestions = []
     this.lastInputValue = ''
-    this.selectedIndex = this.directories.length - 1
   }
 
-  deleteSelected(): void {
-    if (this.selectedIndex >= 0) {
-      this.directories.splice(this.selectedIndex, 1)
+  deleteRow(index: number): void {
+    if (index >= 0 && index < this.rows.length) {
+      this.rows.splice(index, 1)
       this.dirty = true
-      if (this.selectedIndex >= this.directories.length) {
-        this.selectedIndex = this.directories.length - 1
-      }
-      if (this.selectedIndex < 0) {
-        this.input.focused = this.focused
+      if (this.selectedRow >= this.rows.length) {
+        this.selectedRow = this.rows.length
+        this.selectedCol = 0
       }
     }
+  }
+
+  togglePermission(rowIndex: number, colIndex: number): void {
+    const key = PERMISSION_COLUMNS[colIndex - 1]
+    if (key === undefined) return
+    const row = this.rows[rowIndex]
+    if (row === undefined) return
+    row[key] = !row[key]
+    this.dirty = true
   }
 
   async updateSuggestions(): Promise<void> {
@@ -153,12 +185,13 @@ export class DirectoryAllowlistEditor implements Component, Focusable {
     if (this.tryHandleDelete(data)) return
     if (this.tryHandleNavigation(data)) return
     if (this.tryHandleCancel(data)) return
+    if (this.tryHandleToggle(data)) return
     this.tryHandleToInput(data)
   }
 
   private tryHandleSave(data: string): boolean {
     if (matchesKey(data, Key.ctrl('s'))) {
-      this.onSave?.(this.directories)
+      this.onSave?.(this.getRows())
       return true
     }
     return false
@@ -224,8 +257,8 @@ export class DirectoryAllowlistEditor implements Component, Focusable {
   }
 
   private tryHandleDelete(data: string): boolean {
-    if (matchesKey(data, Key.delete)) {
-      this.deleteSelected()
+    if (matchesKey(data, Key.delete) && this.selectedRow < this.rows.length) {
+      this.deleteRow(this.selectedRow)
       this.tuiRequestRender?.()
       return true
     }
@@ -233,20 +266,44 @@ export class DirectoryAllowlistEditor implements Component, Focusable {
   }
 
   private tryHandleNavigation(data: string): boolean {
-    if (
-      matchesKey(data, Key.down) &&
-      this.selectedIndex < this.directories.length - 1
-    ) {
-      this.selectedIndex++
-      this.input.focused = false
+    if (matchesKey(data, Key.down)) {
+      return this.moveDown()
+    }
+    if (matchesKey(data, Key.up)) {
+      return this.moveUp()
+    }
+    if (this.selectedRow < this.rows.length) {
+      return this.moveHorizontal(data)
+    }
+    return false
+  }
+
+  private moveDown(): boolean {
+    if (this.selectedRow < this.rows.length) {
+      this.selectedRow++
+      const isNowOnDataRow = this.selectedRow < this.rows.length
+      this.selectedCol = isNowOnDataRow ? Math.max(1, this.selectedCol) : 0
+    }
+    this.tuiRequestRender?.()
+    return true
+  }
+
+  private moveUp(): boolean {
+    if (this.selectedRow > 0) {
+      this.selectedRow--
+    }
+    this.tuiRequestRender?.()
+    return true
+  }
+
+  private moveHorizontal(data: string): boolean {
+    if (matchesKey(data, Key.right)) {
+      this.selectedCol = Math.min(this.selectedCol + 1, 3)
       this.tuiRequestRender?.()
       return true
     }
-    if (matchesKey(data, Key.up) && this.selectedIndex >= 0) {
-      this.selectedIndex--
-      if (this.selectedIndex < 0) {
-        this.input.focused = this.focused
-      }
+    if (matchesKey(data, Key.left)) {
+      this.selectedCol = Math.max(this.selectedCol - 1, 1)
       this.tuiRequestRender?.()
       return true
     }
@@ -261,8 +318,21 @@ export class DirectoryAllowlistEditor implements Component, Focusable {
     return false
   }
 
+  private tryHandleToggle(data: string): boolean {
+    if (this.selectedRow >= this.rows.length) return false
+    if (!matchesKey(data, Key.space) && !matchesKey(data, Key.enter)) {
+      return false
+    }
+    if (this.selectedCol >= 1 && this.selectedCol <= 3) {
+      this.togglePermission(this.selectedRow, this.selectedCol)
+      this.tuiRequestRender?.()
+      return true
+    }
+    return false
+  }
+
   private tryHandleToInput(data: string): boolean {
-    if (this.selectedIndex < 0) {
+    if (this.selectedRow === this.rows.length) {
       this.input.handleInput(data)
       void this.updateSuggestions()
       this.tuiRequestRender?.()
@@ -273,36 +343,104 @@ export class DirectoryAllowlistEditor implements Component, Focusable {
 
   render(width: number): string[] {
     return [
-      ...this.renderHeader(),
+      ...this.renderHeader(width),
+      '',
+      ...this.renderTableHeader(width),
+      ...this.renderSeparator(width),
+      ...this.renderRows(width),
       ...this.renderInput(width),
       ...this.renderSuggestions(width),
-      ...this.renderItems(width),
       ...this.renderHelp(width),
     ]
   }
 
-  private renderHeader(): string[] {
+  private renderHeader(width: number): string[] {
+    const title = this.theme.fg(
+      'accent',
+      this.theme.bold('Directory Permissions'),
+    )
+    const dirty = this.dirty
+      ? `  ${this.theme.fg('warning', '● Unsaved changes')}`
+      : ''
+    return [truncateToWidth(title + dirty, width)]
+  }
+
+  private renderTableHeader(width: number): string[] {
+    const prefixWidth = 2
+    const pathWidth = Math.max(
+      10,
+      width - prefixWidth - 3 * (TOGGLE_WIDTH + GAP),
+    )
+    const pathHeader = truncateToWidth('Path', pathWidth)
+    const readHeader = truncateToWidth(PERMISSION_LABELS.read, TOGGLE_WIDTH)
+    const writeHeader = truncateToWidth(PERMISSION_LABELS.write, TOGGLE_WIDTH)
+    const bashHeader = truncateToWidth(PERMISSION_LABELS.bash, TOGGLE_WIDTH)
     return [
-      this.theme.fg('accent', this.theme.bold('Extra Read Directories')),
-      ...(this.dirty
-        ? [`  ${this.theme.fg('warning', '● Unsaved changes')}`]
-        : []),
-      '',
+      `  ${pathHeader}${' '.repeat(GAP)}${readHeader}${' '.repeat(GAP)}${writeHeader}${' '.repeat(GAP)}${bashHeader}`,
     ]
   }
 
+  private renderSeparator(width: number): string[] {
+    const line = '─'.repeat(Math.max(0, width))
+    return [line]
+  }
+
+  private renderRows(width: number): string[] {
+    if (this.rows.length === 0) {
+      return [this.theme.fg('dim', '  (no extra directories)')]
+    }
+
+    const prefixWidth = 2
+    const pathWidth = Math.max(
+      10,
+      width - prefixWidth - 3 * (TOGGLE_WIDTH + GAP),
+    )
+    const lines: string[] = []
+
+    for (const [index, row] of this.rows.entries()) {
+      const isSelected = index === this.selectedRow
+      const prefix = isSelected ? '> ' : '  '
+      const displayPath = formatDirectoryPath(row.path, this.cwd)
+      const pathText = truncateToWidth(displayPath, pathWidth)
+
+      const readText = this.renderToggle(
+        row.read,
+        isSelected && this.selectedCol === 1,
+      )
+      const writeText = this.renderToggle(
+        row.write,
+        isSelected && this.selectedCol === 2,
+      )
+      const bashText = this.renderToggle(
+        row.bash,
+        isSelected && this.selectedCol === 3,
+      )
+
+      lines.push(
+        `${prefix}${pathText}${' '.repeat(GAP)}${readText}${' '.repeat(GAP)}${writeText}${' '.repeat(GAP)}${bashText}`,
+      )
+    }
+
+    return lines
+  }
+
+  private renderToggle(value: boolean, isSelected: boolean): string {
+    const box = value ? '[✓]' : '[ ]'
+    if (isSelected) {
+      return this.theme.fg('accent', this.theme.bold(box))
+    }
+    return box
+  }
+
   private renderInput(width: number): string[] {
-    if (width <= 2) {
-      return [truncateToWidth('> ', width)]
-    }
-    const inputRenderWidth = width - 2
-    const inputLines = this.input.render(inputRenderWidth)
+    if (this.selectedRow !== this.rows.length) return []
+
+    const prefix = '> '
+    const inputWidth = Math.max(0, width - prefix.length)
+    const inputLines = this.input.render(inputWidth)
     if (inputLines.length === 0) return []
-    const firstLine = inputLines[0]
-    if (firstLine !== undefined) {
-      return [`> ${firstLine}`]
-    }
-    return []
+    const [firstLine = ''] = inputLines
+    return ['', `${prefix}${firstLine}`]
   }
 
   private renderSuggestions(width: number): string[] {
@@ -317,23 +455,10 @@ export class DirectoryAllowlistEditor implements Component, Focusable {
     return [...lines, '']
   }
 
-  private renderItems(width: number): string[] {
-    if (this.directories.length === 0) {
-      return [this.theme.fg('dim', '  (no extra directories)')]
-    }
-
-    return this.directories.map((directory, index) => {
-      const isSelected = index === this.selectedIndex
-      const prefix = isSelected ? '> ' : '  '
-      const display = formatDirectoryPath(directory, this.cwd)
-      return prefix + truncateToWidth(display, width - 2)
-    })
-  }
-
   private renderHelp(width: number): string[] {
     const helpText =
-      'Type path • Enter add • Tab/↑↓ suggestions • Del remove • Ctrl+S save • Esc cancel'
-    return ['', truncateToWidth(this.theme.fg('dim', helpText), width)]
+      '↑↓ navigate • ←→ columns • Space/Enter toggle • Del remove • Ctrl+S save • Esc cancel'
+    return [truncateToWidth(this.theme.fg('dim', helpText), width)]
   }
 
   invalidate(): void {
@@ -346,15 +471,15 @@ export function registerSettingsCommand(
   pi: Pick<ExtensionAPI, 'registerCommand'>,
 ): void {
   pi.registerCommand('cradle-settings', {
-    description: 'Configure Cradle extension settings',
+    description: 'Configure Cradle directory permissions',
     handler: async (_args, context) => {
       const settings = await loadCradleSettings(context.cwd)
-      const initialDirectories = settings.read?.extraAllowedDirectories ?? []
+      const initialRows = settings.permissions ?? []
 
-      const result = await context.ui.custom<string[] | undefined>(
+      const result = await context.ui.custom<DirectoryPermission[] | undefined>(
         (tui, theme, _kb, done) => {
-          const editor = new DirectoryAllowlistEditor(
-            initialDirectories,
+          const editor = new DirectoryPermissionsEditor(
+            initialRows,
             context.cwd,
             theme,
           )
@@ -362,8 +487,8 @@ export function registerSettingsCommand(
             tui.requestRender()
           }
 
-          editor.onSave = (directories) => {
-            done(directories)
+          editor.onSave = (rows) => {
+            done(rows)
           }
           editor.onCancel = () => {
             done(void 0)
@@ -379,15 +504,11 @@ export function registerSettingsCommand(
       }
 
       await saveCradleSettings(context.cwd, {
-        ...settings,
-        read: {
-          ...settings.read,
-          extraAllowedDirectories: result,
-        },
+        permissions: result,
       })
 
       context.ui.notify(
-        `Cradle settings saved: ${result.length} extra read directories`,
+        `Cradle settings saved: ${result.length} directory permissions`,
         'info',
       )
     },

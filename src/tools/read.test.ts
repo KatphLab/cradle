@@ -64,9 +64,9 @@ describe('readTool', () => {
     await expect(execRead('src')).rejects.toThrow()
   })
 
-  it('reads from configured extra directories', async () => {
+  it('reads from configured directories with read permission', async () => {
     await saveCradleSettings(tempRoot, {
-      read: { extraAllowedDirectories: [extraRoot] },
+      permissions: [{ path: extraRoot, read: true, write: false, bash: false }],
     })
 
     const result = await execRead(extraFile, tempRoot)

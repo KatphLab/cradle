@@ -5,7 +5,7 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import path from 'node:path'
 
-import { assertWriteAllowed } from '../config/settings.js'
+import { assertPermission } from '../config/settings.js'
 import { normalizePath } from '../utils/path.js'
 
 /** @public */
@@ -24,7 +24,7 @@ export const writeTool = defineTool({
   }),
   async execute(toolCallId, parameters, signal, onUpdate, context) {
     const filePath = path.resolve(context.cwd, normalizePath(parameters.path))
-    await assertWriteAllowed(filePath, context.cwd)
+    await assertPermission(filePath, context.cwd, 'write')
 
     const piWrite = createWriteToolDefinition(context.cwd)
     return piWrite.execute(toolCallId, parameters, signal, onUpdate, context)

@@ -59,6 +59,7 @@ Git workflow
 - Before feature work, verify current branch is not `main` or `master`.
 - If it is, create descriptive feature branch before making changes.
 - For worktrees, use .worktrees folder.
+- Never commit, tag, or push without explicit user instruction. Passing `pnpm check` does not imply permission to commit.
 
 Branch and commit conventions
 
