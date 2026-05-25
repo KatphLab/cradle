@@ -1,3 +1,5 @@
+import path from 'node:path'
+
 import type {
   ExtensionAPI,
   ExtensionContext,
@@ -12,6 +14,28 @@ import {
 } from '../utils/spec-state.js'
 
 const MUTATION_TOOLS = new Set(['bash', 'edit', 'write'])
+
+function isSpecsPath(filePath: string, cwd: string): boolean {
+  const resolved = path.resolve(cwd, filePath)
+  const specsDirectory = path.resolve(cwd, '.pi', 'specs')
+  const relative = path.relative(specsDirectory, resolved)
+  return (
+    !relative.startsWith('..') &&
+    !path.isAbsolute(relative) &&
+    resolved.endsWith('.md')
+  )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function getStringProperty(value: unknown, key: string): string | undefined {
+  if (!isRecord(value)) return undefined
+  if (!(key in value)) return undefined
+  const property = value[key]
+  return typeof property === 'string' ? property : undefined
+}
 
 function updateSpecStatus(context: ExtensionContext, enabled: boolean): void {
   context.ui.setStatus(
@@ -54,14 +78,22 @@ export function registerSpecModeHook(
     }
   })
 
-  pi.on('tool_call', (event) => {
+  pi.on('tool_call', (event, context) => {
     if (!state.isEnabled()) return
     if (!MUTATION_TOOLS.has(event.toolName)) return
+
+    const targetPath =
+      event.toolName === 'edit' || event.toolName === 'write'
+        ? getStringProperty(event.input, 'path')
+        : undefined
+    if (targetPath !== undefined && isSpecsPath(targetPath, context.cwd)) {
+      return
+    }
 
     return {
       block: true,
       reason:
-        'Spec mode blocks bash, edit, and write. Use read, glob, grep, ls, todo, and create_spec only.',
+        'Spec mode blocks bash, edit, and write. You may use edit and write for .pi/specs/*.md files. Use read, glob, grep, ls, and todo otherwise.',
     }
   })
 }

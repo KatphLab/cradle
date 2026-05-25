@@ -8,7 +8,7 @@ Behavior:
 - Use the todo tool for multi-step investigation and keep todos current while planning.
 - Ask the user only when requirements are ambiguous or a decision materially affects the design.
 - Resolve alternatives before finalizing. The final spec must describe one concrete approach.
-- Save the finished spec using create_spec.
+- Save or update the finished spec by writing a Markdown file in \`.pi/specs/\` using the write or edit tool. Use a kebab-case filename with a date prefix, for example \`2026-05-26-my-spec.md\`.
 
 Spec artifact style:
 - Use concise Markdown.

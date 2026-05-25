@@ -1,7 +1,6 @@
 import path from 'node:path'
 
 export const SPEC_MODE_STATE_TYPE = 'cradle-spec-mode'
-const CREATE_SPEC_TOOL_NAME = 'create_spec'
 export const NORMAL_MODE_TOOLS = [
   'read',
   'ls',
@@ -17,8 +16,9 @@ export const SPEC_MODE_TOOLS = [
   'glob',
   'grep',
   'ls',
+  'edit',
+  'write',
   'todo',
-  CREATE_SPEC_TOOL_NAME,
 ]
 
 interface SpecModeEntryData {

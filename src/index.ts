@@ -7,7 +7,6 @@ import { registerShellHook } from './hooks/shell.js'
 import { registerSpecModeHook } from './hooks/spec-mode.js'
 import { registerSystemReminderHook } from './hooks/system-reminder.js'
 import { bashTool } from './tools/bash.js'
-import { createSpecTool } from './tools/create-spec.js'
 import { editTool } from './tools/edit.js'
 import { globTool } from './tools/glob.js'
 import { grepTool } from './tools/grep.js'
@@ -37,7 +36,6 @@ export default function configureExtension(
   pi.registerTool(writeTool)
   pi.registerTool(bashTool)
   pi.registerTool(todoTool)
-  pi.registerTool(createSpecTool)
 
   const specModeState = createSpecModeState()
 
