@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -104,11 +104,24 @@ function createTodoToolResult(text: string): AgentMessage {
   }
 }
 
+async function writeCradleSettings(
+  cwd: string,
+  settings: Record<string, unknown>,
+): Promise<void> {
+  const configDirectory = path.join(cwd, '.pi', 'cradle')
+  await mkdir(configDirectory, { recursive: true })
+  await writeFile(
+    path.join(configDirectory, 'settings.json'),
+    JSON.stringify(settings, undefined, 2),
+  )
+}
+
 describe('registerSystemReminderHook', () => {
   beforeEach(async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-05-24T00:00:00.000Z'))
     tempRoot = await mkdtemp(path.join(os.tmpdir(), 'cradle-reminder-'))
+    await writeCradleSettings(tempRoot, { reminderInterval: 1 })
   })
 
   afterEach(async () => {
@@ -222,6 +235,10 @@ describe('registerSystemReminderHook', () => {
       'Always prefer tiny changes.\n',
     )
 
+    // Prime cachedSettings via session_start so interval=1 from settings file is loaded
+    const sessionHandler = getSessionStartHandler(handlers)
+    await sessionHandler({}, { cwd: tempRoot, ui: { notify: vi.fn() } })
+
     const userMessage = createUserMessage('please fix this')
     const todoResult = createTodoToolResult('1. [in_progress] Fix bug')
     const handler = getContextHandler(handlers)
@@ -244,6 +261,68 @@ describe('registerSystemReminderHook', () => {
     ])
   })
 
+  it('skips injection when counter is below interval on non-user turns', async () => {
+    await writeCradleSettings(tempRoot, { reminderInterval: 3 })
+
+    const handlers: RegisteredHandler[] = []
+    registerSystemReminderHook(createPi(handlers))
+    await writeFile(
+      path.join(tempRoot, 'SYSTEM_REMINDER.md'),
+      'Always prefer tiny changes.\n',
+    )
+
+    const userMessage = createUserMessage('please fix this')
+    const todoResult = createTodoToolResult('1. [in_progress] Fix bug')
+    const handler = getContextHandler(handlers)
+
+    // First non-user turn after session start: counter=1, skip
+    const result1 = await handler(
+      { messages: [userMessage, todoResult] },
+      { cwd: tempRoot },
+    )
+    expect(result1?.messages).toEqual([userMessage, todoResult])
+
+    // Second non-user turn: counter=2, skip
+    const toolResult2 = createTodoToolResult('1. [in_progress] Fix bug')
+    const result2 = await handler(
+      { messages: [userMessage, todoResult, toolResult2] },
+      { cwd: tempRoot },
+    )
+    expect(result2?.messages).toEqual([userMessage, todoResult, toolResult2])
+
+    // Third non-user turn: counter=3, inject
+    const toolResult3 = createTodoToolResult('1. [in_progress] Fix bug')
+    const result3 = await handler(
+      {
+        messages: [userMessage, todoResult, toolResult2, toolResult3],
+      },
+      { cwd: tempRoot },
+    )
+    expect(result3?.messages).toHaveLength(5)
+    const lastMessage = result3?.messages?.at(-1)
+    expect(lastMessage?.role).toBe('custom')
+  })
+
+  it('always injects on user turns regardless of counter', async () => {
+    await writeCradleSettings(tempRoot, { reminderInterval: 5 })
+
+    const handlers: RegisteredHandler[] = []
+    registerSystemReminderHook(createPi(handlers))
+    await writeFile(
+      path.join(tempRoot, 'SYSTEM_REMINDER.md'),
+      'Always prefer tiny changes.\n',
+    )
+
+    const userMessage = createUserMessage('hello')
+    const handler = getContextHandler(handlers)
+
+    // First user turn: always injects
+    const result = await handler({ messages: [userMessage] }, { cwd: tempRoot })
+
+    expect(result?.messages).toHaveLength(2)
+    expect(result?.messages?.at(-1)?.role).toBe('custom')
+  })
+
   it('throws unexpected file read errors', async () => {
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
@@ -251,8 +330,9 @@ describe('registerSystemReminderHook', () => {
     const invalidCwd = path.join(tempRoot, 'file')
     await writeFile(invalidCwd, 'not a directory')
 
+    const userMessage = createUserMessage('hello')
     await expect(
-      handler({ messages: [] }, { cwd: invalidCwd }),
+      handler({ messages: [userMessage] }, { cwd: invalidCwd }),
     ).rejects.toThrow()
   })
 })

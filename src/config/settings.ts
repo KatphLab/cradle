@@ -14,6 +14,7 @@ export interface DirectoryPermission {
 
 export interface CradleSettings {
   permissions?: DirectoryPermission[]
+  reminderInterval?: number
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -28,6 +29,9 @@ function isDirectoryPermission(value: unknown): value is DirectoryPermission {
   if (typeof value['bash'] !== 'boolean') return false
   return true
 }
+
+const MIN_REMINDER_INTERVAL = 1
+const MAX_REMINDER_INTERVAL = 20
 
 function normalizeSettings(value: unknown, cwd: string): CradleSettings {
   if (!isRecord(value)) return {}
@@ -44,8 +48,18 @@ function normalizeSettings(value: unknown, cwd: string): CradleSettings {
       bash: permission.bash,
     })) ?? undefined
 
+  const rawInterval = value['reminderInterval']
+  const reminderInterval =
+    typeof rawInterval === 'number'
+      ? Math.max(
+          MIN_REMINDER_INTERVAL,
+          Math.min(MAX_REMINDER_INTERVAL, Math.round(rawInterval)),
+        )
+      : undefined
+
   return {
     ...(permissions !== undefined && { permissions }),
+    ...(reminderInterval !== undefined && { reminderInterval }),
   }
 }
 

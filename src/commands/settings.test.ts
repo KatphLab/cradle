@@ -5,7 +5,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  DirectoryPermissionsEditor,
+  CradleSettingsEditor,
   formatDirectoryPath,
   registerSettingsCommand,
   scanDirectorySuggestions,
@@ -28,9 +28,15 @@ const mockTheme = {
 
 async function invokeRegisteredHandler(
   action: (editor: {
-    onSave?: (
-      rows: { path: string; read: boolean; write: boolean; bash: boolean }[],
-    ) => void
+    onSave?: (result: {
+      permissions: {
+        path: string
+        read: boolean
+        write: boolean
+        bash: boolean
+      }[]
+      reminderInterval: number
+    }) => void
     onCancel?: () => void
     tuiRequestRender?: () => void
   }) => unknown,
@@ -54,14 +60,15 @@ async function invokeRegisteredHandler(
       custom: vi.fn(
         (
           factory: (...args: unknown[]) => {
-            onSave?: (
-              rows: {
+            onSave?: (result: {
+              permissions: {
                 path: string
                 read: boolean
                 write: boolean
                 bash: boolean
-              }[],
-            ) => void
+              }[]
+              reminderInterval: number
+            }) => void
             onCancel?: () => void
             tuiRequestRender?: () => void
           },
@@ -87,14 +94,20 @@ async function invokeRegisteredHandler(
 describe('registerSettingsCommand', () => {
   it('saves edited permissions and notifies', async () => {
     const { notifySpy } = await invokeRegisteredHandler((editor) => {
-      editor.onSave?.([
-        { path: '/allowed-a', read: true, write: false, bash: false },
-        { path: '/allowed-b', read: true, write: true, bash: false },
-      ])
-      return [
-        { path: '/allowed-a', read: true, write: false, bash: false },
-        { path: '/allowed-b', read: true, write: true, bash: false },
-      ]
+      editor.onSave?.({
+        permissions: [
+          { path: '/allowed-a', read: true, write: false, bash: false },
+          { path: '/allowed-b', read: true, write: true, bash: false },
+        ],
+        reminderInterval: 5,
+      })
+      return {
+        permissions: [
+          { path: '/allowed-a', read: true, write: false, bash: false },
+          { path: '/allowed-b', read: true, write: true, bash: false },
+        ],
+        reminderInterval: 5,
+      }
     })
 
     const settingsPath = path.join(tempRoot, '.pi', 'cradle', 'settings.json')
@@ -104,9 +117,10 @@ describe('registerSettingsCommand', () => {
         { path: '/allowed-a', read: true, write: false, bash: false },
         { path: '/allowed-b', read: true, write: true, bash: false },
       ],
+      reminderInterval: 5,
     })
     expect(notifySpy).toHaveBeenCalledWith(
-      'Cradle settings saved: 2 directory permissions',
+      'Cradle settings saved: 2 permissions, reminder interval 5 turns',
       'info',
     )
   })
@@ -159,11 +173,15 @@ describe('formatDirectoryPath', () => {
   })
 })
 
-describe('DirectoryPermissionsEditor — input', () => {
+describe('CradleSettingsEditor — input', () => {
   it('manages rows and tracks dirty state', () => {
-    const editor = new DirectoryPermissionsEditor([], tempRoot, mockTheme)
+    const editor = new CradleSettingsEditor(
+      { permissions: [] },
+      tempRoot,
+      mockTheme,
+    )
 
-    editor.getInput().setValue('my-dir')
+    editor.getDirInput().setValue('my-dir')
     editor.addCurrentInput()
     expect(editor.getRows()).toEqual([
       {
@@ -176,40 +194,46 @@ describe('DirectoryPermissionsEditor — input', () => {
     expect(editor.isDirty()).toBe(true)
 
     // Duplicate ignored
-    editor.getInput().setValue('my-dir')
+    editor.getDirInput().setValue('my-dir')
     editor.addCurrentInput()
     expect(editor.getRows()).toHaveLength(1)
 
     // Printable chars go to input when on input row
-    const freshEditor = new DirectoryPermissionsEditor([], tempRoot, mockTheme)
+    const freshEditor = new CradleSettingsEditor(
+      { permissions: [] },
+      tempRoot,
+      mockTheme,
+    )
     freshEditor.handleInput('a')
-    expect(freshEditor.getInput().getValue()).toBe('a')
+    expect(freshEditor.getDirInput().getValue()).toBe('a')
   })
 
   it('navigates and deletes rows via keyboard', () => {
-    const editor = new DirectoryPermissionsEditor(
-      [
-        {
-          path: path.join(tempRoot, 'a'),
-          read: true,
-          write: false,
-          bash: false,
-        },
-        {
-          path: path.join(tempRoot, 'b'),
-          read: true,
-          write: false,
-          bash: false,
-        },
-      ],
+    const editor = new CradleSettingsEditor(
+      {
+        permissions: [
+          {
+            path: path.join(tempRoot, 'a'),
+            read: true,
+            write: false,
+            bash: false,
+          },
+          {
+            path: path.join(tempRoot, 'b'),
+            read: true,
+            write: false,
+            bash: false,
+          },
+        ],
+      },
       tempRoot,
       mockTheme,
     )
 
-    // Initial state: on input row
+    // Initial state: on directory input row (row 2)
     expect(editor.getSelectedRow()).toBe(2)
 
-    // Delete key does nothing when on input row
+    // Delete key does nothing when on directory input row
     editor.handleInput('\u001B[3~')
     expect(editor.getRows()).toHaveLength(2)
 
@@ -229,15 +253,21 @@ describe('DirectoryPermissionsEditor — input', () => {
     editor.handleInput('\u001B[B')
     expect(editor.getSelectedRow()).toBe(1)
 
-    // Navigate down to input row
+    // Navigate down to directory input row (row 2)
     editor.handleInput('\u001B[B')
     expect(editor.getSelectedRow()).toBe(2)
 
-    // Stops at input row
+    // Navigate down to interval row (row 3)
     editor.handleInput('\u001B[B')
-    expect(editor.getSelectedRow()).toBe(2)
+    expect(editor.getSelectedRow()).toBe(3)
+
+    // Stops at interval row
+    editor.handleInput('\u001B[B')
+    expect(editor.getSelectedRow()).toBe(3)
 
     // Navigate back up and delete row 1
+    editor.handleInput('\u001B[A')
+    expect(editor.getSelectedRow()).toBe(2)
     editor.handleInput('\u001B[A')
     expect(editor.getSelectedRow()).toBe(1)
     editor.handleInput('\u001B[3~')
@@ -248,22 +278,24 @@ describe('DirectoryPermissionsEditor — input', () => {
   })
 })
 
-describe('DirectoryPermissionsEditor — permissions', () => {
+describe('CradleSettingsEditor — permissions', () => {
   it('toggles permissions with space', () => {
-    const editor = new DirectoryPermissionsEditor(
-      [
-        {
-          path: path.join(tempRoot, 'a'),
-          read: true,
-          write: false,
-          bash: false,
-        },
-      ],
+    const editor = new CradleSettingsEditor(
+      {
+        permissions: [
+          {
+            path: path.join(tempRoot, 'a'),
+            read: true,
+            write: false,
+            bash: false,
+          },
+        ],
+      },
       tempRoot,
       mockTheme,
     )
 
-    // Start on input row; move up to first data row
+    // Start on directory input row; move up to first data row
     editor.handleInput('\u001B[A')
     expect(editor.getSelectedRow()).toBe(0)
     expect(editor.getSelectedCol()).toBe(0)
@@ -286,15 +318,17 @@ describe('DirectoryPermissionsEditor — permissions', () => {
   })
 
   it('navigates between permission columns', () => {
-    const editor = new DirectoryPermissionsEditor(
-      [
-        {
-          path: path.join(tempRoot, 'a'),
-          read: true,
-          write: false,
-          bash: false,
-        },
-      ],
+    const editor = new CradleSettingsEditor(
+      {
+        permissions: [
+          {
+            path: path.join(tempRoot, 'a'),
+            read: true,
+            write: false,
+            bash: false,
+          },
+        ],
+      },
       tempRoot,
       mockTheme,
     )
@@ -314,14 +348,18 @@ describe('DirectoryPermissionsEditor — permissions', () => {
   })
 })
 
-describe('DirectoryPermissionsEditor — suggestions', () => {
+describe('CradleSettingsEditor — suggestions', () => {
   it('accepts and completes suggestions via enter and tab', async () => {
     await mkdir(path.join(tempRoot, 'testdir'))
 
-    const editor = new DirectoryPermissionsEditor([], tempRoot, mockTheme)
+    const editor = new CradleSettingsEditor(
+      { permissions: [] },
+      tempRoot,
+      mockTheme,
+    )
     editor.tuiRequestRender = vi.fn()
 
-    editor.getInput().setValue('te')
+    editor.getDirInput().setValue('te')
     await editor.updateSuggestions()
     expect(editor.getSuggestions().length).toBeGreaterThan(0)
     editor.handleInput('\r')
@@ -334,16 +372,20 @@ describe('DirectoryPermissionsEditor — suggestions', () => {
         bash: false,
       },
     ])
-    expect(editor.getInput().getValue()).toBe('')
+    expect(editor.getDirInput().getValue()).toBe('')
   })
 
   it('dismisses suggestions on escape and renders them', async () => {
     await mkdir(path.join(tempRoot, 'testdir'))
 
-    const editor = new DirectoryPermissionsEditor([], tempRoot, mockTheme)
+    const editor = new CradleSettingsEditor(
+      { permissions: [] },
+      tempRoot,
+      mockTheme,
+    )
     editor.tuiRequestRender = vi.fn()
 
-    editor.getInput().setValue('te')
+    editor.getDirInput().setValue('te')
     await editor.updateSuggestions()
     expect(editor.getSuggestions().length).toBeGreaterThan(0)
 
@@ -361,30 +403,39 @@ describe('DirectoryPermissionsEditor — suggestions', () => {
   })
 })
 
-describe('DirectoryPermissionsEditor — keys', () => {
+describe('CradleSettingsEditor — keys', () => {
   it('handles save, cancel, and ignores printable keys when list focused', () => {
     const saveSpy = vi.fn()
     const cancelSpy = vi.fn()
-    const editor = new DirectoryPermissionsEditor([], tempRoot, mockTheme)
+    const editor = new CradleSettingsEditor(
+      { permissions: [] },
+      tempRoot,
+      mockTheme,
+    )
     editor.onSave = saveSpy
     editor.onCancel = cancelSpy
 
     editor.handleInput('\u0013') // ctrl+s
-    expect(saveSpy).toHaveBeenCalledWith([])
+    expect(saveSpy).toHaveBeenCalledWith({
+      permissions: [],
+      reminderInterval: 3,
+    })
 
     editor.handleInput('\u001B') // escape
     expect(cancelSpy).toHaveBeenCalled()
 
     // Printable char ignored when on a data row
-    const editorWithItems = new DirectoryPermissionsEditor(
-      [
-        {
-          path: path.join(tempRoot, 'a'),
-          read: true,
-          write: false,
-          bash: false,
-        },
-      ],
+    const editorWithItems = new CradleSettingsEditor(
+      {
+        permissions: [
+          {
+            path: path.join(tempRoot, 'a'),
+            read: true,
+            write: false,
+            bash: false,
+          },
+        ],
+      },
       tempRoot,
       mockTheme,
     )
@@ -395,46 +446,67 @@ describe('DirectoryPermissionsEditor — keys', () => {
   })
 })
 
-describe('DirectoryPermissionsEditor — rendering', () => {
+describe('CradleSettingsEditor — rendering', () => {
   it('renders in various states and edge cases', () => {
     // With items
-    const editor = new DirectoryPermissionsEditor(
-      [
-        {
-          path: path.join(tempRoot, 'a'),
-          read: true,
-          write: false,
-          bash: false,
-        },
-      ],
+    const editor = new CradleSettingsEditor(
+      {
+        permissions: [
+          {
+            path: path.join(tempRoot, 'a'),
+            read: true,
+            write: false,
+            bash: false,
+          },
+        ],
+      },
       tempRoot,
       mockTheme,
     )
     editor.focused = true
     const lines = editor.render(80)
     expect(lines.length).toBeGreaterThan(0)
-    expect(lines.some((line) => line.includes('Directory Permissions'))).toBe(
-      true,
-    )
+    expect(lines.some((line) => line.includes('Cradle Settings'))).toBe(true)
     expect(lines.some((line) => line.includes('a'))).toBe(true)
 
     // Empty state
-    const emptyEditor = new DirectoryPermissionsEditor([], tempRoot, mockTheme)
+    const emptyEditor = new CradleSettingsEditor(
+      { permissions: [] },
+      tempRoot,
+      mockTheme,
+    )
     emptyEditor.focused = true
     const emptyLines = emptyEditor.render(80)
     expect(
       emptyLines.some((line) => line.includes('no extra directories')),
     ).toBe(true)
 
-    // Dirty state
-    const dirtyEditor = new DirectoryPermissionsEditor([], tempRoot, mockTheme)
-    dirtyEditor.getInput().setValue('x')
+    // Dirty state from permission change
+    const dirtyEditor = new CradleSettingsEditor(
+      { permissions: [] },
+      tempRoot,
+      mockTheme,
+    )
+    dirtyEditor.getDirInput().setValue('x')
     dirtyEditor.addCurrentInput()
     dirtyEditor.focused = true
     const dirtyLines = dirtyEditor.render(80)
     expect(dirtyLines.some((line) => line.includes('Unsaved changes'))).toBe(
       true,
     )
+
+    // Dirty state from interval change
+    const intervalDirtyEditor = new CradleSettingsEditor(
+      { permissions: [], reminderInterval: 3 },
+      tempRoot,
+      mockTheme,
+    )
+    intervalDirtyEditor.handleInput('\u001B[B') // move to interval row
+    intervalDirtyEditor.handleInput('5')
+    const intervalDirtyLines = intervalDirtyEditor.render(80)
+    expect(
+      intervalDirtyLines.some((line) => line.includes('Unsaved changes')),
+    ).toBe(true)
 
     // Narrow width
     const narrowLines = emptyEditor.render(1)
@@ -444,5 +516,46 @@ describe('DirectoryPermissionsEditor — rendering', () => {
     expect(() => {
       editor.invalidate()
     }).not.toThrow()
+  })
+})
+
+describe('CradleSettingsEditor — interval', () => {
+  it('defaults to 3 when no interval is provided', () => {
+    const editor = new CradleSettingsEditor(
+      { permissions: [] },
+      tempRoot,
+      mockTheme,
+    )
+    expect(editor.getReminderInterval()).toBe(3)
+  })
+
+  it('reads the initial interval from settings', () => {
+    const editor = new CradleSettingsEditor(
+      { permissions: [], reminderInterval: 7 },
+      tempRoot,
+      mockTheme,
+    )
+    expect(editor.getReminderInterval()).toBe(7)
+  })
+
+  it('clamps interval on save', () => {
+    const saveSpy = vi.fn()
+    const editor = new CradleSettingsEditor(
+      { permissions: [] },
+      tempRoot,
+      mockTheme,
+    )
+    editor.onSave = saveSpy
+
+    editor.handleInput('\u001B[B') // move to interval row
+    // Type 50
+    editor.handleInput('5')
+    editor.handleInput('0')
+    editor.handleInput('\u0013') // ctrl+s
+
+    expect(saveSpy).toHaveBeenCalledWith({
+      permissions: [],
+      reminderInterval: 20,
+    })
   })
 })

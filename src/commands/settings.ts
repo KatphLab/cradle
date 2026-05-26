@@ -13,12 +13,18 @@ import path from 'node:path'
 import {
   loadCradleSettings,
   saveCradleSettings,
+  type CradleSettings,
   type DirectoryPermission,
 } from '../config/settings.js'
 
 interface EditorTheme {
   fg: (color: ThemeColor, text: string) => string
   bold: (text: string) => string
+}
+
+interface CradleSettingsResult {
+  permissions: DirectoryPermission[]
+  reminderInterval: number
 }
 
 /** @public */
@@ -74,11 +80,16 @@ const PERMISSION_LABELS: Record<(typeof PERMISSION_COLUMNS)[number], string> = {
 const TOGGLE_WIDTH = 5
 const GAP = 2
 
-export class DirectoryPermissionsEditor implements Component, Focusable {
+const INTERVAL_LABEL = 'System Reminder Interval (turns)'
+const DEFAULT_INTERVAL = 3
+
+export class CradleSettingsEditor implements Component, Focusable {
   private readonly rows: DirectoryPermission[]
   private readonly cwd: string
   private readonly theme: EditorTheme
-  private readonly input: Input
+  private readonly dirInput: Input
+  private readonly intervalInput: Input
+  private readonly initialInterval: number
   private selectedRow: number
   private selectedCol: number
   private dirty = false
@@ -87,30 +98,41 @@ export class DirectoryPermissionsEditor implements Component, Focusable {
   private lastInputValue = ''
   tuiRequestRender?: () => void
 
-  onSave?: (rows: DirectoryPermission[]) => void
+  onSave?: (result: CradleSettingsResult) => void
   onCancel?: () => void
 
   focused = false
 
   constructor(
-    initialRows: DirectoryPermission[],
+    initialSettings: CradleSettings,
     cwd: string,
     theme: EditorTheme,
   ) {
-    this.rows = initialRows.map((row) => ({ ...row }))
+    this.rows = (initialSettings.permissions ?? []).map((row) => ({ ...row }))
     this.cwd = cwd
     this.theme = theme
-    this.input = new Input()
-    this.input.onSubmit = () => {
+    this.initialInterval = initialSettings.reminderInterval ?? DEFAULT_INTERVAL
+
+    this.dirInput = new Input()
+    this.dirInput.onSubmit = () => {
       this.addCurrentInput()
     }
-    this.input.onEscape = () => this.onCancel?.()
+    this.dirInput.onEscape = () => this.onCancel?.()
+
+    this.intervalInput = new Input()
+    this.intervalInput.setValue(String(this.initialInterval))
+
     this.selectedRow = this.rows.length
     this.selectedCol = 0
   }
 
   getRows(): DirectoryPermission[] {
     return this.rows.map((row) => ({ ...row }))
+  }
+
+  getReminderInterval(): number {
+    const value = Number.parseInt(this.intervalInput.getValue())
+    return Number.isNaN(value) ? this.initialInterval : value
   }
 
   getSuggestions(): string[] {
@@ -125,16 +147,18 @@ export class DirectoryPermissionsEditor implements Component, Focusable {
     return this.selectedCol
   }
 
-  getInput(): Input {
-    return this.input
+  getDirInput(): Input {
+    return this.dirInput
   }
 
   isDirty(): boolean {
-    return this.dirty
+    const intervalChanged =
+      this.intervalInput.getValue() !== String(this.initialInterval)
+    return this.dirty || intervalChanged
   }
 
   addCurrentInput(): void {
-    const value = this.input.getValue().trim()
+    const value = this.dirInput.getValue().trim()
     if (!value) return
 
     const resolved = path.resolve(this.cwd, value)
@@ -144,7 +168,7 @@ export class DirectoryPermissionsEditor implements Component, Focusable {
       this.selectedRow = this.rows.length - 1
       this.selectedCol = 1
     }
-    this.input.setValue('')
+    this.dirInput.setValue('')
     this.suggestions = []
     this.lastInputValue = ''
   }
@@ -170,7 +194,7 @@ export class DirectoryPermissionsEditor implements Component, Focusable {
   }
 
   async updateSuggestions(): Promise<void> {
-    const value = this.input.getValue().trim()
+    const value = this.dirInput.getValue().trim()
     if (value === this.lastInputValue) return
     this.lastInputValue = value
 
@@ -191,7 +215,14 @@ export class DirectoryPermissionsEditor implements Component, Focusable {
 
   private tryHandleSave(data: string): boolean {
     if (matchesKey(data, Key.ctrl('s'))) {
-      this.onSave?.(this.getRows())
+      const clampedInterval = Math.max(
+        1,
+        Math.min(20, this.getReminderInterval()),
+      )
+      this.onSave?.({
+        permissions: this.getRows(),
+        reminderInterval: clampedInterval,
+      })
       return true
     }
     return false
@@ -235,10 +266,10 @@ export class DirectoryPermissionsEditor implements Component, Focusable {
 
     const suggestion = this.suggestions[this.suggestionIndex]
     if (suggestion !== undefined) {
-      this.input.setValue(formatDirectoryPath(suggestion, this.cwd))
-      this.input.handleInput('\u0005')
+      this.dirInput.setValue(formatDirectoryPath(suggestion, this.cwd))
+      this.dirInput.handleInput('\u0005')
       this.suggestions = []
-      this.lastInputValue = this.input.getValue()
+      this.lastInputValue = this.dirInput.getValue()
       if (matchesKey(data, Key.enter)) {
         this.addCurrentInput()
       }
@@ -279,10 +310,15 @@ export class DirectoryPermissionsEditor implements Component, Focusable {
   }
 
   private moveDown(): boolean {
-    if (this.selectedRow < this.rows.length) {
+    if (this.selectedRow < this.rows.length + 1) {
       this.selectedRow++
       const isNowOnDataRow = this.selectedRow < this.rows.length
+      const isNowOnDirectoryInput = this.selectedRow === this.rows.length
       this.selectedCol = isNowOnDataRow ? Math.max(1, this.selectedCol) : 0
+      if (isNowOnDirectoryInput) {
+        this.suggestions = []
+        this.suggestionIndex = -1
+      }
     }
     this.tuiRequestRender?.()
     return true
@@ -333,8 +369,13 @@ export class DirectoryPermissionsEditor implements Component, Focusable {
 
   private tryHandleToInput(data: string): boolean {
     if (this.selectedRow === this.rows.length) {
-      this.input.handleInput(data)
+      this.dirInput.handleInput(data)
       void this.updateSuggestions()
+      this.tuiRequestRender?.()
+      return true
+    }
+    if (this.selectedRow === this.rows.length + 1) {
+      this.intervalInput.handleInput(data)
       this.tuiRequestRender?.()
       return true
     }
@@ -348,18 +389,16 @@ export class DirectoryPermissionsEditor implements Component, Focusable {
       ...this.renderTableHeader(width),
       ...this.renderSeparator(width),
       ...this.renderRows(width),
-      ...this.renderInput(width),
+      ...this.renderDirInput(width),
       ...this.renderSuggestions(width),
+      ...this.renderIntervalSection(width),
       ...this.renderHelp(width),
     ]
   }
 
   private renderHeader(width: number): string[] {
-    const title = this.theme.fg(
-      'accent',
-      this.theme.bold('Directory Permissions'),
-    )
-    const dirty = this.dirty
+    const title = this.theme.fg('accent', this.theme.bold('Cradle Settings'))
+    const dirty = this.isDirty()
       ? `  ${this.theme.fg('warning', '● Unsaved changes')}`
       : ''
     return [truncateToWidth(title + dirty, width)]
@@ -442,12 +481,12 @@ export class DirectoryPermissionsEditor implements Component, Focusable {
     return padded
   }
 
-  private renderInput(width: number): string[] {
+  private renderDirInput(width: number): string[] {
     if (this.selectedRow !== this.rows.length) return []
 
     const prefix = '> '
     const inputWidth = Math.max(0, width - prefix.length)
-    const inputLines = this.input.render(inputWidth)
+    const inputLines = this.dirInput.render(inputWidth)
     if (inputLines.length === 0) return []
     const [firstLine = ''] = inputLines
     return ['', `${prefix}${firstLine}`]
@@ -465,6 +504,15 @@ export class DirectoryPermissionsEditor implements Component, Focusable {
     return [...lines, '']
   }
 
+  private renderIntervalSection(width: number): string[] {
+    const isFocused = this.selectedRow === this.rows.length + 1
+    const prefix = isFocused ? '> ' : '  '
+    const inputWidth = Math.max(0, width - prefix.length)
+    const inputLines = this.intervalInput.render(inputWidth)
+    const [firstLine = ''] = inputLines
+    return ['', this.theme.bold(INTERVAL_LABEL), `${prefix}${firstLine}`]
+  }
+
   private renderHelp(width: number): string[] {
     const helpText =
       '↑↓ navigate • ←→ columns • Space/Enter toggle • Del remove • Ctrl+S save • Esc cancel'
@@ -472,7 +520,8 @@ export class DirectoryPermissionsEditor implements Component, Focusable {
   }
 
   invalidate(): void {
-    this.input.invalidate()
+    this.dirInput.invalidate()
+    this.intervalInput.invalidate()
   }
 }
 
@@ -481,24 +530,19 @@ export function registerSettingsCommand(
   pi: Pick<ExtensionAPI, 'registerCommand'>,
 ): void {
   pi.registerCommand('cradle-settings', {
-    description: 'Configure Cradle directory permissions',
+    description: 'Configure Cradle settings',
     handler: async (_args, context) => {
       const settings = await loadCradleSettings(context.cwd)
-      const initialRows = settings.permissions ?? []
 
-      const result = await context.ui.custom<DirectoryPermission[] | undefined>(
+      const result = await context.ui.custom<CradleSettingsResult | undefined>(
         (tui, theme, _kb, done) => {
-          const editor = new DirectoryPermissionsEditor(
-            initialRows,
-            context.cwd,
-            theme,
-          )
+          const editor = new CradleSettingsEditor(settings, context.cwd, theme)
           editor.tuiRequestRender = () => {
             tui.requestRender()
           }
 
-          editor.onSave = (rows) => {
-            done(rows)
+          editor.onSave = (value) => {
+            done(value)
           }
           editor.onCancel = () => {
             done(void 0)
@@ -514,11 +558,13 @@ export function registerSettingsCommand(
       }
 
       await saveCradleSettings(context.cwd, {
-        permissions: result,
+        permissions: result.permissions,
+        reminderInterval: result.reminderInterval,
       })
 
+      const permissionCount = result.permissions.length
       context.ui.notify(
-        `Cradle settings saved: ${result.length} directory permissions`,
+        `Cradle settings saved: ${String(permissionCount)} permissions, reminder interval ${String(result.reminderInterval)} turns`,
         'info',
       )
     },
