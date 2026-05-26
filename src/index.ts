@@ -3,10 +3,12 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { registerSettingsCommand } from './commands/settings.js'
 import { registerSpecCommand } from './commands/spec.js'
 import { registerStatsCommand } from './commands/stats.js'
+import { registerAskUserAbortHook } from './hooks/ask-user-abort.js'
 import { registerShellHook } from './hooks/shell.js'
 import { registerSpecModeHook } from './hooks/spec-mode.js'
 import { registerSystemReminderHook } from './hooks/system-reminder.js'
 import { applyPatchTool } from './tools/apply-patch.js'
+import { askUserTool } from './tools/ask-user.js'
 import { bashTool } from './tools/bash.js'
 import { editTool } from './tools/edit.js'
 import { globTool } from './tools/glob.js'
@@ -39,6 +41,7 @@ export default function configureExtension(
   pi.registerTool(applyPatchTool)
   pi.registerTool(bashTool)
   pi.registerTool(todoTool)
+  pi.registerTool(askUserTool)
 
   const specModeState = createSpecModeState()
 
@@ -48,4 +51,5 @@ export default function configureExtension(
   registerShellHook(pi)
   registerSystemReminderHook(pi)
   registerSpecModeHook(pi, specModeState)
+  registerAskUserAbortHook(pi)
 }
