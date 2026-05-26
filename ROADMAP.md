@@ -23,6 +23,7 @@
 
 ## Commands
 
+- [ ] `/compact` — compact current conversation/session
 - [ ] `/mission` — show current mission status
 - [ ] `/mission-list` — list all missions
 - [ ] `/mission-resume <id>` — restore a mission
@@ -32,13 +33,14 @@
 
 ## TUI
 
-- [ ] AskUser render — rich TUI display for questionnaire output
+- [x] AskUser render — rich TUI display for questionnaire output
 - [ ] Todo TUI — proper inline/overlay todo display
 
 ---
 
 ## Hooks
 
+- [ ] Notification hook — completion/status notification integration (`src/hooks/notification.ts`)
 - [ ] Mode policy enforcement — unified tool gating (`src/hooks/mode-policy.ts`)
 - [ ] Mission reminder — orchestrator/worker prompt injection (`src/hooks/mission-reminder.ts`)
 - [ ] Todo widget — persistent todo display (`src/hooks/todo-widget.ts`)
@@ -69,4 +71,4 @@
 
 ---
 
-_Last updated: `b7984b1`_
+_Last updated: `710d581`_
