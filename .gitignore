@@ -29,3 +29,5 @@ report/
 
 # pnpm
 pnpm-debug.log*
+
+.pi/

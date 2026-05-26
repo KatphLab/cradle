@@ -1,0 +1,4 @@
+- `edit`: 1–5 small, non-overlapping blocks in a single call. Best for typos, single-line fixes, adding a property. Do not exceed 5 blocks—switch tools.
+- `apply_patch`: precise unified diff you can generate confidently. Best for multi-file refactors or >5 scattered changes in one file. Rejects deletes/renames/abs-paths.
+- `write`: new files or when >50% of an existing file changes. Obliterates the original—preserve edge cases you didn't author.
+- Decision: edit (≤5 blocks) → apply_patch (confident diff, multi-file) → write (new or broad rewrite).

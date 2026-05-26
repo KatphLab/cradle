@@ -1,0 +1,107 @@
+[
+  {
+    "pattern": "\\brm\\s+-f\\s+\\.eslintcache(?:\\s|$)",
+    "level": "low",
+    "reason": "Removing a transient cache file is reversible"
+  },
+  {
+    "pattern": "\\brm\\b.*(-[a-zA-Z]*[rf]|--recursive|--force)\\b",
+    "level": "critical",
+    "reason": "Recursive or force deletion can destroy data irreversibly"
+  },
+  {
+    "pattern": "\\bdd\\b.*\\bof=",
+    "level": "critical",
+    "reason": "Direct disk write can destroy filesystems and data"
+  },
+  {
+    "pattern": "\\b(mkfs|mkswap|wipefs|shred)\\b",
+    "level": "critical",
+    "reason": "Disk formatting, swap creation, or secure deletion destroys existing data"
+  },
+  {
+    "pattern": "\\bfind\\b.*(-delete|-exec\\s+rm)\\b",
+    "level": "critical",
+    "reason": "Find with delete or exec rm can recursively destroy files"
+  },
+  {
+    "pattern": "\\bxargs\\b.*\\brm\\b",
+    "level": "critical",
+    "reason": "Xargs combined with rm can bulk-delete files irreversibly"
+  },
+  {
+    "pattern": "\\b(chmod|chown)\\b.*\\s+/",
+    "level": "critical",
+    "reason": "Changing permissions on system paths can break the OS"
+  },
+  {
+    "pattern": "(curl|wget)\\b.*\\|\\s*(bash|sh|zsh)",
+    "level": "critical",
+    "reason": "Downloading and piping to a shell enables remote code execution"
+  },
+  {
+    "pattern": "\\beval\\b\\s+[\\x60($]",
+    "level": "critical",
+    "reason": "Eval with command substitution executes arbitrary code"
+  },
+  {
+    "pattern": "[>]{1,2}\\s*/(etc|sys|proc|boot|dev/[sh]d[a-z])/",
+    "level": "critical",
+    "reason": "Overwriting system files or disk devices can destroy the OS"
+  },
+  {
+    "pattern": "\\bmv\\b.*/(etc|sys|proc|boot|bin|lib|usr)/",
+    "level": "critical",
+    "reason": "Moving files to system paths can overwrite critical OS files"
+  },
+  {
+    "pattern": "\\bdocker\\b\\s+(system\\s+prune|rm\\s+-f)\\b",
+    "level": "critical",
+    "reason": "Destructive Docker operations can delete all containers, images, and volumes"
+  },
+  {
+    "pattern": "\\bsudo\\b",
+    "level": "high",
+    "reason": "Elevated privileges can cause system-wide damage"
+  },
+  {
+    "pattern": "\\beval\\b",
+    "level": "high",
+    "reason": "Eval executes arbitrary code from a string"
+  },
+  {
+    "pattern": "(curl|wget)\\b.*\\|",
+    "level": "high",
+    "reason": "Piping downloaded content directly to another command is dangerous"
+  },
+  {
+    "pattern": "\\bchmod\\b\\s+.*\\b777\\b",
+    "level": "high",
+    "reason": "Overly permissive mode removes all access restrictions"
+  },
+  {
+    "pattern": "\\bgit\\b\\s+push\\b.*--force\\b",
+    "level": "high",
+    "reason": "Force push can overwrite remote history and destroy commits"
+  },
+  {
+    "pattern": "\\bkill\\b\\s+-9\\b",
+    "level": "high",
+    "reason": "SIGKILL force-terminates processes without cleanup"
+  },
+  {
+    "pattern": "\\bssh\\b.*-o\\b.*StrictHostKeyChecking\\s*=\\s*no\\b",
+    "level": "high",
+    "reason": "Disabling SSH host key checking enables man-in-the-middle attacks"
+  },
+  {
+    "pattern": "\\buserdel\\b.*\\s+-r\\b",
+    "level": "high",
+    "reason": "Removing a user and their home directory deletes data"
+  },
+  {
+    "pattern": "\\bnc\\b|\\bnetcat\\b",
+    "level": "high",
+    "reason": "Netcat can open backdoors or exfiltrate data"
+  }
+]

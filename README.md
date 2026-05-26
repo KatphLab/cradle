@@ -1,6 +1,6 @@
 # cradle
 
-A **pi extension package** providing sample tools, commands, hooks, and skills for the pi coding agent.
+A **pi extension package** providing sample tools, commands, and hooks for the pi coding agent.
 
 ## Pi Manifest
 
@@ -8,8 +8,7 @@ Registered in `package.json`:
 
 ```json
 "pi": {
-  "extensions": ["./src"],
-  "skills": ["./skills"]
+  "extensions": ["./src"]
 }
 ```
 
@@ -28,9 +27,6 @@ src/
   hooks/
     session.ts          ← session lifecycle hooks with Map tracking
     session.test.ts
-skills/
-  my-skill/
-    SKILL.md            ← sample skill documentation
 ```
 
 ## Extension Samples

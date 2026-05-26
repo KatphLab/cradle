@@ -127,6 +127,13 @@ const eslintConfig = defineConfig([
         },
       ],
       '@typescript-eslint/prefer-readonly': 'error',
+      '@typescript-eslint/ban-ts-comment': [
+        'error',
+        {
+          'ts-expect-error': true,
+        },
+      ],
+      '@typescript-eslint/max-params': ['error', { max: 7 }],
 
       // Script project rules
       'unused-imports/no-unused-imports': 'error',
@@ -180,16 +187,15 @@ const eslintConfig = defineConfig([
         'error',
         { max: 80, skipBlankLines: true, skipComments: true },
       ],
+      'max-lines': [
+        'error',
+        { max: 500, skipBlankLines: true, skipComments: true },
+      ],
       'security/detect-object-injection': 'off',
+      'security/detect-non-literal-fs-filename': 'off',
       'max-params': 'off',
-      '@typescript-eslint/max-params': ['error', { max: 7 }],
       'no-restricted-syntax': [
         'error',
-        {
-          selector: String.raw`ImportDeclaration[source.value=/^\.\./], ExportNamedDeclaration[source.value=/^\.\./], ExportAllDeclaration[source.value=/^\.\./]`,
-          message:
-            'Relative parent imports (../) are not allowed. Use path aliases (@lib/*, @utils/*, @config/*, @types/*) instead.',
-        },
         {
           selector: 'ExportNamedDeclaration[source]',
           message: 'Do not create pass-through re-export files.',
@@ -240,15 +246,19 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Allow relative parent imports in test files (tests import the module they test)
-  // Also allow longer test functions and empty function mocks
   {
-    files: ['**/__tests__/**', '**/test-utils/**'],
+    files: ['**/*.test.ts'],
     rules: {
-      'no-restricted-syntax': 'off',
       'max-lines-per-function': 'off',
-      '@typescript-eslint/no-empty-function': 'off',
-      'unicorn/no-useless-undefined': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
+      'unicorn/no-null': 'off',
+    },
+  },
+  {
+    files: ['src/config/shell-risk.ts'],
+    rules: {
+      'security/detect-non-literal-regexp': 'off',
     },
   },
   globalIgnores([
@@ -259,9 +269,12 @@ const eslintConfig = defineConfig([
     'dist/**',
     'coverage/**',
     '.opencode/**',
+    '.worktrees/**',
+    '.pi/**',
     'vitest.config.ts',
     'vitest.setup.ts',
     'vitest.strict-reporter.ts',
+    'eslint-rules/**',
   ]),
 ])
 
