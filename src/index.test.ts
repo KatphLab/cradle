@@ -35,7 +35,7 @@ describe('configureExtension', () => {
 
     configureExtension(pi)
 
-    expect(registeredTools).toHaveLength(10)
+    expect(registeredTools).toHaveLength(9)
     expect(registeredTools).toEqual([
       expect.objectContaining({ name: 'read' }),
       expect.objectContaining({ name: 'ls' }),
@@ -46,10 +46,9 @@ describe('configureExtension', () => {
       expect.objectContaining({ name: 'apply_patch' }),
       expect.objectContaining({ name: 'bash' }),
       expect.objectContaining({ name: 'todo' }),
-      expect.objectContaining({ name: 'ask_user' }),
     ])
     expect(commandNames).toEqual(['cradle-settings', 'stats', 'spec'])
-    expect(handlers).toHaveLength(9)
+    expect(handlers).toHaveLength(6)
     expect(handlers.map((h) => h.event)).toEqual([
       'tool_call',
       'session_start',
@@ -57,9 +56,6 @@ describe('configureExtension', () => {
       'session_start',
       'before_agent_start',
       'tool_call',
-      'tool_execution_end',
-      'turn_start',
-      'tool_execution_end',
     ])
   })
 })

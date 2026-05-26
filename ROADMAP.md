@@ -7,7 +7,7 @@
 ## Tools
 
 - [x] ApplyPatch — harnass patch grammar (`src/tools/apply-patch.ts`)
-- [x] AskUser — standardized questionnaire TUI (`src/tools/ask-user.ts`)
+- [-] AskUser — standardized questionnaire TUI (not planned)
 - [ ] CreateMission — mission metadata scaffolding (`src/tools/create-mission.ts`)
 - [ ] EndFeatureRun — worker completion boundary (`src/tools/end-feature-run.ts`)
 - [ ] ExitSpecMode — spec approval handoff (`src/tools/exit-spec-mode.ts`)
@@ -33,7 +33,7 @@
 
 ## TUI
 
-- [x] AskUser render — rich TUI display for questionnaire output
+- [-] AskUser render — rich TUI display for questionnaire output (not planned)
 - [ ] Todo TUI — proper inline/overlay todo display
 
 ---
