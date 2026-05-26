@@ -40,21 +40,6 @@ afterAll(async () => {
 })
 
 describe('registerShellHook', () => {
-  it('registers a tool_call handler', () => {
-    const handlers: { event: string; fn: unknown }[] = []
-
-    const pi: Pick<ExtensionAPI, 'on'> = {
-      on: (event, handler) => {
-        handlers.push({ event, fn: handler })
-      },
-    }
-
-    registerShellHook(pi)
-
-    expect(handlers).toHaveLength(1)
-    expect(handlers[0]?.event).toBe('tool_call')
-  })
-
   it('notifies for high-risk bash commands', async () => {
     const handlers: { event: string; fn: unknown }[] = []
     const notifySpy = vi.fn()

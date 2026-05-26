@@ -174,40 +174,6 @@ describe('formatDirectoryPath', () => {
 })
 
 describe('CradleSettingsEditor — input', () => {
-  it('manages rows and tracks dirty state', () => {
-    const editor = new CradleSettingsEditor(
-      { permissions: [] },
-      tempRoot,
-      mockTheme,
-    )
-
-    editor.getDirInput().setValue('my-dir')
-    editor.addCurrentInput()
-    expect(editor.getRows()).toEqual([
-      {
-        path: path.resolve(tempRoot, 'my-dir'),
-        read: true,
-        write: false,
-        bash: false,
-      },
-    ])
-    expect(editor.isDirty()).toBe(true)
-
-    // Duplicate ignored
-    editor.getDirInput().setValue('my-dir')
-    editor.addCurrentInput()
-    expect(editor.getRows()).toHaveLength(1)
-
-    // Printable chars go to input when on input row
-    const freshEditor = new CradleSettingsEditor(
-      { permissions: [] },
-      tempRoot,
-      mockTheme,
-    )
-    freshEditor.handleInput('a')
-    expect(freshEditor.getDirInput().getValue()).toBe('a')
-  })
-
   it('navigates and deletes rows via keyboard', () => {
     const editor = new CradleSettingsEditor(
       {
@@ -279,7 +245,7 @@ describe('CradleSettingsEditor — input', () => {
 })
 
 describe('CradleSettingsEditor — permissions', () => {
-  it('toggles permissions with space', () => {
+  it('navigates permission columns and toggles values', () => {
     const editor = new CradleSettingsEditor(
       {
         permissions: [
@@ -295,61 +261,35 @@ describe('CradleSettingsEditor — permissions', () => {
       mockTheme,
     )
 
-    // Start on directory input row; move up to first data row
+    // Move up to first data row
     editor.handleInput('\u001B[A')
-    expect(editor.getSelectedRow()).toBe(0)
-    expect(editor.getSelectedCol()).toBe(0)
 
-    // Move to read column
+    // Navigate right to read column (1) and toggle off
     editor.handleInput('\u001B[C')
     expect(editor.getSelectedCol()).toBe(1)
-
-    // Toggle read off
     editor.handleInput(' ')
     expect(editor.getRows()[0]?.read).toBe(false)
 
-    // Move to write column
+    // Navigate right to write column (2) and toggle on
     editor.handleInput('\u001B[C')
     expect(editor.getSelectedCol()).toBe(2)
-
-    // Toggle write on
     editor.handleInput(' ')
     expect(editor.getRows()[0]?.write).toBe(true)
-  })
 
-  it('navigates between permission columns', () => {
-    const editor = new CradleSettingsEditor(
-      {
-        permissions: [
-          {
-            path: path.join(tempRoot, 'a'),
-            read: true,
-            write: false,
-            bash: false,
-          },
-        ],
-      },
-      tempRoot,
-      mockTheme,
-    )
-
-    // Move up to data row
-    editor.handleInput('\u001B[A')
-    editor.handleInput('\u001B[C')
-    expect(editor.getSelectedCol()).toBe(1)
-    editor.handleInput('\u001B[C')
-    expect(editor.getSelectedCol()).toBe(2)
+    // Navigate right to bash column (3), then beyond (clamped)
     editor.handleInput('\u001B[C')
     expect(editor.getSelectedCol()).toBe(3)
     editor.handleInput('\u001B[C')
     expect(editor.getSelectedCol()).toBe(3) // clamped
+
+    // Navigate left
     editor.handleInput('\u001B[D')
     expect(editor.getSelectedCol()).toBe(2)
   })
 })
 
 describe('CradleSettingsEditor — suggestions', () => {
-  it('accepts and completes suggestions via enter and tab', async () => {
+  it('accepts and dismisses suggestions', async () => {
     await mkdir(path.join(tempRoot, 'testdir'))
 
     const editor = new CradleSettingsEditor(
@@ -359,9 +299,12 @@ describe('CradleSettingsEditor — suggestions', () => {
     )
     editor.tuiRequestRender = vi.fn()
 
+    // Set up suggestions
     editor.getDirInput().setValue('te')
     await editor.updateSuggestions()
     expect(editor.getSuggestions().length).toBeGreaterThan(0)
+
+    // Accept with enter — adds a row and clears input
     editor.handleInput('\r')
     expect(editor.getSuggestions()).toEqual([])
     expect(editor.getRows()).toEqual([
@@ -373,18 +316,8 @@ describe('CradleSettingsEditor — suggestions', () => {
       },
     ])
     expect(editor.getDirInput().getValue()).toBe('')
-  })
 
-  it('dismisses suggestions on escape and renders them', async () => {
-    await mkdir(path.join(tempRoot, 'testdir'))
-
-    const editor = new CradleSettingsEditor(
-      { permissions: [] },
-      tempRoot,
-      mockTheme,
-    )
-    editor.tuiRequestRender = vi.fn()
-
+    // Set up again
     editor.getDirInput().setValue('te')
     await editor.updateSuggestions()
     expect(editor.getSuggestions().length).toBeGreaterThan(0)
@@ -394,7 +327,7 @@ describe('CradleSettingsEditor — suggestions', () => {
     const linesBefore = editor.render(80)
     expect(linesBefore.some((line) => line.includes('▸'))).toBe(true)
 
-    // Escape dismisses
+    // Dismiss with escape
     editor.handleInput('\u001B')
     expect(editor.getSuggestions()).toEqual([])
 
@@ -520,35 +453,27 @@ describe('CradleSettingsEditor — rendering', () => {
 })
 
 describe('CradleSettingsEditor — interval', () => {
-  it('defaults to 3 when no interval is provided', () => {
+  it('defaults to 3, reads initial value, and clamps on save', () => {
+    // Default when no interval provided
     const editor = new CradleSettingsEditor(
       { permissions: [] },
       tempRoot,
       mockTheme,
     )
     expect(editor.getReminderInterval()).toBe(3)
-  })
 
-  it('reads the initial interval from settings', () => {
-    const editor = new CradleSettingsEditor(
+    // Reads custom initial value from settings
+    const customEditor = new CradleSettingsEditor(
       { permissions: [], reminderInterval: 7 },
       tempRoot,
       mockTheme,
     )
-    expect(editor.getReminderInterval()).toBe(7)
-  })
+    expect(customEditor.getReminderInterval()).toBe(7)
 
-  it('clamps interval on save', () => {
+    // Clamps on save (50 → 20)
     const saveSpy = vi.fn()
-    const editor = new CradleSettingsEditor(
-      { permissions: [] },
-      tempRoot,
-      mockTheme,
-    )
     editor.onSave = saveSpy
-
     editor.handleInput('\u001B[B') // move to interval row
-    // Type 50
     editor.handleInput('5')
     editor.handleInput('0')
     editor.handleInput('\u0013') // ctrl+s

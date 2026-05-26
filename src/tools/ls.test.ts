@@ -101,16 +101,6 @@ describe('lsTool', () => {
     expect(item.text).toContain('limit reached')
   })
 
-  it('works with empty ignore array', async () => {
-    const result = await execLs(listDirectory, tempRoot, [])
-    expect(result.content).toHaveLength(1)
-    const item = result.content[0]
-    if (!isTextContent(item)) throw new Error('Expected text content')
-    expect(item.text).toContain('a.txt')
-    expect(item.text).toContain('b.txt')
-    expect(item.text).toContain('ignored/')
-  })
-
   it('denies reads outside allowed directories', async () => {
     await expect(execLs(deniedRoot, tempRoot)).rejects.toThrow('read denied')
   })

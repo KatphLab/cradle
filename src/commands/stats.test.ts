@@ -17,7 +17,6 @@ describe('registerStatsCommand', () => {
     }
 
     registerStatsCommand(pi)
-    expect(typeof registeredHandler === 'function').toBe(true)
 
     const getEntriesSpy = vi.fn(() => [{}, {}, {}])
     const notifySpy = vi.fn()

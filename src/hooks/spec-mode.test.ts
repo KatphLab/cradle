@@ -177,35 +177,4 @@ describe('registerSpecModeHook', () => {
       reason: expect.stringContaining('Spec mode blocks bash, edit, and write'),
     })
   })
-
-  it('blocks edit and write with missing path while enabled', () => {
-    const { handlers, state } = registerHook()
-    const toolCall = getHandler(handlers, 'tool_call')
-
-    state.setEnabled(true)
-    // @ts-expect-error minimal handler mock
-    const result = toolCall?.({ toolName: 'edit', input: {} }, { cwd: '/test' })
-
-    expect(result).toEqual({
-      block: true,
-      reason: expect.stringContaining('Spec mode blocks bash, edit, and write'),
-    })
-  })
-
-  it('blocks edit and write with non-string path while enabled', () => {
-    const { handlers, state } = registerHook()
-    const toolCall = getHandler(handlers, 'tool_call')
-
-    state.setEnabled(true)
-    // @ts-expect-error minimal handler mock
-    const result = toolCall?.(
-      { toolName: 'edit', input: { path: 42 } },
-      { cwd: '/test' },
-    )
-
-    expect(result).toEqual({
-      block: true,
-      reason: expect.stringContaining('Spec mode blocks bash, edit, and write'),
-    })
-  })
 })

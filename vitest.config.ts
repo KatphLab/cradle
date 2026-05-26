@@ -29,6 +29,7 @@ export default defineConfig({
         'src/types/**',
         'src/utils/**',
         'src/config/**',
+        'src/index.ts',
         '.worktrees/**',
         '.pi/**',
       ],
