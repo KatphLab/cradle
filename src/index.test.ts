@@ -49,7 +49,7 @@ describe('configureExtension', () => {
       expect.objectContaining({ name: 'ask_user' }),
     ])
     expect(commandNames).toEqual(['cradle-settings', 'stats', 'spec'])
-    expect(handlers).toHaveLength(7)
+    expect(handlers).toHaveLength(9)
     expect(handlers.map((h) => h.event)).toEqual([
       'tool_call',
       'session_start',
@@ -57,6 +57,8 @@ describe('configureExtension', () => {
       'session_start',
       'before_agent_start',
       'tool_call',
+      'tool_execution_end',
+      'turn_start',
       'tool_execution_end',
     ])
   })
