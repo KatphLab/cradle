@@ -1,6 +1,3 @@
-import { readFile } from 'node:fs/promises'
-import path from 'node:path'
-
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import {
   estimateTokens,
@@ -10,36 +7,42 @@ import {
 import { loadCradleSettings, type CradleSettings } from '../config/settings.js'
 import { formatTodoReminder, reconstructTodos } from '../utils/todo-state.js'
 
-const SYSTEM_REMINDER_FILE = 'SYSTEM_REMINDER.md'
 const SYSTEM_REMINDER_TYPE = 'cradle-system-reminder'
 const SYSTEM_REMINDER_TOKEN_LIMIT = 500
 const DEFAULT_REMINDER_INTERVAL = 3
 
+const SYSTEM_REMINDER_TAG_PATTERN =
+  /<system-reminder>([\s\S]*?)<\/system-reminder>/g
+
 /** @public */
 export function registerSystemReminderHook(pi: Pick<ExtensionAPI, 'on'>): void {
   let cachedSettings: CradleSettings = {}
+  let cachedReminder: string | undefined = undefined
   let eventsSinceLastInjection = 0
 
-  pi.on('session_start', async (_event, context) => {
+  pi.on('session_start', async (_event, _context) => {
     eventsSinceLastInjection = 0
-    cachedSettings = await loadCradleSettings(context.cwd)
+    cachedReminder = undefined
+    cachedSettings = await loadCradleSettings(_context.cwd)
+  })
 
-    const reminder = await loadSystemReminder(context.cwd)
-
-    if (!reminder) {
+  pi.on('before_agent_start', (event, context) => {
+    const extracted = extractSystemReminder(event.systemPrompt)
+    if (!extracted) {
       return
     }
-
-    const tokens = countSystemReminderTokens(reminder)
+    cachedReminder = extracted.reminder
+    const tokens = countSystemReminderTokens(cachedReminder)
     if (tokens > SYSTEM_REMINDER_TOKEN_LIMIT) {
       context.ui.notify(
-        `SYSTEM_REMINDER.md exceeds ${String(SYSTEM_REMINDER_TOKEN_LIMIT)} tokens (~${String(tokens)}). Consider shortening it.`,
+        `System reminder exceeds ${String(SYSTEM_REMINDER_TOKEN_LIMIT)} tokens (~${String(tokens)}). Consider shortening it.`,
         'warning',
       )
     }
+    return { systemPrompt: extracted.systemPrompt }
   })
 
-  pi.on('context', async (event, context) => {
+  pi.on('context', (event, _context) => {
     const messages = event.messages.filter(
       (message) => !isSystemReminder(message),
     )
@@ -63,10 +66,9 @@ export function registerSystemReminderHook(pi: Pick<ExtensionAPI, 'on'>): void {
 
     const parts: string[] = []
 
-    // File-based reminder
-    const fileReminder = await loadSystemReminder(context.cwd)
-    if (fileReminder) {
-      parts.push(fileReminder)
+    // Cached reminder from system prompt
+    if (cachedReminder) {
+      parts.push(cachedReminder)
     }
 
     // Active task list reminder
@@ -84,6 +86,30 @@ export function registerSystemReminderHook(pi: Pick<ExtensionAPI, 'on'>): void {
       messages: [...messages, createSystemReminderMessage(parts.join('\n\n'))],
     }
   })
+}
+
+function extractSystemReminder(
+  systemPrompt: string,
+): { reminder: string; systemPrompt: string } | undefined {
+  const matches: string[] = []
+  const cleanedSystemPrompt = systemPrompt.replaceAll(
+    SYSTEM_REMINDER_TAG_PATTERN,
+    (_match, content) => {
+      const trimmed = String(content).trim()
+      if (trimmed.length > 0) {
+        matches.push(trimmed)
+      }
+      return ''
+    },
+  )
+
+  if (matches.length === 0) {
+    return undefined
+  }
+
+  const reminder = matches.join('\n\n')
+
+  return { reminder, systemPrompt: cleanedSystemPrompt }
 }
 
 function countSystemReminderTokens(reminder: string): number {
@@ -120,17 +146,4 @@ function getLastNonReminderMessageRole(
 
 function isSystemReminder(message: AgentMessage): boolean {
   return 'customType' in message && message.customType === SYSTEM_REMINDER_TYPE
-}
-
-async function loadSystemReminder(cwd: string): Promise<string | undefined> {
-  try {
-    const content = await readFile(path.join(cwd, SYSTEM_REMINDER_FILE), 'utf8')
-    const reminder = content.trim()
-    return reminder.length > 0 ? reminder : undefined
-  } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-      return undefined
-    }
-    throw error
-  }
 }
