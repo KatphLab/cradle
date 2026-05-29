@@ -16,7 +16,7 @@ import {
   writePromptToTemporaryFile,
 } from './utilities.js'
 
-export type SpawnedPiProcess = ChildProcess
+type SpawnedPiProcess = ChildProcess
 
 type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void
 type PiMessageEventType = 'message_end' | 'tool_result_end'
