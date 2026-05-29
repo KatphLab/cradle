@@ -230,9 +230,9 @@ describe('subagent render builders', () => {
   })
 
   describe('buildSingleResultExpanded', () => {
-    it('renders a successful expanded result with task, tool call, markdown output, and usage', () => {
+    it('renders expanded results with success, error, and no-output branches', () => {
       const sourcePath = path.join(os.tmpdir(), 'source.ts')
-      const result = makeResult({
+      const successResult = makeResult({
         agent: 'coder',
         agentSource: 'user',
         messages: makeMessages(
@@ -247,7 +247,7 @@ describe('subagent render builders', () => {
         usage: makeUsage({ input: 1200, output: 345, cost: 0.01, turns: 1 }),
       })
 
-      const rendered = buildSingleResultExpanded(result, theme)
+      const rendered = buildSingleResultExpanded(successResult, theme)
       const container = asMockContainer(rendered)
       const texts = getTextChildren(rendered)
       const markdown = getMarkdownChildren(rendered)
@@ -275,27 +275,26 @@ describe('subagent render builders', () => {
       expect(texts).toContain(
         '<dim>1 turn ↑1.2k ↓345 $0.0100 claude-sonnet-4</dim>',
       )
-    })
 
-    it('renders expanded error details and a no-output placeholder', () => {
-      const result = makeResult({
+      const errorResult = makeResult({
         exitCode: 1,
         stopReason: 'error',
         errorMessage: 'Tool failed',
         messages: [],
       })
+      const errorTexts = getTextChildren(
+        buildSingleResultExpanded(errorResult, theme),
+      )
 
-      const texts = getTextChildren(buildSingleResultExpanded(result, theme))
-
-      expect(texts[0]).toContain('<error>✗</error>')
-      expect(texts[0]).toContain('<error>[error]</error>')
-      expect(texts).toContain('<error>Error: Tool failed</error>')
-      expect(texts).toContain('<muted>(no output)</muted>')
+      expect(errorTexts[0]).toContain('<error>✗</error>')
+      expect(errorTexts[0]).toContain('<error>[error]</error>')
+      expect(errorTexts).toContain('<error>Error: Tool failed</error>')
+      expect(errorTexts).toContain('<muted>(no output)</muted>')
     })
   })
 
   describe('buildSingleResultCollapsed', () => {
-    it('renders collapsed output previews with skipped items, usage, and expand hint', () => {
+    it('renders collapsed previews with truncation, skipped items, and error branches', () => {
       const result = makeResult({
         messages: makeTextMessages(11),
         model: 'opus',
@@ -320,23 +319,21 @@ describe('subagent render builders', () => {
       expect(text).toContain(
         '<dim>2 turns ↑10k ↓2.5k R50 W25 ctx:1.5M opus</dim>',
       )
-    })
 
-    it('truncates multiline text previews in collapsed output', () => {
-      const result = makeResult({
+      const truncateResult = makeResult({
         messages: makeMessages({
           type: 'text',
           text: 'line 1\nline 2\nline 3\nline 4',
         }),
       })
+      const truncateText = asMockText(
+        buildSingleResultCollapsed(truncateResult, theme),
+      ).text
+      expect(truncateText).toContain(
+        '<toolOutput>line 1\nline 2\nline 3</toolOutput>',
+      )
+      expect(truncateText).not.toContain('line 4')
 
-      const text = asMockText(buildSingleResultCollapsed(result, theme)).text
-
-      expect(text).toContain('<toolOutput>line 1\nline 2\nline 3</toolOutput>')
-      expect(text).not.toContain('line 4')
-    })
-
-    it('renders no-output and error-message collapsed branches', () => {
       const noOutput = asMockText(
         buildSingleResultCollapsed(makeResult(), theme),
       ).text
@@ -486,7 +483,7 @@ describe('subagent render builders', () => {
   })
 
   describe('buildParallelResultCollapsed', () => {
-    it('renders running summary, running placeholder, and omits aggregate usage while running', () => {
+    it('renders running, partial, and complete collapsed summaries', () => {
       const done = makeResult({
         agent: 'docs',
         messages: makeMessages({ type: 'text', text: 'documented' }),
@@ -499,29 +496,27 @@ describe('subagent render builders', () => {
         usage: makeUsage({ output: 50 }),
       })
 
-      const text = asMockText(
+      const runningText = asMockText(
         buildParallelResultCollapsed(
           makeDetails('parallel', [done, running]),
           theme,
         ),
       ).text
 
-      expect(text).toContain(
+      expect(runningText).toContain(
         '<warning>⏳</warning> <toolTitle><bold>parallel </bold></toolTitle><accent>1/2 done, 1 running</accent>',
       )
-      expect(text).toContain(
+      expect(runningText).toContain(
         '<muted>─── </muted><accent>docs</accent> <success>✓</success>',
       )
-      expect(text).toContain('<toolOutput>documented</toolOutput>')
-      expect(text).toContain(
+      expect(runningText).toContain('<toolOutput>documented</toolOutput>')
+      expect(runningText).toContain(
         '<muted>─── </muted><accent>lint</accent> <warning>⏳</warning>',
       )
-      expect(text).toContain('<muted>(running...)</muted>')
-      expect(text).not.toContain('Total:')
-      expect(text).toContain('<muted>(Ctrl+O to expand)</muted>')
-    })
+      expect(runningText).toContain('<muted>(running...)</muted>')
+      expect(runningText).not.toContain('Total:')
+      expect(runningText).toContain('<muted>(Ctrl+O to expand)</muted>')
 
-    it('renders partial failure and success summaries with aggregate usage when complete', () => {
       const failure = makeResult({
         agent: 'review',
         exitCode: 1,

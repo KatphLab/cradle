@@ -1,7 +1,4 @@
-import type {
-  ExtensionContext,
-  ToolRenderResultOptions,
-} from '@earendil-works/pi-coding-agent'
+import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { discoverAgents } from '../subagents/agents.js'
@@ -10,38 +7,13 @@ import type {
   AgentDiscoveryResult,
   SingleResult,
 } from '../subagents/types.js'
-import type {
-  MakeDetails,
-  SubagentParametersType,
-  ToolContext,
-  ToolResult,
-  UpdateCallback,
-} from './subagent-modes.js'
+import type { SubagentParametersType, ToolContext } from './subagent-modes.js'
 import {
   handleChainMode,
   handleParallelMode,
   handleSingleMode,
-  makeDetailsFactory,
-  requestProjectAgentApproval,
-  validateModeCount,
 } from './subagent-modes.js'
-import { buildRenderCall, buildRenderResult } from './subagent-render.js'
 import { subagentTool } from './subagent.js'
-
-type ModeHandler = (
-  parameters: SubagentParametersType,
-  context: ToolContext,
-  agents: AgentConfig[],
-  signal: AbortSignal | undefined,
-  onUpdate: UpdateCallback | undefined,
-  makeDetails: MakeDetails,
-) => Promise<ToolResult>
-
-interface SubagentModesModule {
-  handleChainMode: ModeHandler
-  handleParallelMode: ModeHandler
-  handleSingleMode: ModeHandler
-}
 
 vi.mock('@earendil-works/pi-coding-agent', () => ({
   defineTool: vi.fn(
@@ -69,7 +41,7 @@ vi.mock('./subagent-render.js', () => ({
 }))
 
 vi.mock('./subagent-modes.js', async (importOriginal) => {
-  const actual = await importOriginal<SubagentModesModule>()
+  const actual = await importOriginal<Record<string, unknown>>()
   return {
     ...actual,
     handleChainMode: vi.fn(),
@@ -138,141 +110,6 @@ const discovery: AgentDiscoveryResult = {
   agents: [userAgent, projectAgent],
   projectAgentsDir: '/repo/.pi/agents',
 }
-
-describe('validateModeCount', () => {
-  it('accepts exactly one single, parallel, or chain mode', () => {
-    expect(
-      validateModeCount({ agent: 'writer', task: 'write' }),
-    ).toBeUndefined()
-    expect(
-      validateModeCount({ tasks: [{ agent: 'writer', task: 'write' }] }),
-    ).toBeUndefined()
-    expect(
-      validateModeCount({ chain: [{ agent: 'writer', task: 'write' }] }),
-    ).toBeUndefined()
-  })
-
-  it('rejects missing, incomplete, empty, or multiple modes', () => {
-    const message = 'Invalid parameters. Provide exactly one mode.'
-
-    expect(validateModeCount({})).toBe(message)
-    expect(validateModeCount({ agent: 'writer' })).toBe(message)
-    expect(validateModeCount({ task: 'write' })).toBe(message)
-    expect(validateModeCount({ tasks: [] })).toBe(message)
-    expect(validateModeCount({ chain: [] })).toBe(message)
-    expect(
-      validateModeCount({
-        agent: 'writer',
-        task: 'write',
-        tasks: [{ agent: 'reviewer', task: 'review' }],
-      }),
-    ).toBe(message)
-    expect(
-      validateModeCount({
-        chain: [{ agent: 'planner', task: 'plan' }],
-        tasks: [{ agent: 'reviewer', task: 'review' }],
-      }),
-    ).toBe(message)
-  })
-})
-
-describe('confirmProjectAgents', () => {
-  it('allows execution without prompting when no requested agents are project-local', async () => {
-    const confirm = vi.fn().mockResolvedValue(false)
-    const context = makeContext({ hasUI: true, ui: { confirm } })
-
-    await expect(
-      requestProjectAgentApproval(
-        { agent: 'writer', task: 'write' },
-        [userAgent, projectAgent],
-        context,
-        discovery,
-      ),
-    ).resolves.toBe(true)
-
-    expect(confirm).not.toHaveBeenCalled()
-  })
-
-  it('prompts for requested project-local agents and returns the user choice', async () => {
-    const confirm = vi.fn().mockResolvedValue(false)
-    const context = makeContext({ hasUI: true, ui: { confirm } })
-
-    await expect(
-      requestProjectAgentApproval(
-        { agent: 'repo-agent', task: 'inspect' },
-        [userAgent, projectAgent],
-        context,
-        discovery,
-      ),
-    ).resolves.toBe(false)
-
-    expect(confirm).toHaveBeenCalledWith(
-      'Run project-local agents?',
-      expect.stringContaining('Agents: repo-agent'),
-    )
-    expect(confirm).toHaveBeenCalledWith(
-      'Run project-local agents?',
-      expect.stringContaining('Source: /repo/.pi/agents'),
-    )
-  })
-
-  it('detects project-local agents requested by parallel tasks and chains', async () => {
-    const confirm = vi.fn().mockResolvedValue(true)
-    const context = makeContext({ hasUI: true, ui: { confirm } })
-
-    await expect(
-      requestProjectAgentApproval(
-        {
-          chain: [
-            { agent: 'writer', task: 'write' },
-            { agent: 'repo-agent', task: 'check {previous}' },
-          ],
-          tasks: [{ agent: 'repo-agent', task: 'review' }],
-        },
-        [userAgent, projectAgent],
-        context,
-        { agents: [userAgent, projectAgent], projectAgentsDir: undefined },
-      ),
-    ).resolves.toBe(true)
-
-    expect(confirm).toHaveBeenCalledWith(
-      'Run project-local agents?',
-      expect.stringContaining('Source: (unknown)'),
-    )
-  })
-})
-
-describe('makeDetailsFactory', () => {
-  it('creates details containing the requested mode, scope, directory, and results', () => {
-    const result = makeSingleResult('writer')
-    let projectAgentsDirectory: string | undefined
-
-    expect(
-      makeDetailsFactory('user', projectAgentsDirectory)('single')([result]),
-    ).toEqual({
-      agentScope: 'user',
-      mode: 'single',
-      projectAgentsDir: undefined,
-      results: [result],
-    })
-    expect(
-      makeDetailsFactory('project', '/repo/.pi/agents')('chain')([result]),
-    ).toEqual({
-      agentScope: 'project',
-      mode: 'chain',
-      projectAgentsDir: '/repo/.pi/agents',
-      results: [result],
-    })
-    expect(
-      makeDetailsFactory('both', '/repo/.pi/agents')('parallel')([result]),
-    ).toEqual({
-      agentScope: 'both',
-      mode: 'parallel',
-      projectAgentsDir: '/repo/.pi/agents',
-      results: [result],
-    })
-  })
-})
 
 describe('subagentTool', () => {
   beforeEach(() => {
@@ -425,16 +262,13 @@ describe('subagentTool', () => {
     expect(handleSingleMode).toHaveBeenCalledTimes(2)
   })
 
-  it('delegates renderCall and renderResult to render helpers', () => {
+  it('renders subagent call and result', () => {
     const theme = {
       bold: (text: string) => text,
       fg: (_color: string, text: string) => text,
     }
     const result = makeToolResult('single')
-    const options: ToolRenderResultOptions = {
-      expanded: true,
-      isPartial: false,
-    }
+    const options = { expanded: true, isPartial: false }
 
     expect(
       // @ts-expect-error minimal context mock
@@ -444,10 +278,5 @@ describe('subagentTool', () => {
       // @ts-expect-error minimal context mock
       subagentTool.renderResult?.(result, options, theme, {}),
     ).toBe('render-result')
-    expect(buildRenderCall).toHaveBeenCalledWith(
-      { agent: 'writer', task: 'write' },
-      theme,
-    )
-    expect(buildRenderResult).toHaveBeenCalledWith(result, true, theme)
   })
 })

@@ -133,7 +133,7 @@ describe('buildRenderCall', () => {
     vi.clearAllMocks()
   })
 
-  it('renders a single subagent call with defaults and task preview', () => {
+  it('renders a single subagent call with defaults and missing fields', () => {
     const rendered = buildRenderCall(
       { agent: 'coder', task: 'Implement a focused unit test' },
       theme,
@@ -148,13 +148,10 @@ describe('buildRenderCall', () => {
     expect(textOf(rendered)).toContain(
       '<dim>Implement a focused unit test</dim>',
     )
-  })
 
-  it('renders placeholders for missing single mode fields', () => {
-    const rendered = buildRenderCall({}, theme)
-
-    expect(textOf(rendered)).toContain('<accent>...</accent>')
-    expect(textOf(rendered)).toContain('<dim>...</dim>')
+    const emptyRendered = buildRenderCall({}, theme)
+    expect(textOf(emptyRendered)).toContain('<accent>...</accent>')
+    expect(textOf(emptyRendered)).toContain('<dim>...</dim>')
   })
 
   it('renders chain mode with scope, cleaned previous placeholder, truncation, and overflow count', () => {
@@ -216,10 +213,8 @@ describe('buildRenderCall', () => {
     expect(textOf(rendered)).not.toContain(
       'review</accent><dim> Review changes',
     )
-  })
 
-  it('prefers chain mode over parallel and single data when multiple fields are present', () => {
-    const rendered = buildRenderCall(
+    const preferChain = buildRenderCall(
       {
         agent: 'single',
         task: 'single task',
@@ -229,12 +224,12 @@ describe('buildRenderCall', () => {
       theme,
     )
 
-    expect(textOf(rendered)).toContain('<accent>chain (1 steps)</accent>')
-    expect(textOf(rendered)).toContain(
+    expect(textOf(preferChain)).toContain('<accent>chain (1 steps)</accent>')
+    expect(textOf(preferChain)).toContain(
       '<accent>chain</accent><dim> chain task</dim>',
     )
-    expect(textOf(rendered)).not.toContain('parallel task')
-    expect(textOf(rendered)).not.toContain('single task')
+    expect(textOf(preferChain)).not.toContain('parallel task')
+    expect(textOf(preferChain)).not.toContain('single task')
   })
 })
 
@@ -243,80 +238,83 @@ describe('buildRenderResult', () => {
     vi.clearAllMocks()
   })
 
-  it('renders expanded and collapsed single results', () => {
+  it('renders expanded and collapsed single, chain, and parallel results', () => {
     const singleResult = makeResult({ agent: 'coder' })
-    const result = {
+    const singleResultData = {
       content: [{ type: 'text', text: 'fallback' }],
       details: makeDetails('single', [singleResult]),
     } satisfies AgentToolResult<SubagentDetails>
 
-    expect(buildRenderResult(result, true, theme)).toEqual({
+    expect(buildRenderResult(singleResultData, true, theme)).toEqual({
       kind: 'single-expanded',
       result: singleResult,
     })
     expect(buildSingleResultExpanded).toHaveBeenCalledWith(singleResult, theme)
-
-    expect(buildRenderResult(result, false, theme)).toEqual({
+    expect(buildRenderResult(singleResultData, false, theme)).toEqual({
       kind: 'single-collapsed',
       result: singleResult,
     })
     expect(buildSingleResultCollapsed).toHaveBeenCalledWith(singleResult, theme)
-  })
 
-  it('renders expanded and collapsed chain results', () => {
-    const details = makeDetails('chain', [makeResult({ step: 1 })])
-    const result = {
+    const chainDetails = makeDetails('chain', [makeResult({ step: 1 })])
+    const chainResult = {
       content: [{ type: 'text', text: 'fallback' }],
-      details,
+      details: chainDetails,
     } satisfies AgentToolResult<SubagentDetails>
 
-    expect(buildRenderResult(result, true, theme)).toEqual({
+    expect(buildRenderResult(chainResult, true, theme)).toEqual({
       kind: 'chain-expanded',
-      details,
+      details: chainDetails,
     })
-    expect(buildChainResultExpanded).toHaveBeenCalledWith(details, theme)
-
-    expect(buildRenderResult(result, false, theme)).toEqual({
+    expect(buildChainResultExpanded).toHaveBeenCalledWith(chainDetails, theme)
+    expect(buildRenderResult(chainResult, false, theme)).toEqual({
       kind: 'chain-collapsed',
-      details,
+      details: chainDetails,
     })
-    expect(buildChainResultCollapsed).toHaveBeenCalledWith(details, theme)
-  })
+    expect(buildChainResultCollapsed).toHaveBeenCalledWith(chainDetails, theme)
 
-  it('renders expanded and collapsed parallel results', () => {
-    const details = makeDetails('parallel', [makeResult({ agent: 'tester' })])
-    const result = {
+    const parallelDetails = makeDetails('parallel', [
+      makeResult({ agent: 'tester' }),
+    ])
+    const parallelResult = {
       content: [{ type: 'text', text: 'fallback' }],
-      details,
+      details: parallelDetails,
     } satisfies AgentToolResult<SubagentDetails>
 
-    expect(buildRenderResult(result, true, theme)).toEqual({
+    expect(buildRenderResult(parallelResult, true, theme)).toEqual({
       kind: 'parallel-expanded',
-      details,
+      details: parallelDetails,
     })
-    expect(buildParallelResultExpanded).toHaveBeenCalledWith(details, theme)
-
-    expect(buildRenderResult(result, false, theme)).toEqual({
+    expect(buildParallelResultExpanded).toHaveBeenCalledWith(
+      parallelDetails,
+      theme,
+    )
+    expect(buildRenderResult(parallelResult, false, theme)).toEqual({
       kind: 'parallel-collapsed',
-      details,
+      details: parallelDetails,
     })
-    expect(buildParallelResultCollapsed).toHaveBeenCalledWith(details, theme)
+    expect(buildParallelResultCollapsed).toHaveBeenCalledWith(
+      parallelDetails,
+      theme,
+    )
   })
 
-  it('falls back to text content when details are missing', () => {
+  it('falls back when details are missing, empty, or unsupported', () => {
     const rendered = buildRenderResult(
       { content: [{ type: 'text', text: 'plain output' }], details: undefined },
       false,
       theme,
     )
-
-    expect(rendered).toEqual({ kind: 'Text', text: 'plain output', x: 0, y: 0 })
+    expect(rendered).toEqual({
+      kind: 'Text',
+      text: 'plain output',
+      x: 0,
+      y: 0,
+    })
     expect(buildSingleResultCollapsed).not.toHaveBeenCalled()
     expect(buildChainResultCollapsed).not.toHaveBeenCalled()
     expect(buildParallelResultCollapsed).not.toHaveBeenCalled()
-  })
 
-  it('falls back to no output for missing details with no text content', () => {
     expect(
       buildRenderResult({ content: [], details: undefined }, false, theme),
     ).toEqual({
@@ -325,7 +323,6 @@ describe('buildRenderResult', () => {
       x: 0,
       y: 0,
     })
-
     expect(
       buildRenderResult(
         {
@@ -336,9 +333,7 @@ describe('buildRenderResult', () => {
         theme,
       ),
     ).toEqual({ kind: 'Text', text: '(no output)', x: 0, y: 0 })
-  })
 
-  it('falls back when details are incomplete, empty, or unsupported', () => {
     const fallbackContent: AgentToolResult<unknown>['content'] = [
       { type: 'text', text: 'fallback output' },
     ]
@@ -350,7 +345,6 @@ describe('buildRenderResult', () => {
         theme,
       ),
     ).toEqual({ kind: 'Text', text: 'fallback output', x: 0, y: 0 })
-
     expect(
       buildRenderResult(
         { content: fallbackContent, details: makeDetails('single', []) },
@@ -358,7 +352,6 @@ describe('buildRenderResult', () => {
         theme,
       ),
     ).toEqual({ kind: 'Text', text: 'fallback output', x: 0, y: 0 })
-
     expect(
       buildRenderResult(
         {

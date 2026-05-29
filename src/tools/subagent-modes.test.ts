@@ -47,7 +47,7 @@ describe('subagent mode validation and responses', () => {
     vi.clearAllMocks()
   })
 
-  it('accepts exactly one populated mode and rejects none, incomplete, empty, or multiple modes', () => {
+  it('validates mode counts and builds response payloads with available agents', () => {
     const invalid = 'Invalid parameters. Provide exactly one mode.'
 
     expect(
@@ -78,9 +78,7 @@ describe('subagent mode validation and responses', () => {
         chain: [{ agent: 'reviewer', task: 'review' }],
       }),
     ).toBe(invalid)
-  })
 
-  it('builds details and simple response payloads with available agent lists', () => {
     const result = makeResult({ agent: 'writer' })
     const makeDetails = makeDetailsFactory('both', discovery.projectAgentsDir)
 
@@ -167,7 +165,7 @@ describe('handleSingleMode', () => {
     vi.clearAllMocks()
   })
 
-  it('throws when single mode is missing its agent or task', async () => {
+  it('throws when missing fields and runs a single agent with output', async () => {
     const makeDetails = makeDetailsFactory('user', noProjectAgentsDirectory())
 
     await expect(
@@ -190,10 +188,8 @@ describe('handleSingleMode', () => {
         makeDetails,
       ),
     ).rejects.toThrow('Missing agent or task in single mode')
-  })
 
-  it('runs a single agent and returns final assistant output or a no-output placeholder', async () => {
-    const makeDetails = makeDetailsFactory('project', '/repo/.pi/agents')
+    const projectDetails = makeDetailsFactory('project', '/repo/.pi/agents')
     const signal = new AbortController().signal
     const onUpdate = vi.fn() as UpdateCallback
     vi.mocked(runSingleAgent)
@@ -209,7 +205,7 @@ describe('handleSingleMode', () => {
         agents,
         signal,
         onUpdate,
-        makeDetails,
+        projectDetails,
       ),
     ).resolves.toMatchObject({
       content: [{ type: 'text', text: 'final output' }],
@@ -222,7 +218,7 @@ describe('handleSingleMode', () => {
         agents,
         undefined,
         undefined,
-        makeDetails,
+        projectDetails,
       ),
     ).resolves.toMatchObject({
       content: [{ type: 'text', text: '(no output)' }],
@@ -273,7 +269,7 @@ describe('handleChainMode', () => {
     vi.clearAllMocks()
   })
 
-  it('throws when chain mode has no steps', async () => {
+  it('throws when chain mode has no steps and runs steps sequentially', async () => {
     const makeDetails = makeDetailsFactory('user', noProjectAgentsDirectory())
 
     await expect(
@@ -296,9 +292,7 @@ describe('handleChainMode', () => {
         makeDetails,
       ),
     ).rejects.toThrow('Missing chain in chain mode')
-  })
 
-  it('runs chain steps sequentially, replaces previous output, and wraps progress updates', async () => {
     const firstResult = makeResult({
       agent: 'writer',
       task: 'draft',

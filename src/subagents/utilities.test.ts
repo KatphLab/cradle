@@ -218,7 +218,7 @@ describe('subagent utilities', () => {
   })
 
   describe('formatUsageStats', () => {
-    it('returns an empty string when all usage fields are zero', () => {
+    it('formats empty, populated, and singular usage stats', () => {
       expect(
         formatUsageStats({
           input: 0,
@@ -230,9 +230,7 @@ describe('subagent utilities', () => {
           turns: 0,
         }),
       ).toBe('')
-    })
 
-    it('formats populated usage fields in display order', () => {
       expect(
         formatUsageStats(
           {
@@ -247,9 +245,7 @@ describe('subagent utilities', () => {
           'claude-sonnet',
         ),
       ).toBe('2 turns ↑1.5k ↓23 R999 W10k $0.1235 ctx:1.0M claude-sonnet')
-    })
 
-    it('formats singular turns and omits non-positive optional context', () => {
       expect(
         formatUsageStats({
           input: 0,
@@ -265,7 +261,7 @@ describe('subagent utilities', () => {
   })
 
   describe('formatToolCall', () => {
-    it('formats bash commands with truncation and fallback text', () => {
+    it('formats bash, read, write, and edit calls', () => {
       const longCommand = 'x'.repeat(61)
 
       expect(formatToolCall('bash', { command: longCommand }, themeFg)).toBe(
@@ -274,9 +270,7 @@ describe('subagent utilities', () => {
       expect(formatToolCall('bash', {}, themeFg)).toBe(
         '<muted>$ </muted><toolOutput>...</toolOutput>',
       )
-    })
 
-    it('formats read calls with shortened paths and line ranges', () => {
       expect(
         formatToolCall(
           'read',
@@ -286,15 +280,12 @@ describe('subagent utilities', () => {
       ).toBe(
         '<muted>read </muted><accent>~/project/file.ts</accent><warning>:5-7</warning>',
       )
-
       expect(
         formatToolCall('read', { limit: 10, path: 'notes.md' }, themeFg),
       ).toBe(
         '<muted>read </muted><accent>notes.md</accent><warning>:1-10</warning>',
       )
-    })
 
-    it('formats write and edit calls with path fallbacks', () => {
       expect(
         formatToolCall(
           'write',
@@ -304,7 +295,6 @@ describe('subagent utilities', () => {
       ).toBe(
         '<muted>write </muted><accent>~/out.md</accent><dim> (2 lines)</dim>',
       )
-
       expect(
         formatToolCall('write', { path: 'single.md', content: 'one' }, themeFg),
       ).toBe('<muted>write </muted><accent>single.md</accent>')
@@ -342,7 +332,7 @@ describe('subagent utilities', () => {
   })
 
   describe('message display helpers', () => {
-    it('returns the final assistant text output', () => {
+    it('returns the final assistant text output or empty string', () => {
       const messages = [
         message('assistant', [{ type: 'text', text: 'first' }]),
         message('user', [{ type: 'text', text: 'ignored' }]),
@@ -353,9 +343,6 @@ describe('subagent utilities', () => {
       ]
 
       expect(getFinalOutput(messages)).toBe('last')
-    })
-
-    it('returns an empty string when no assistant text exists', () => {
       expect(
         getFinalOutput([
           message('assistant', 'plain text'),
@@ -383,14 +370,12 @@ describe('subagent utilities', () => {
   })
 
   describe('result helpers', () => {
-    it('detects failed results by exit code or stop reason', () => {
+    it('detects failed results and prefers error message then stderr', () => {
       expect(isFailedResult(makeResult({ exitCode: 1 }))).toBe(true)
       expect(isFailedResult(makeResult({ stopReason: 'error' }))).toBe(true)
       expect(isFailedResult(makeResult({ stopReason: 'aborted' }))).toBe(true)
       expect(isFailedResult(makeResult({ stopReason: 'complete' }))).toBe(false)
-    })
 
-    it('prefers error message then stderr for failed result output', () => {
       expect(
         getResultOutput(
           makeResult({
@@ -419,8 +404,16 @@ describe('subagent utilities', () => {
   })
 
   describe('truncateParallelOutput', () => {
-    it('returns small output unchanged', () => {
+    it('returns small or multibyte output unchanged', () => {
       expect(truncateParallelOutput('short')).toBe('short')
+
+      const truncated = truncateParallelOutput('😀'.repeat(PER_TASK_OUTPUT_CAP))
+      const visibleOutput = truncated.split('\n\n[')[0] ?? ''
+
+      expect(Buffer.byteLength(visibleOutput, 'utf8')).toBeLessThanOrEqual(
+        PER_TASK_OUTPUT_CAP,
+      )
+      expect(truncated).toContain('bytes omitted')
     })
 
     it('truncates output beyond the byte cap and reports omitted bytes', () => {
@@ -433,16 +426,6 @@ describe('subagent utilities', () => {
       expect(Buffer.byteLength(truncated.split('\n\n[')[0] ?? '', 'utf8')).toBe(
         PER_TASK_OUTPUT_CAP,
       )
-    })
-
-    it('truncates multibyte output without exceeding the byte cap', () => {
-      const truncated = truncateParallelOutput('😀'.repeat(PER_TASK_OUTPUT_CAP))
-      const visibleOutput = truncated.split('\n\n[')[0] ?? ''
-
-      expect(Buffer.byteLength(visibleOutput, 'utf8')).toBeLessThanOrEqual(
-        PER_TASK_OUTPUT_CAP,
-      )
-      expect(truncated).toContain('bytes omitted')
     })
   })
 
@@ -478,7 +461,7 @@ describe('subagent utilities', () => {
   })
 
   describe('getPiInvocation', () => {
-    it('invokes the current script through the current runtime when present', () => {
+    it('invokes the current script through the current runtime or uses non-generic paths', () => {
       setProcessInvocation('/usr/local/bin/node', '/repo/bin/pi.js')
       vi.mocked(fs.existsSync).mockReturnValue(true)
 
@@ -486,11 +469,8 @@ describe('subagent utilities', () => {
         command: '/usr/local/bin/node',
         args: ['/repo/bin/pi.js', 'subagent', 'run'],
       })
-    })
 
-    it('uses non-generic executable paths directly', () => {
       setProcessInvocation('/opt/bin/custom-pi', undefined)
-
       expect(getPiInvocation(['--help'])).toEqual({
         command: '/opt/bin/custom-pi',
         args: ['--help'],
@@ -509,11 +489,29 @@ describe('subagent utilities', () => {
   })
 
   describe('mapWithConcurrencyLimit', () => {
-    it('returns an empty result without calling the mapper for no items', async () => {
+    it('returns empty results and clamps concurrency to at least one', async () => {
       const mapper = vi.fn<() => Promise<string>>()
 
       await expect(mapWithConcurrencyLimit([], 2, mapper)).resolves.toEqual([])
       expect(mapper).not.toHaveBeenCalled()
+
+      let active = 0
+      let maxActive = 0
+
+      const result = await mapWithConcurrencyLimit<number | undefined, string>(
+        [1, undefined, 3],
+        0,
+        async (item) => {
+          active += 1
+          maxActive = Math.max(maxActive, active)
+          await Promise.resolve()
+          active -= 1
+          return String(item)
+        },
+      )
+
+      expect(result).toEqual(['1', undefined, '3'])
+      expect(maxActive).toBe(1)
     })
 
     it('preserves order, passes indices, and respects concurrency', async () => {
@@ -534,26 +532,6 @@ describe('subagent utilities', () => {
 
       expect(result).toEqual(['0:1', '1:2', '2:3', '3:4'])
       expect(maxActive).toBeLessThanOrEqual(2)
-    })
-
-    it('clamps concurrency to at least one and skips undefined items', async () => {
-      let active = 0
-      let maxActive = 0
-
-      const result = await mapWithConcurrencyLimit<number | undefined, string>(
-        [1, undefined, 3],
-        0,
-        async (item) => {
-          active += 1
-          maxActive = Math.max(maxActive, active)
-          await Promise.resolve()
-          active -= 1
-          return String(item)
-        },
-      )
-
-      expect(result).toEqual(['1', undefined, '3'])
-      expect(maxActive).toBe(1)
     })
   })
 })
