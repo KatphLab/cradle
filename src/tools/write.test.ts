@@ -52,4 +52,50 @@ describe('writeTool', () => {
       execWrite(path.join(deniedRoot, 'denied.txt'), 'changed', tempRoot),
     ).rejects.toThrow('write denied')
   })
+
+  it('validates agent markdown before writing', async () => {
+    const agentDirectory = path.join(tempRoot, 'agents')
+    const agentPath = path.join(agentDirectory, 'test-agent.md')
+    const invalidContent = `---\nname: test-agent\ndescription: ok\ntools: read\ntools: read\n---\nbody`
+
+    const result = await execWrite(agentPath, invalidContent, tempRoot)
+
+    expect(result).toHaveProperty('isError', true)
+    expect(result.content[0]).toMatchObject({
+      type: 'text',
+      text: expect.stringContaining('Invalid agent definition'),
+    })
+    expect(result.content[0]).toMatchObject({
+      type: 'text',
+      text: expect.stringContaining('DUPLICATE_KEY'),
+    })
+
+    // File should not have been written
+    await expect(readFile(agentPath, 'utf8')).rejects.toThrow()
+  })
+
+  it('writes a valid agent file', async () => {
+    const agentDirectory = path.join(tempRoot, 'agents')
+    const agentPath = path.join(agentDirectory, 'valid-agent.md')
+    const validContent = `---\nname: valid-agent\ndescription: A valid agent.\n---\nDo things.`
+
+    const result = await execWrite(agentPath, validContent, tempRoot)
+
+    expect(result).not.toHaveProperty('isError')
+    expect(result.content).toHaveLength(1)
+
+    const content = await readFile(agentPath, 'utf8')
+    expect(content).toBe(validContent)
+  })
+
+  it('bypasses validation for non-agent files', async () => {
+    const filePath = path.join(tempRoot, 'notes.md')
+    const content = `---\nname: broken\ntools: a\ntools: a\n---\nbody`
+
+    const result = await execWrite(filePath, content, tempRoot)
+
+    expect(result).not.toHaveProperty('isError')
+    const written = await readFile(filePath, 'utf8')
+    expect(written).toBe(content)
+  })
 })

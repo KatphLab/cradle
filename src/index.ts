@@ -13,6 +13,7 @@ import { globTool } from './tools/glob.js'
 import { grepTool } from './tools/grep.js'
 import { lsTool } from './tools/ls.js'
 import { readTool } from './tools/read.js'
+import { subagentTool } from './tools/subagent.js'
 import { todoTool } from './tools/todo.js'
 import { writeTool } from './tools/write.js'
 import { createSpecModeState } from './utils/spec-state.js'
@@ -39,6 +40,7 @@ export default function configureExtension(
   pi.registerTool(applyPatchTool)
   pi.registerTool(bashTool)
   pi.registerTool(todoTool)
+  pi.registerTool(subagentTool)
 
   const specModeState = createSpecModeState()
 
