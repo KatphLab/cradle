@@ -6,7 +6,6 @@
 
 ## Tools
 
-- [x] ApplyPatch — harnass patch grammar (`src/tools/apply-patch.ts`)
 - [-] AskUser — standardized questionnaire TUI (not planned)
 - [x] Bash — shell command execution (`src/tools/bash.ts`)
 - [x] Edit — text replacement in files (`src/tools/edit.ts`)

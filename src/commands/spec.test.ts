@@ -8,7 +8,7 @@ import { registerSpecCommand, setSpecModeEnabled } from './spec.js'
 
 type ToolInfo = ReturnType<ExtensionAPI['getAllTools']>[number]
 
-const ALL_TOOL_NAMES = ['read', 'write', 'apply_patch']
+const ALL_TOOL_NAMES = ['read', 'write']
 const SPEC_MODE_TOOLS = ['read', 'glob', 'grep', 'ls', 'edit', 'write', 'todo']
 
 function createToolInfo(name: string): ToolInfo {
