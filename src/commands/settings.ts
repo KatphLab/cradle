@@ -29,6 +29,7 @@ export function registerSettingsCommand(
       const availableModels = models.map((m) => ({
         id: m.id,
         name: m.name,
+        provider: m.provider,
       }))
 
       const result = await context.ui.custom<

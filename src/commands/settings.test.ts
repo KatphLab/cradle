@@ -446,8 +446,8 @@ describe('CradleSettingsEditor — model select list', () => {
       tempRoot,
       mockTheme,
       [
-        { id: 'a', name: 'A' },
-        { id: 'b', name: 'B' },
+        { id: 'a', name: 'A', provider: 'test' },
+        { id: 'b', name: 'B', provider: 'test' },
       ],
     )
     editor.tuiRequestRender = vi.fn()
@@ -463,8 +463,8 @@ describe('CradleSettingsEditor — model select list', () => {
       tempRoot,
       mockTheme,
       [
-        { id: 'a', name: 'A' },
-        { id: 'b', name: 'B' },
+        { id: 'a', name: 'A', provider: 'test' },
+        { id: 'b', name: 'B', provider: 'test' },
       ],
     )
     editor.tuiRequestRender = vi.fn()

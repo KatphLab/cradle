@@ -27,6 +27,7 @@ import {
 interface ModelOption {
   id: string
   name: string
+  provider: string
 }
 
 interface CradleSettingsResult {
@@ -75,7 +76,9 @@ export class CradleSettingsEditor implements Component, Focusable {
 
     const models = availableModels ?? []
     this.availableModels = models.map((m) => m.id)
-    this.modelDisplayNames = new Map(models.map((m) => [m.id, m.name]))
+    this.modelDisplayNames = new Map(
+      models.map((m) => [m.id, `${m.provider}/${m.id}`]),
+    )
 
     const subagentModels: SubagentModels = {}
     if (initialSettings.subagentModels?.low !== undefined) {
