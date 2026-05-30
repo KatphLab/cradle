@@ -23,6 +23,10 @@ interface TestSessionContext extends TestContext {
   }
 }
 
+interface TestBeforeAgentStartEvent {
+  systemPrompt: string
+}
+
 type ContextHandler = (
   event: { messages: AgentMessage[] },
   context: TestContext,
@@ -32,6 +36,11 @@ type SessionStartHandler = (
   event: unknown,
   context: TestSessionContext,
 ) => unknown
+
+type BeforeAgentStartHandler = (
+  event: TestBeforeAgentStartEvent,
+  context: TestSessionContext,
+) => Promise<{ systemPrompt?: string } | undefined>
 
 let tempRoot: string
 
@@ -48,6 +57,12 @@ function isContextHandler(value: unknown): value is ContextHandler {
 }
 
 function isSessionStartHandler(value: unknown): value is SessionStartHandler {
+  return typeof value === 'function'
+}
+
+function isBeforeAgentStartHandler(
+  value: unknown,
+): value is BeforeAgentStartHandler {
   return typeof value === 'function'
 }
 
@@ -70,6 +85,19 @@ function getSessionStartHandler(
     throw new Error('Expected session_start handler to be registered')
   }
   if (!isSessionStartHandler(handler.fn)) {
+    throw new TypeError('Expected registered handler to be callable')
+  }
+  return handler.fn
+}
+
+function getBeforeAgentStartHandler(
+  handlers: RegisteredHandler[],
+): BeforeAgentStartHandler {
+  const handler = handlers.find((entry) => entry.event === 'before_agent_start')
+  if (!handler) {
+    throw new Error('Expected before_agent_start handler to be registered')
+  }
+  if (!isBeforeAgentStartHandler(handler.fn)) {
     throw new TypeError('Expected registered handler to be callable')
   }
   return handler.fn
@@ -129,50 +157,71 @@ describe('registerSystemReminderHook', () => {
     await rm(tempRoot, { recursive: true, force: true })
   })
 
-  it('warns on session start when the project system reminder exceeds 500 tokens', async () => {
+  it('warns on before_agent_start when the system reminder exceeds 500 tokens', async () => {
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
-    await writeFile(path.join(tempRoot, 'SYSTEM_REMINDER.md'), 'a'.repeat(2001))
 
     const notify = vi.fn()
-    const handler = getSessionStartHandler(handlers)
-    await handler({}, { cwd: tempRoot, ui: { notify } })
+    const handler = getBeforeAgentStartHandler(handlers)
+    const reminder = 'a'.repeat(2001)
+    const result = await handler(
+      {
+        systemPrompt: `<system-reminder>\n${reminder}\n</system-reminder>`,
+      },
+      { cwd: tempRoot, ui: { notify } },
+    )
 
     expect(notify).toHaveBeenCalledWith(
-      'SYSTEM_REMINDER.md exceeds 500 tokens (~501). Consider shortening it.',
+      'System reminder exceeds 500 tokens (~501). Consider shortening it.',
       'warning',
     )
+    expect(result?.systemPrompt).toBe('')
   })
 
-  it('does not warn on session start when the project system reminder is within 500 tokens', async () => {
-    const handlers: RegisteredHandler[] = []
-    registerSystemReminderHook(createPi(handlers))
-    await writeFile(path.join(tempRoot, 'SYSTEM_REMINDER.md'), 'a'.repeat(2000))
-
-    const notify = vi.fn()
-    const handler = getSessionStartHandler(handlers)
-    await handler({}, { cwd: tempRoot, ui: { notify } })
-
-    expect(notify).not.toHaveBeenCalled()
-  })
-
-  it('does not warn on session start when the project system reminder is missing', async () => {
+  it('does not warn on before_agent_start when the system reminder is within 500 tokens', async () => {
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
 
     const notify = vi.fn()
-    const handler = getSessionStartHandler(handlers)
-    await handler({}, { cwd: tempRoot, ui: { notify } })
+    const handler = getBeforeAgentStartHandler(handlers)
+    const result = await handler(
+      {
+        systemPrompt: `<system-reminder>\n${'a'.repeat(2000)}\n</system-reminder>`,
+      },
+      { cwd: tempRoot, ui: { notify } },
+    )
 
     expect(notify).not.toHaveBeenCalled()
+    expect(result?.systemPrompt).toBe('')
   })
 
-  it('adds the project system reminder and removes stale reminders', async () => {
+  it('does not warn on before_agent_start when the system reminder is missing', async () => {
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
-    await writeFile(
-      path.join(tempRoot, 'SYSTEM_REMINDER.md'),
-      'Always prefer tiny changes.\n',
+
+    const notify = vi.fn()
+    const handler = getBeforeAgentStartHandler(handlers)
+    const result = await handler(
+      { systemPrompt: 'Some system prompt without reminder tags' },
+      { cwd: tempRoot, ui: { notify } },
+    )
+
+    expect(notify).not.toHaveBeenCalled()
+    expect(result).toBeUndefined()
+  })
+
+  it('adds the system reminder and removes stale reminders', async () => {
+    const handlers: RegisteredHandler[] = []
+    registerSystemReminderHook(createPi(handlers))
+
+    const notify = vi.fn()
+    const beforeHandler = getBeforeAgentStartHandler(handlers)
+    await beforeHandler(
+      {
+        systemPrompt:
+          '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
+      },
+      { cwd: tempRoot, ui: { notify } },
     )
 
     const userMessage = createUserMessage('please fix this')
@@ -196,10 +245,16 @@ describe('registerSystemReminderHook', () => {
     ])
   })
 
-  it('only removes stale reminders when the project file is empty', async () => {
+  it('only removes stale reminders when the system reminder is empty', async () => {
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
-    await writeFile(path.join(tempRoot, 'SYSTEM_REMINDER.md'), '   \n')
+
+    const notify = vi.fn()
+    const beforeHandler = getBeforeAgentStartHandler(handlers)
+    await beforeHandler(
+      { systemPrompt: 'Some system prompt without reminder tags' },
+      { cwd: tempRoot, ui: { notify } },
+    )
 
     const userMessage = createUserMessage('hello')
     const staleReminder = createStaleReminder('old reminder')
@@ -212,32 +267,24 @@ describe('registerSystemReminderHook', () => {
     expect(result?.messages).toEqual([userMessage])
   })
 
-  it('only removes stale reminders when the project file is missing', async () => {
+  it('adds active todo reminder alongside system reminder', async () => {
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
 
-    const userMessage = createUserMessage('hello')
-    const staleReminder = createStaleReminder('old reminder')
-    const handler = getContextHandler(handlers)
-    const result = await handler(
-      { messages: [staleReminder, userMessage] },
-      { cwd: tempRoot },
-    )
-
-    expect(result?.messages).toEqual([userMessage])
-  })
-
-  it('adds active todo reminder alongside file reminder', async () => {
-    const handlers: RegisteredHandler[] = []
-    registerSystemReminderHook(createPi(handlers))
-    await writeFile(
-      path.join(tempRoot, 'SYSTEM_REMINDER.md'),
-      'Always prefer tiny changes.\n',
-    )
+    const notify = vi.fn()
 
     // Prime cachedSettings via session_start so interval=1 from settings file is loaded
     const sessionHandler = getSessionStartHandler(handlers)
-    await sessionHandler({}, { cwd: tempRoot, ui: { notify: vi.fn() } })
+    await sessionHandler({}, { cwd: tempRoot, ui: { notify } })
+
+    const beforeHandler = getBeforeAgentStartHandler(handlers)
+    await beforeHandler(
+      {
+        systemPrompt:
+          '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
+      },
+      { cwd: tempRoot, ui: { notify } },
+    )
 
     const userMessage = createUserMessage('please fix this')
     const todoResult = createTodoToolResult('1. [in_progress] Fix bug')
@@ -266,9 +313,15 @@ describe('registerSystemReminderHook', () => {
 
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
-    await writeFile(
-      path.join(tempRoot, 'SYSTEM_REMINDER.md'),
-      'Always prefer tiny changes.\n',
+
+    const notify = vi.fn()
+    const beforeHandler = getBeforeAgentStartHandler(handlers)
+    await beforeHandler(
+      {
+        systemPrompt:
+          '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
+      },
+      { cwd: tempRoot, ui: { notify } },
     )
 
     const userMessage = createUserMessage('please fix this')
@@ -308,9 +361,15 @@ describe('registerSystemReminderHook', () => {
 
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
-    await writeFile(
-      path.join(tempRoot, 'SYSTEM_REMINDER.md'),
-      'Always prefer tiny changes.\n',
+
+    const notify = vi.fn()
+    const beforeHandler = getBeforeAgentStartHandler(handlers)
+    await beforeHandler(
+      {
+        systemPrompt:
+          '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
+      },
+      { cwd: tempRoot, ui: { notify } },
     )
 
     const userMessage = createUserMessage('hello')
@@ -323,16 +382,20 @@ describe('registerSystemReminderHook', () => {
     expect(result?.messages?.at(-1)?.role).toBe('custom')
   })
 
-  it('throws unexpected file read errors', async () => {
+  it('strips system reminder tags from the system prompt', async () => {
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
-    const handler = getContextHandler(handlers)
-    const invalidCwd = path.join(tempRoot, 'file')
-    await writeFile(invalidCwd, 'not a directory')
 
-    const userMessage = createUserMessage('hello')
-    await expect(
-      handler({ messages: [userMessage] }, { cwd: invalidCwd }),
-    ).rejects.toThrow()
+    const notify = vi.fn()
+    const handler = getBeforeAgentStartHandler(handlers)
+    const result = await handler(
+      {
+        systemPrompt:
+          'Base prompt.\n\n<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>\n\nMore instructions.',
+      },
+      { cwd: tempRoot, ui: { notify } },
+    )
+
+    expect(result?.systemPrompt).toBe('Base prompt.\n\n\n\nMore instructions.')
   })
 })
