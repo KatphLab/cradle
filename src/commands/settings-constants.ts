@@ -1,5 +1,5 @@
 import type { ThemeColor } from '@earendil-works/pi-coding-agent'
-import type { Input } from '@earendil-works/pi-tui'
+import type { Input, SelectList } from '@earendil-works/pi-tui'
 import type { DirectoryPermission, SubagentModels } from '../config/settings.js'
 
 export interface EditorTheme {
@@ -20,6 +20,7 @@ export interface EditorState {
   readonly suggestions: string[]
   readonly suggestionIndex: number
   isDirty(): boolean
+  getSelectList(): SelectList | undefined
 }
 
 export type PermissionColumn = (typeof PERMISSION_COLUMNS)[number]

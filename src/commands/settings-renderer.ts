@@ -150,6 +150,7 @@ export class SettingsRenderer {
   private renderModelSection(width: number): string[] {
     const tiers = ['low', 'medium', 'high'] as const
     const lines: string[] = []
+    const selectList = this.editor.getSelectList()
 
     for (const [index, tier] of tiers.entries()) {
       const rowIndex = this.editor.rows.length + 2 + index
@@ -163,6 +164,11 @@ export class SettingsRenderer {
       lines.push(
         `${prefix}${label}: ${truncateToWidth(displayValue, maxValueWidth)}`,
       )
+
+      if (selectList && isFocused) {
+        const selectListLines = selectList.render(width)
+        lines.push(...selectListLines)
+      }
     }
 
     return ['', this.editor.theme.bold('Subagent Models'), ...lines]

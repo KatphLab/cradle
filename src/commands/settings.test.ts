@@ -26,59 +26,36 @@ const mockTheme = {
   bold: (text: string) => text,
 }
 
+interface SR {
+  permissions: { path: string; read: boolean; write: boolean; bash: boolean }[]
+  reminderInterval: number
+  subagentModels: { low?: string; medium?: string; high?: string }
+}
+
 async function invokeRegisteredHandler(
   action: (editor: {
-    onSave?: (result: {
-      permissions: {
-        path: string
-        read: boolean
-        write: boolean
-        bash: boolean
-      }[]
-      reminderInterval: number
-      subagentModels: {
-        low?: string
-        medium?: string
-        high?: string
-      }
-    }) => void
+    onSave?: (r: SR) => void
     onCancel?: () => void
     tuiRequestRender?: () => void
   }) => unknown,
   notifySpy = vi.fn(),
 ): Promise<{ notifySpy: ReturnType<typeof vi.fn> }> {
-  let registeredHandler: unknown
-
+  let handler: unknown
   const pi: Pick<ExtensionAPI, 'registerCommand'> = {
-    registerCommand: (_name, options) => {
-      registeredHandler = options.handler
+    registerCommand: (_n, o) => {
+      handler = o.handler
     },
   }
-
   registerSettingsCommand(pi)
-  expect(typeof registeredHandler === 'function').toBe(true)
-
+  expect(typeof handler === 'function').toBe(true)
   // @ts-expect-error minimal context mock
-  await registeredHandler('', {
+  await handler('', {
     cwd: tempRoot,
     ui: {
       custom: vi.fn(
         (
-          factory: (...args: unknown[]) => {
-            onSave?: (result: {
-              permissions: {
-                path: string
-                read: boolean
-                write: boolean
-                bash: boolean
-              }[]
-              reminderInterval: number
-              subagentModels: {
-                low?: string
-                medium?: string
-                high?: string
-              }
-            }) => void
+          factory: (...a: unknown[]) => {
+            onSave?: (r: SR) => void
             onCancel?: () => void
             tuiRequestRender?: () => void
           },
@@ -97,7 +74,6 @@ async function invokeRegisteredHandler(
       notify: notifySpy,
     },
   })
-
   return { notifySpy }
 }
 
@@ -207,65 +183,45 @@ describe('CradleSettingsEditor — input', () => {
       tempRoot,
       mockTheme,
     )
+    const down = () => {
+      editor.handleInput('\u001B[B')
+    }
+    const up = () => {
+      editor.handleInput('\u001B[A')
+    }
 
-    // Initial state: on directory input row (row 2)
-    expect(editor.getSelectedRow()).toBe(2)
-
-    // Delete key does nothing when on directory input row
+    expect(editor.getSelectedRow()).toBe(2) // initial: directory input
     editor.handleInput('\u001B[3~')
-    expect(editor.getRows()).toHaveLength(2)
+    expect(editor.getRows()).toHaveLength(2) // delete ignored on input row
 
-    // Navigate up to last data row (row 1)
-    editor.handleInput('\u001B[A')
+    up()
     expect(editor.getSelectedRow()).toBe(1)
-
-    // Navigate up to first data row (row 0)
-    editor.handleInput('\u001B[A')
+    up()
     expect(editor.getSelectedRow()).toBe(0)
+    up()
+    expect(editor.getSelectedRow()).toBe(0) // stops at top
 
-    // Stops at first row
-    editor.handleInput('\u001B[A')
-    expect(editor.getSelectedRow()).toBe(0)
-
-    // Navigate down to row 1
-    editor.handleInput('\u001B[B')
+    down()
     expect(editor.getSelectedRow()).toBe(1)
+    down()
+    expect(editor.getSelectedRow()).toBe(2) // directory input
+    down()
+    expect(editor.getSelectedRow()).toBe(3) // interval
+    down()
+    expect(editor.getSelectedRow()).toBe(4) // low model
+    down()
+    expect(editor.getSelectedRow()).toBe(5) // medium
+    down()
+    expect(editor.getSelectedRow()).toBe(6) // high
+    down()
+    expect(editor.getSelectedRow()).toBe(6) // stops at bottom
 
-    // Navigate down to directory input row (row 2)
-    editor.handleInput('\u001B[B')
-    expect(editor.getSelectedRow()).toBe(2)
-
-    // Navigate down to interval row (row 3)
-    editor.handleInput('\u001B[B')
-    expect(editor.getSelectedRow()).toBe(3)
-
-    // Navigate down to low model row (row 4)
-    editor.handleInput('\u001B[B')
-    expect(editor.getSelectedRow()).toBe(4)
-
-    // Navigate down to medium model row (row 5)
-    editor.handleInput('\u001B[B')
-    expect(editor.getSelectedRow()).toBe(5)
-
-    // Navigate down to high model row (row 6)
-    editor.handleInput('\u001B[B')
-    expect(editor.getSelectedRow()).toBe(6)
-
-    // Stops at high model row
-    editor.handleInput('\u001B[B')
-    expect(editor.getSelectedRow()).toBe(6)
-
-    // Navigate back up and delete row 1
-    editor.handleInput('\u001B[A')
-    expect(editor.getSelectedRow()).toBe(5)
-    editor.handleInput('\u001B[A')
-    expect(editor.getSelectedRow()).toBe(4)
-    editor.handleInput('\u001B[A')
-    expect(editor.getSelectedRow()).toBe(3)
-    editor.handleInput('\u001B[A')
-    expect(editor.getSelectedRow()).toBe(2)
-    editor.handleInput('\u001B[A')
-    expect(editor.getSelectedRow()).toBe(1)
+    up()
+    up()
+    up()
+    up()
+    up()
+    expect(editor.getSelectedRow()).toBe(1) // back to row 1
     editor.handleInput('\u001B[3~')
     expect(editor.getRows()).toEqual([
       { path: path.join(tempRoot, 'a'), read: true, write: false, bash: false },
@@ -480,6 +436,45 @@ describe('CradleSettingsEditor — rendering', () => {
     expect(() => {
       editor.invalidate()
     }).not.toThrow()
+  })
+})
+
+describe('CradleSettingsEditor — model select list', () => {
+  it('opens select list when Enter is pressed', () => {
+    const editor = new CradleSettingsEditor(
+      { permissions: [] },
+      tempRoot,
+      mockTheme,
+      [
+        { id: 'a', name: 'A' },
+        { id: 'b', name: 'B' },
+      ],
+    )
+    editor.tuiRequestRender = vi.fn()
+    editor.handleInput('\u001B[B')
+    editor.handleInput('\u001B[B')
+    editor.handleInput('\r')
+    expect(editor.getSelectList()).toBeDefined()
+  })
+
+  it('selects model from list', () => {
+    const editor = new CradleSettingsEditor(
+      { permissions: [], subagentModels: { low: 'a' } },
+      tempRoot,
+      mockTheme,
+      [
+        { id: 'a', name: 'A' },
+        { id: 'b', name: 'B' },
+      ],
+    )
+    editor.tuiRequestRender = vi.fn()
+    editor.handleInput('\u001B[B')
+    editor.handleInput('\u001B[B')
+    editor.handleInput('\r')
+    editor.handleInput('\u001B[B')
+    editor.handleInput('\r')
+    expect(editor.getSubagentModels().low).toBe('b')
+    expect(editor.isDirty()).toBe(true)
   })
 })
 

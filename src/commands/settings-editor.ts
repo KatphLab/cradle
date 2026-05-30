@@ -1,5 +1,11 @@
 import type { Component, Focusable } from '@earendil-works/pi-tui'
-import { Input, Key, matchesKey } from '@earendil-works/pi-tui'
+import {
+  Input,
+  Key,
+  matchesKey,
+  SelectList,
+  type SelectListTheme,
+} from '@earendil-works/pi-tui'
 import path from 'node:path'
 
 import type {
@@ -48,6 +54,7 @@ export class CradleSettingsEditor implements Component, Focusable {
   private readonly renderer: SettingsRenderer
   private dirty = false
   private lastInputValue = ''
+  private selectList: SelectList | undefined
   tuiRequestRender?: () => void
 
   onSave?: (result: CradleSettingsResult) => void
@@ -127,6 +134,10 @@ export class CradleSettingsEditor implements Component, Focusable {
     return this.dirInput
   }
 
+  getSelectList(): SelectList | undefined {
+    return this.selectList
+  }
+
   isDirty(): boolean {
     const intervalChanged =
       this.intervalInput.getValue() !== String(this.initialInterval)
@@ -190,6 +201,11 @@ export class CradleSettingsEditor implements Component, Focusable {
 
   handleInput(data: string): void {
     if (this.tryHandleSave(data)) return
+    if (this.selectList) {
+      this.selectList.handleInput(data)
+      this.tuiRequestRender?.()
+      return
+    }
     if (this.tryHandleSuggestions(data)) return
     if (this.tryHandleDelete(data)) return
     if (this.tryHandleNavigation(data)) return
@@ -357,7 +373,7 @@ export class CradleSettingsEditor implements Component, Focusable {
       this.selectedRow >= this.rows.length + 2 &&
       this.selectedRow <= this.rows.length + 4
     ) {
-      this.cycleModel(this.getTierFromRow(this.selectedRow))
+      this.openModelSelect(this.getTierFromRow(this.selectedRow))
       this.tuiRequestRender?.()
       return true
     }
@@ -389,25 +405,43 @@ export class CradleSettingsEditor implements Component, Focusable {
     return tiers[offset] ?? 'low'
   }
 
-  private cycleModel(tier: 'low' | 'medium' | 'high'): void {
-    const models = this.availableModels
-    if (models.length === 0) return
+  private openModelSelect(tier: 'low' | 'medium' | 'high'): void {
+    const items = this.availableModels.map((id) => ({
+      value: id,
+      label: this.modelDisplayNames.get(id) ?? id,
+    }))
+    if (items.length === 0) return
 
-    const current = this.subagentModels[tier]
-    if (current === undefined) {
-      const firstModel = models[0]
-      if (firstModel === undefined) return
-      this.subagentModels[tier] = firstModel
-      this.dirty = true
-      return
+    const currentValue = this.subagentModels[tier]
+    const currentIndex = currentValue
+      ? this.availableModels.indexOf(currentValue)
+      : -1
+
+    const selectListTheme: SelectListTheme = {
+      selectedPrefix: (text) => this.theme.fg('accent', text),
+      selectedText: (text) => this.theme.fg('accent', this.theme.bold(text)),
+      description: (text) => this.theme.fg('dim', text),
+      scrollInfo: (text) => this.theme.fg('dim', text),
+      noMatch: (text) => this.theme.fg('warning', text),
     }
 
-    const currentIndex = models.indexOf(current)
-    const nextIndex = (currentIndex + 1) % models.length
-    const nextModel = models[nextIndex]
-    if (nextModel === undefined) return
-    this.subagentModels[tier] = nextModel
-    this.dirty = true
+    this.selectList = new SelectList(
+      items,
+      Math.min(items.length, 8),
+      selectListTheme,
+    )
+
+    this.selectList.setSelectedIndex(Math.max(currentIndex, 0))
+    this.selectList.onSelect = (item) => {
+      this.subagentModels[tier] = item.value
+      this.dirty = true
+      this.selectList = undefined
+      this.tuiRequestRender?.()
+    }
+    this.selectList.onCancel = () => {
+      this.selectList = undefined
+      this.tuiRequestRender?.()
+    }
   }
 
   invalidate(): void {
