@@ -1,25 +1,61 @@
 import { spawn, type ChildProcess } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
 
-import type { AgentToolResult } from '@earendil-works/pi-agent-core'
-import type {
-  AssistantMessage,
-  Message,
-  ToolResultMessage,
-  Usage,
-} from '@earendil-works/pi-ai'
+import type { Message } from '@earendil-works/pi-ai'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { runSingleAgent } from './runner.js'
-import type { AgentConfig, SingleResult, SubagentDetails } from './types.js'
+import {
+  createAssistantMessage,
+  createMockProcess,
+  createToolResultMessage,
+  createUsage,
+  eventLine,
+  makeAgent,
+  makeOptions,
+  temporaryPromptDirectory,
+  temporaryPromptFilePath,
+  waitForSpawn,
+  type MockProcess,
+  type OnUpdate,
+} from './runner.test-helpers.js'
 import {
   getFinalOutput,
   getPiInvocation,
   writePromptToTemporaryFile,
 } from './utilities.js'
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function isChildProcess(value: unknown): value is ChildProcess {
+  if (!isRecord(value)) return false
+  return (
+    typeof value['on'] === 'function' &&
+    typeof value['kill'] === 'function' &&
+    typeof value['killed'] === 'boolean'
+  )
+}
+
+function findFinalOutput(
+  messages: { role: string; content?: unknown[] }[],
+): string {
+  for (const message of messages.toReversed()) {
+    if (message.role !== 'assistant') continue
+    const textPart = message.content?.find(
+      (value: unknown): value is { type: 'text'; text: string } =>
+        typeof value === 'object' &&
+        value !== null &&
+        'type' in value &&
+        'text' in value &&
+        value.type === 'text' &&
+        typeof value.text === 'string',
+    )
+    if (textPart) return textPart.text
+  }
+  return ''
+}
 
 vi.mock('node:child_process', () => ({
   spawn: vi.fn(),
@@ -32,35 +68,6 @@ vi.mock('node:fs', () => ({
   },
 }))
 
-function isTextPart(value: unknown): value is { type: 'text'; text: string } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'type' in value &&
-    'text' in value &&
-    value.type === 'text' &&
-    typeof value.text === 'string'
-  )
-}
-
-const temporaryPromptDirectory = path.join(
-  tmpdir(),
-  `pi-subagent-${randomUUID()}`,
-)
-const temporaryPromptFilePath = path.join(
-  temporaryPromptDirectory,
-  'prompt-writer.md',
-)
-
-function findFinalOutput(messages: { role: string; content?: unknown[] }[]) {
-  for (const message of messages.toReversed()) {
-    if (message.role !== 'assistant') continue
-    const textPart = message.content?.find(isTextPart)
-    if (textPart) return textPart.text
-  }
-  return ''
-}
-
 vi.mock('./utilities.js', () => {
   return {
     getFinalOutput: vi.fn(findFinalOutput),
@@ -71,168 +78,6 @@ vi.mock('./utilities.js', () => {
     writePromptToTemporaryFile: vi.fn(),
   }
 })
-
-type MockEventHandler = (...args: unknown[]) => void
-
-type OnUpdate = (partial: AgentToolResult<SubagentDetails>) => void
-
-class MockEventSource {
-  readonly #handlers = new Map<string, MockEventHandler[]>()
-
-  emit(eventName: string, ...args: unknown[]): boolean {
-    const handlers = this.#handlers.get(eventName) ?? []
-    for (const handler of handlers) handler(...args)
-    return handlers.length > 0
-  }
-
-  on(eventName: string, handler: MockEventHandler): this {
-    const handlers = this.#handlers.get(eventName) ?? []
-    handlers.push(handler)
-    this.#handlers.set(eventName, handlers)
-    return this
-  }
-}
-
-type MockProcess = MockEventSource & {
-  killed: boolean
-  kill: ReturnType<typeof vi.fn<(signal?: NodeJS.Signals | number) => boolean>>
-  stderr: MockEventSource
-  stdout: MockEventSource
-}
-
-function createMockProcess(): MockProcess {
-  return Object.assign(new MockEventSource(), {
-    killed: false,
-    kill: vi.fn(() => true),
-    stderr: new MockEventSource(),
-    stdout: new MockEventSource(),
-  })
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function isChildProcess(value: unknown): value is ChildProcess {
-  if (!isRecord(value)) return false
-
-  return (
-    typeof value['on'] === 'function' &&
-    typeof value['kill'] === 'function' &&
-    typeof value['killed'] === 'boolean' &&
-    value['stderr'] instanceof MockEventSource &&
-    value['stdout'] instanceof MockEventSource
-  )
-}
-
-function createUsage(overrides: Partial<Usage> = {}): Usage {
-  const cost = overrides.cost ?? {
-    cacheRead: 0,
-    cacheWrite: 0,
-    input: 0,
-    output: 0,
-    total: 0,
-  }
-  return {
-    cacheRead: 0,
-    cacheWrite: 0,
-    cost,
-    input: 0,
-    output: 0,
-    totalTokens: 0,
-    ...overrides,
-  }
-}
-
-function createAssistantMessage(
-  text: string,
-  overrides: Partial<AssistantMessage> = {},
-): AssistantMessage {
-  return {
-    api: 'test-api',
-    content: [{ type: 'text', text }],
-    model: 'runtime-model',
-    provider: 'test-provider',
-    role: 'assistant',
-    stopReason: 'stop',
-    timestamp: 1,
-    usage: createUsage(),
-    ...overrides,
-  }
-}
-
-function createToolResultMessage(
-  overrides: Partial<ToolResultMessage> = {},
-): ToolResultMessage {
-  return {
-    content: [{ type: 'text', text: 'tool output' }],
-    isError: false,
-    role: 'toolResult',
-    timestamp: 2,
-    toolCallId: 'call-1',
-    toolName: 'read',
-    ...overrides,
-  }
-}
-
-function makeAgent(overrides: Partial<AgentConfig> = {}): AgentConfig {
-  const name = overrides.name ?? 'writer'
-  return {
-    description: `${name} agent`,
-    filePath: `/agents/${name}.md`,
-    name,
-    source: 'user',
-    systemPrompt: 'Be helpful.',
-    ...overrides,
-  }
-}
-
-function makeOptions(
-  overrides: {
-    agents?: AgentConfig[]
-    agentName?: string
-    cwd?: string
-    defaultCwd?: string
-    makeDetails?: (results: SingleResult[]) => SubagentDetails
-    onUpdate?: OnUpdate
-    signal?: AbortSignal
-    step?: number
-    task?: string
-  } = {},
-) {
-  const agents = overrides.agents ?? [makeAgent()]
-  return {
-    agentName: overrides.agentName ?? 'writer',
-    agents,
-    cwd: overrides.cwd,
-    defaultCwd: overrides.defaultCwd ?? '/repo',
-    makeDetails:
-      overrides.makeDetails ??
-      ((results: SingleResult[]): SubagentDetails => ({
-        agentScope: 'user',
-        mode: 'single',
-        projectAgentsDir: undefined,
-        results,
-      })),
-    onUpdate: overrides.onUpdate,
-    signal: overrides.signal,
-    step: overrides.step,
-    task: overrides.task ?? 'do work',
-  }
-}
-
-function eventLine(type: 'message_end' | 'tool_result_end', message: Message) {
-  return `${JSON.stringify({ message, type })}\n`
-}
-
-async function waitForSpawn(spawned: MockProcess[]): Promise<MockProcess> {
-  for (let attempts = 0; attempts < 10; attempts += 1) {
-    const proc = spawned.at(-1)
-    if (proc) return proc
-    await Promise.resolve()
-  }
-  throw new Error('Process was not spawned')
-}
 
 describe('runSingleAgent', () => {
   let spawned: MockProcess[]
@@ -327,7 +172,7 @@ describe('runSingleAgent', () => {
       model: 'runtime-model',
       stopReason: 'stop',
       timestamp: 11,
-      usage: createUsage({
+      usage: {
         cacheRead: 3,
         cacheWrite: 4,
         cost: {
@@ -340,7 +185,7 @@ describe('runSingleAgent', () => {
         input: 100,
         output: 25,
         totalTokens: 125,
-      }),
+      },
     })
     const assistantLine = eventLine('message_end', assistantMessage)
 
@@ -423,7 +268,7 @@ describe('runSingleAgent', () => {
       { type: 'text', text: 'done' },
     ])
     expect(onUpdate.mock.calls.at(-1)?.[0].details.results).toHaveLength(1)
-    expect(getFinalOutput).toHaveBeenCalled()
+    expect(vi.mocked(getFinalOutput)).toHaveBeenCalled()
     expect(fs.unlinkSync).toHaveBeenCalledWith(temporaryPromptFilePath)
     expect(fs.rmdirSync).toHaveBeenCalledWith(temporaryPromptDirectory)
   })
@@ -511,9 +356,9 @@ describe('runSingleAgent', () => {
     const promise = runSingleAgent(makeOptions({ signal: controller.signal }))
     const proc = await waitForSpawn(spawned)
 
-    expect(proc.kill).toHaveBeenCalledWith('SIGTERM')
+    expect(proc.kill.mock.calls).toContainEqual(['SIGTERM'])
     vi.advanceTimersByTime(5000)
-    expect(proc.kill).toHaveBeenCalledWith('SIGKILL')
+    expect(proc.kill.mock.calls).toContainEqual(['SIGKILL'])
     proc.emit('close', 143)
 
     await expect(promise).resolves.toMatchObject({ exitCode: 143 })
@@ -525,14 +370,82 @@ describe('runSingleAgent', () => {
     const promise = runSingleAgent(makeOptions({ signal: controller.signal }))
     const proc = await waitForSpawn(spawned)
 
-    expect(proc.kill).not.toHaveBeenCalled()
+    expect(proc.kill.mock.calls).toHaveLength(0)
     controller.abort()
-    expect(proc.kill).toHaveBeenCalledWith('SIGTERM')
+    expect(proc.kill.mock.calls).toContainEqual(['SIGTERM'])
     proc.killed = true
     vi.advanceTimersByTime(5000)
-    expect(proc.kill).not.toHaveBeenCalledWith('SIGKILL')
+    expect(proc.kill.mock.calls).not.toContainEqual(['SIGKILL'])
     proc.emit('close', 130)
 
     await expect(promise).resolves.toMatchObject({ exitCode: 130 })
+  })
+
+  it('uses agent model over settings-based model', async () => {
+    const agent = makeAgent({ model: 'agent-model' })
+    const promise = runSingleAgent(
+      makeOptions({
+        agents: [agent],
+        complexity: 'low',
+        settings: { subagentModels: { low: 'settings-model' } },
+      }),
+    )
+    const proc = await waitForSpawn(spawned)
+
+    proc.stdout.emit(
+      'data',
+      eventLine('message_end', createAssistantMessage('done')).trimEnd(),
+    )
+    proc.emit('close', 0)
+    await promise
+
+    expect(getPiInvocation).toHaveBeenCalledWith(
+      expect.arrayContaining(['--model', 'agent-model']),
+    )
+  })
+
+  it('uses settings-based model by complexity when agent has no model', async () => {
+    const agent = makeAgent()
+    const promise = runSingleAgent(
+      makeOptions({
+        agents: [agent],
+        complexity: 'medium',
+        settings: { subagentModels: { medium: 'settings-medium' } },
+      }),
+    )
+    const proc = await waitForSpawn(spawned)
+
+    proc.stdout.emit(
+      'data',
+      eventLine('message_end', createAssistantMessage('done')).trimEnd(),
+    )
+    proc.emit('close', 0)
+    await promise
+
+    expect(getPiInvocation).toHaveBeenCalledWith(
+      expect.arrayContaining(['--model', 'settings-medium']),
+    )
+  })
+
+  it('skips model flag when no model is resolved', async () => {
+    const agent = makeAgent()
+    const promise = runSingleAgent(
+      makeOptions({
+        agents: [agent],
+        complexity: 'high',
+        settings: { subagentModels: {} },
+      }),
+    )
+    const proc = await waitForSpawn(spawned)
+
+    proc.stdout.emit(
+      'data',
+      eventLine('message_end', createAssistantMessage('done')).trimEnd(),
+    )
+    proc.emit('close', 0)
+    await promise
+
+    const invocation = vi.mocked(getPiInvocation).mock.calls.at(-1)?.[0]
+    expect(invocation).not.toContain('--model')
   })
 })

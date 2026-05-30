@@ -4,12 +4,12 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { CradleSettingsEditor } from './settings-editor.js'
 import {
-  CradleSettingsEditor,
   formatDirectoryPath,
-  registerSettingsCommand,
   scanDirectorySuggestions,
-} from './settings.js'
+} from './settings-utilities.js'
+import { registerSettingsCommand } from './settings.js'
 
 let tempRoot: string
 
@@ -36,6 +36,11 @@ async function invokeRegisteredHandler(
         bash: boolean
       }[]
       reminderInterval: number
+      subagentModels: {
+        low?: string
+        medium?: string
+        high?: string
+      }
     }) => void
     onCancel?: () => void
     tuiRequestRender?: () => void
@@ -68,6 +73,11 @@ async function invokeRegisteredHandler(
                 bash: boolean
               }[]
               reminderInterval: number
+              subagentModels: {
+                low?: string
+                medium?: string
+                high?: string
+              }
             }) => void
             onCancel?: () => void
             tuiRequestRender?: () => void
@@ -100,6 +110,7 @@ describe('registerSettingsCommand', () => {
           { path: '/allowed-b', read: true, write: true, bash: false },
         ],
         reminderInterval: 5,
+        subagentModels: {},
       })
       return {
         permissions: [
@@ -107,6 +118,7 @@ describe('registerSettingsCommand', () => {
           { path: '/allowed-b', read: true, write: true, bash: false },
         ],
         reminderInterval: 5,
+        subagentModels: {},
       }
     })
 
@@ -120,7 +132,7 @@ describe('registerSettingsCommand', () => {
       reminderInterval: 5,
     })
     expect(notifySpy).toHaveBeenCalledWith(
-      'Cradle settings saved: 2 permissions, reminder interval 5 turns',
+      'Cradle settings saved: 2 permissions, 0 models, reminder interval 5 turns',
       'info',
     )
   })
@@ -227,11 +239,29 @@ describe('CradleSettingsEditor — input', () => {
     editor.handleInput('\u001B[B')
     expect(editor.getSelectedRow()).toBe(3)
 
-    // Stops at interval row
+    // Navigate down to low model row (row 4)
     editor.handleInput('\u001B[B')
-    expect(editor.getSelectedRow()).toBe(3)
+    expect(editor.getSelectedRow()).toBe(4)
+
+    // Navigate down to medium model row (row 5)
+    editor.handleInput('\u001B[B')
+    expect(editor.getSelectedRow()).toBe(5)
+
+    // Navigate down to high model row (row 6)
+    editor.handleInput('\u001B[B')
+    expect(editor.getSelectedRow()).toBe(6)
+
+    // Stops at high model row
+    editor.handleInput('\u001B[B')
+    expect(editor.getSelectedRow()).toBe(6)
 
     // Navigate back up and delete row 1
+    editor.handleInput('\u001B[A')
+    expect(editor.getSelectedRow()).toBe(5)
+    editor.handleInput('\u001B[A')
+    expect(editor.getSelectedRow()).toBe(4)
+    editor.handleInput('\u001B[A')
+    expect(editor.getSelectedRow()).toBe(3)
     editor.handleInput('\u001B[A')
     expect(editor.getSelectedRow()).toBe(2)
     editor.handleInput('\u001B[A')
@@ -352,6 +382,7 @@ describe('CradleSettingsEditor — keys', () => {
     expect(saveSpy).toHaveBeenCalledWith({
       permissions: [],
       reminderInterval: 3,
+      subagentModels: {},
     })
 
     editor.handleInput('\u001B') // escape
@@ -481,6 +512,7 @@ describe('CradleSettingsEditor — interval', () => {
     expect(saveSpy).toHaveBeenCalledWith({
       permissions: [],
       reminderInterval: 20,
+      subagentModels: {},
     })
   })
 })

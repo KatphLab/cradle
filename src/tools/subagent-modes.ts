@@ -4,6 +4,7 @@ import type {
 } from '@earendil-works/pi-agent-core'
 import { StringEnum } from '@earendil-works/pi-ai'
 import { Type, type Static } from 'typebox'
+import { loadCradleSettings } from '../config/settings.js'
 import { formatAgentList } from '../subagents/agents.js'
 import { runSingleAgent } from '../subagents/runner.js'
 import type {
@@ -23,23 +24,35 @@ import {
   truncateParallelOutput,
 } from '../subagents/utilities.js'
 
-const TaskItem = Type.Object({
-  agent: Type.String({ description: 'Name of the agent to invoke' }),
-  task: Type.String({ description: 'Task to delegate to the agent' }),
-  cwd: Type.Optional(
-    Type.String({ description: 'Working directory for the agent process' }),
-  ),
+const ComplexitySchema = StringEnum(['low', 'medium', 'high'] as const, {
+  description: 'Task complexity for model selection',
 })
 
-const ChainItem = Type.Object({
-  agent: Type.String({ description: 'Name of the agent to invoke' }),
-  task: Type.String({
-    description: 'Task with optional {previous} placeholder for prior output',
-  }),
-  cwd: Type.Optional(
-    Type.String({ description: 'Working directory for the agent process' }),
-  ),
-})
+const TaskItem = Type.Object(
+  {
+    agent: Type.String({ description: 'Name of the agent to invoke' }),
+    task: Type.String({ description: 'Task to delegate to the agent' }),
+    cwd: Type.Optional(
+      Type.String({ description: 'Working directory for the agent process' }),
+    ),
+    complexity: Type.Optional(ComplexitySchema),
+  },
+  { additionalProperties: false },
+)
+
+const ChainItem = Type.Object(
+  {
+    agent: Type.String({ description: 'Name of the agent to invoke' }),
+    task: Type.String({
+      description: 'Task with optional {previous} placeholder for prior output',
+    }),
+    cwd: Type.Optional(
+      Type.String({ description: 'Working directory for the agent process' }),
+    ),
+    complexity: Type.Optional(ComplexitySchema),
+  },
+  { additionalProperties: false },
+)
 
 const AgentScopeSchema = StringEnum(['user', 'project', 'both'] as const, {
   description:
@@ -78,6 +91,7 @@ export const SubagentParameters = Type.Object({
       description: 'Working directory for the agent process (single mode)',
     }),
   ),
+  complexity: Type.Optional(ComplexitySchema),
 })
 
 export type SubagentParametersType = Static<typeof SubagentParameters>
@@ -209,6 +223,7 @@ export async function handleSingleMode(
   if (!agentName || !task) {
     throw new Error('Missing agent or task in single mode')
   }
+  const settings = await loadCradleSettings(context.cwd)
   const result = await runSingleAgent({
     defaultCwd: context.cwd,
     agents,
@@ -219,6 +234,8 @@ export async function handleSingleMode(
     signal,
     onUpdate,
     makeDetails: makeDetails('single'),
+    complexity: parameters.complexity,
+    settings,
   })
   if (isFailedResult(result)) {
     const errorMessage = getResultOutput(result)
@@ -257,6 +274,7 @@ export async function handleChainMode(
   if (!chain || chain.length === 0) {
     throw new Error('Missing chain in chain mode')
   }
+  const settings = await loadCradleSettings(context.cwd)
   const results: SingleResult[] = []
   let previousOutput = ''
 
@@ -286,6 +304,8 @@ export async function handleChainMode(
       signal,
       onUpdate: chainUpdate,
       makeDetails: makeDetails('chain'),
+      complexity: step.complexity,
+      settings,
     })
     results.push(result)
 
@@ -414,6 +434,7 @@ export async function handleParallelMode(
   if (!tasks || tasks.length === 0) {
     throw new Error('Missing tasks in parallel mode')
   }
+  const settings = await loadCradleSettings(context.cwd)
   if (tasks.length > MAX_PARALLEL_TASKS) {
     return buildParallelTooManyResponse(tasks.length, makeDetails)
   }
@@ -457,6 +478,8 @@ export async function handleParallelMode(
           }
         },
         makeDetails: makeDetails('parallel'),
+        complexity: t.complexity,
+        settings,
       })
       allResults[index] = result
       emitUpdate()

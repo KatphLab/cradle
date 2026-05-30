@@ -2,6 +2,8 @@ import type { Message } from '@earendil-works/pi-ai'
 
 export type AgentScope = 'user' | 'project' | 'both'
 
+export type TaskComplexity = 'low' | 'medium' | 'high'
+
 export interface AgentConfig {
   name: string
   description: string

@@ -4,10 +4,12 @@ import fs from 'node:fs'
 import type { AgentToolResult } from '@earendil-works/pi-agent-core'
 import type { Message, Usage } from '@earendil-works/pi-ai'
 
+import type { CradleSettings } from '../config/settings.js'
 import type {
   AgentConfig,
   SingleResult,
   SubagentDetails,
+  TaskComplexity,
   UsageStats,
 } from './types.js'
 import {
@@ -51,6 +53,8 @@ export interface RunSingleAgentOptions {
   signal: AbortSignal | undefined
   onUpdate: OnUpdateCallback | undefined
   makeDetails: DetailsFactory
+  complexity: TaskComplexity | undefined
+  settings: CradleSettings | undefined
 }
 
 function createEmptyUsage(): UsageStats {
@@ -65,9 +69,22 @@ function createEmptyUsage(): UsageStats {
   }
 }
 
-function buildPiArgs(agent: AgentConfig, task: string): string[] {
+function resolveModel(
+  agent: AgentConfig,
+  complexity: TaskComplexity | undefined,
+  settings: CradleSettings | undefined,
+): string | undefined {
+  if (complexity === undefined) return agent.model
+  return agent.model ?? settings?.subagentModels?.[complexity]
+}
+
+function buildPiArgs(
+  agent: AgentConfig,
+  task: string,
+  resolvedModel: string | undefined,
+): string[] {
   const args: string[] = ['--mode', 'json', '-p', '--no-session']
-  if (agent.model) args.push('--model', agent.model)
+  if (resolvedModel) args.push('--model', resolvedModel)
   if (agent.tools && agent.tools.length > 0)
     args.push('--tools', agent.tools.join(','))
   args.push(`Task: ${task}`)
@@ -78,6 +95,7 @@ function createInitialResult(
   agent: AgentConfig,
   task: string,
   step: number | undefined,
+  resolvedModel: string | undefined,
 ): SingleResult {
   const result: SingleResult = {
     agent: agent.name,
@@ -88,8 +106,8 @@ function createInitialResult(
     stderr: '',
     usage: createEmptyUsage(),
   }
-  if (agent.model !== undefined) {
-    result.model = agent.model
+  if (resolvedModel !== undefined) {
+    result.model = resolvedModel
   }
   if (step !== undefined) {
     result.step = step
@@ -443,8 +461,18 @@ export async function runSingleAgent(
     )
   }
 
-  const args = buildPiArgs(agent, options.task)
-  const currentResult = createInitialResult(agent, options.task, options.step)
+  const resolvedModel = resolveModel(
+    agent,
+    options.complexity,
+    options.settings,
+  )
+  const args = buildPiArgs(agent, options.task, resolvedModel)
+  const currentResult = createInitialResult(
+    agent,
+    options.task,
+    options.step,
+    resolvedModel,
+  )
   const emitUpdate = createUpdateEmitter(
     currentResult,
     options.onUpdate,

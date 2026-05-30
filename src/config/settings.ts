@@ -12,9 +12,16 @@ export interface DirectoryPermission {
   bash: boolean
 }
 
+export interface SubagentModels {
+  low?: string
+  medium?: string
+  high?: string
+}
+
 export interface CradleSettings {
   permissions?: DirectoryPermission[]
   reminderInterval?: number
+  subagentModels?: SubagentModels
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -27,6 +34,19 @@ function isDirectoryPermission(value: unknown): value is DirectoryPermission {
   if (typeof value['read'] !== 'boolean') return false
   if (typeof value['write'] !== 'boolean') return false
   if (typeof value['bash'] !== 'boolean') return false
+  return true
+}
+
+function isSubagentModels(value: unknown): value is SubagentModels {
+  if (!isRecord(value)) return false
+  const allowedKeys = new Set(['low', 'medium', 'high'])
+  const keys = Object.keys(value)
+  if (keys.length === 0) return false
+  for (const key of keys) {
+    if (!allowedKeys.has(key)) return false
+    const value_ = value[key]
+    if (value_ !== undefined && typeof value_ !== 'string') return false
+  }
   return true
 }
 
@@ -57,9 +77,15 @@ function normalizeSettings(value: unknown, cwd: string): CradleSettings {
         )
       : undefined
 
+  const rawSubagentModels = value['subagentModels']
+  const subagentModels = isSubagentModels(rawSubagentModels)
+    ? rawSubagentModels
+    : undefined
+
   return {
     ...(permissions !== undefined && { permissions }),
     ...(reminderInterval !== undefined && { reminderInterval }),
+    ...(subagentModels !== undefined && { subagentModels }),
   }
 }
 

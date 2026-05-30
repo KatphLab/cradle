@@ -109,18 +109,23 @@ function formatReadToolCall(
   return themeFg('muted', 'read ') + text
 }
 
+function getFilePathArgument(args: Record<string, unknown>): string {
+  const filePathValue = args['file_path']
+  const pathValue = args['path']
+  if (typeof filePathValue === 'string' && filePathValue) {
+    return filePathValue
+  }
+  if (typeof pathValue === 'string' && pathValue) {
+    return pathValue
+  }
+  return '...'
+}
+
 function formatWriteToolCall(
   args: Record<string, unknown>,
   themeFg: (color: string, text: string) => string,
 ): string {
-  const filePathValue = args['file_path']
-  const pathValue = args['path']
-  let rawPath = '...'
-  if (typeof filePathValue === 'string' && filePathValue) {
-    rawPath = filePathValue
-  } else if (typeof pathValue === 'string' && pathValue) {
-    rawPath = pathValue
-  }
+  const rawPath = getFilePathArgument(args)
   const filePath = shortenPath(rawPath)
   const contentValue = args['content']
   const content = typeof contentValue === 'string' ? contentValue : ''
@@ -134,14 +139,7 @@ function formatEditToolCall(
   args: Record<string, unknown>,
   themeFg: (color: string, text: string) => string,
 ): string {
-  const filePathValue = args['file_path']
-  const pathValue = args['path']
-  let rawPath = '...'
-  if (typeof filePathValue === 'string' && filePathValue) {
-    rawPath = filePathValue
-  } else if (typeof pathValue === 'string' && pathValue) {
-    rawPath = pathValue
-  }
+  const rawPath = getFilePathArgument(args)
   return themeFg('muted', 'edit ') + themeFg('accent', shortenPath(rawPath))
 }
 
