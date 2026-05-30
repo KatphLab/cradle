@@ -25,7 +25,7 @@ export function registerSettingsCommand(
         authStorage,
         path.join(getAgentDir(), 'models.json'),
       )
-      const models = registry.getAll()
+      const models = registry.getAvailable()
       const availableModels = models.map((m) => ({
         id: m.id,
         name: m.name,
