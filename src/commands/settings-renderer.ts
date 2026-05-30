@@ -1,10 +1,10 @@
 import { truncateToWidth } from '@earendil-works/pi-tui'
 import {
   GAP,
-  INTERVAL_LABEL,
   PERMISSION_LABELS,
   TIER_LABELS,
   TOGGLE_WIDTH,
+  TOKEN_THRESHOLD_LABEL,
   type EditorState,
 } from './settings-constants.js'
 import { formatDirectoryPath } from './settings-utilities.js'
@@ -21,7 +21,7 @@ export class SettingsRenderer {
       ...this.renderRows(width),
       ...this.renderDirInput(width),
       ...this.renderSuggestions(width),
-      ...this.renderIntervalSection(width),
+      ...this.renderTokenThresholdSection(width),
       ...this.renderModelSection(width),
       ...this.renderHelp(width),
     ]
@@ -138,13 +138,17 @@ export class SettingsRenderer {
     return [...lines, '']
   }
 
-  private renderIntervalSection(width: number): string[] {
+  private renderTokenThresholdSection(width: number): string[] {
     const isFocused = this.editor.selectedRow === this.editor.rows.length + 1
     const prefix = isFocused ? '> ' : '  '
     const inputWidth = Math.max(0, width - prefix.length)
-    const inputLines = this.editor.intervalInput.render(inputWidth)
+    const inputLines = this.editor.tokenThresholdInput.render(inputWidth)
     const [firstLine = ''] = inputLines
-    return ['', this.editor.theme.bold(INTERVAL_LABEL), `${prefix}${firstLine}`]
+    return [
+      '',
+      this.editor.theme.bold(TOKEN_THRESHOLD_LABEL),
+      `${prefix}${firstLine}`,
+    ]
   }
 
   private renderModelSection(width: number): string[] {

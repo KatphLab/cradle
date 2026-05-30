@@ -28,7 +28,7 @@ const mockTheme = {
 
 interface SR {
   permissions: { path: string; read: boolean; write: boolean; bash: boolean }[]
-  reminderInterval: number
+  reminderTokenThreshold: number
   subagentModels: { low?: string; medium?: string; high?: string }
 }
 
@@ -85,7 +85,7 @@ describe('registerSettingsCommand', () => {
           { path: '/allowed-a', read: true, write: false, bash: false },
           { path: '/allowed-b', read: true, write: true, bash: false },
         ],
-        reminderInterval: 5,
+        reminderTokenThreshold: 5000,
         subagentModels: {},
       })
       return {
@@ -93,7 +93,7 @@ describe('registerSettingsCommand', () => {
           { path: '/allowed-a', read: true, write: false, bash: false },
           { path: '/allowed-b', read: true, write: true, bash: false },
         ],
-        reminderInterval: 5,
+        reminderTokenThreshold: 5000,
         subagentModels: {},
       }
     })
@@ -105,10 +105,10 @@ describe('registerSettingsCommand', () => {
         { path: '/allowed-a', read: true, write: false, bash: false },
         { path: '/allowed-b', read: true, write: true, bash: false },
       ],
-      reminderInterval: 5,
+      reminderTokenThreshold: 5000,
     })
     expect(notifySpy).toHaveBeenCalledWith(
-      'Cradle settings saved: 2 permissions, 0 models, reminder interval 5 turns',
+      'Cradle settings saved: 2 permissions, 0 models, reminder token threshold 5000',
       'info',
     )
   })
@@ -206,7 +206,7 @@ describe('CradleSettingsEditor — input', () => {
     down()
     expect(editor.getSelectedRow()).toBe(2) // directory input
     down()
-    expect(editor.getSelectedRow()).toBe(3) // interval
+    expect(editor.getSelectedRow()).toBe(3) // token threshold
     down()
     expect(editor.getSelectedRow()).toBe(4) // low model
     down()
@@ -337,7 +337,7 @@ describe('CradleSettingsEditor — keys', () => {
     editor.handleInput('\u0013') // ctrl+s
     expect(saveSpy).toHaveBeenCalledWith({
       permissions: [],
-      reminderInterval: 3,
+      reminderTokenThreshold: 6000,
       subagentModels: {},
     })
 
@@ -415,17 +415,17 @@ describe('CradleSettingsEditor — rendering', () => {
       true,
     )
 
-    // Dirty state from interval change
-    const intervalDirtyEditor = new CradleSettingsEditor(
-      { permissions: [], reminderInterval: 3 },
+    // Dirty state from token threshold change
+    const tokenThresholdDirtyEditor = new CradleSettingsEditor(
+      { permissions: [], reminderTokenThreshold: 6000 },
       tempRoot,
       mockTheme,
     )
-    intervalDirtyEditor.handleInput('\u001B[B') // move to interval row
-    intervalDirtyEditor.handleInput('5')
-    const intervalDirtyLines = intervalDirtyEditor.render(80)
+    tokenThresholdDirtyEditor.handleInput('\u001B[B') // move to threshold row
+    tokenThresholdDirtyEditor.handleInput('5')
+    const tokenThresholdDirtyLines = tokenThresholdDirtyEditor.render(80)
     expect(
-      intervalDirtyLines.some((line) => line.includes('Unsaved changes')),
+      tokenThresholdDirtyLines.some((line) => line.includes('Unsaved changes')),
     ).toBe(true)
 
     // Narrow width
@@ -478,35 +478,35 @@ describe('CradleSettingsEditor — model select list', () => {
   })
 })
 
-describe('CradleSettingsEditor — interval', () => {
-  it('defaults to 3, reads initial value, and clamps on save', () => {
-    // Default when no interval provided
+describe('CradleSettingsEditor — reminder token threshold', () => {
+  it('defaults to 6000, reads initial value, and clamps on save', () => {
     const editor = new CradleSettingsEditor(
       { permissions: [] },
       tempRoot,
       mockTheme,
     )
-    expect(editor.getReminderInterval()).toBe(3)
+    expect(editor.getReminderTokenThreshold()).toBe(6000)
 
-    // Reads custom initial value from settings
     const customEditor = new CradleSettingsEditor(
-      { permissions: [], reminderInterval: 7 },
+      { permissions: [], reminderTokenThreshold: 7000 },
       tempRoot,
       mockTheme,
     )
-    expect(customEditor.getReminderInterval()).toBe(7)
+    expect(customEditor.getReminderTokenThreshold()).toBe(7000)
 
-    // Clamps on save (50 → 20)
     const saveSpy = vi.fn()
     editor.onSave = saveSpy
-    editor.handleInput('\u001B[B') // move to interval row
-    editor.handleInput('5')
-    editor.handleInput('0')
+    editor.handleInput('\u001B[B') // move to token threshold row
+    editor.handleInput('9')
+    editor.handleInput('9')
+    editor.handleInput('9')
+    editor.handleInput('9')
+    editor.handleInput('9')
     editor.handleInput('\u0013') // ctrl+s
 
     expect(saveSpy).toHaveBeenCalledWith({
       permissions: [],
-      reminderInterval: 20,
+      reminderTokenThreshold: 50_000,
       subagentModels: {},
     })
   })

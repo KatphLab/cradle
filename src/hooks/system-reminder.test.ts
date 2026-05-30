@@ -149,7 +149,7 @@ describe('registerSystemReminderHook', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-05-24T00:00:00.000Z'))
     tempRoot = await mkdtemp(path.join(os.tmpdir(), 'cradle-reminder-'))
-    await writeCradleSettings(tempRoot, { reminderInterval: 1 })
+    await writeCradleSettings(tempRoot, { reminderTokenThreshold: 500 })
   })
 
   afterEach(async () => {
@@ -273,7 +273,7 @@ describe('registerSystemReminderHook', () => {
 
     const notify = vi.fn()
 
-    // Prime cachedSettings via session_start so interval=1 from settings file is loaded
+    // Prime cachedSettings via session_start.
     const sessionHandler = getSessionStartHandler(handlers)
     await sessionHandler({}, { cwd: tempRoot, ui: { notify } })
 
@@ -308,13 +308,16 @@ describe('registerSystemReminderHook', () => {
     ])
   })
 
-  it('skips injection when counter is below interval on non-user turns', async () => {
-    await writeCradleSettings(tempRoot, { reminderInterval: 3 })
+  it('skips unchanged reminders until token threshold is reached', async () => {
+    await writeCradleSettings(tempRoot, { reminderTokenThreshold: 500 })
 
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
 
     const notify = vi.fn()
+    const sessionHandler = getSessionStartHandler(handlers)
+    await sessionHandler({}, { cwd: tempRoot, ui: { notify } })
+
     const beforeHandler = getBeforeAgentStartHandler(handlers)
     await beforeHandler(
       {
@@ -325,44 +328,44 @@ describe('registerSystemReminderHook', () => {
     )
 
     const userMessage = createUserMessage('please fix this')
-    const todoResult = createTodoToolResult('1. [in_progress] Fix bug')
     const handler = getContextHandler(handlers)
 
-    // First non-user turn after session start: counter=1, skip
-    const result1 = await handler(
-      { messages: [userMessage, todoResult] },
+    const firstResult = await handler(
+      { messages: [userMessage] },
       { cwd: tempRoot },
     )
-    expect(result1?.messages).toEqual([userMessage, todoResult])
+    expect(firstResult?.messages).toHaveLength(2)
+    const firstReminder = firstResult?.messages?.at(-1)
+    if (firstReminder === undefined) {
+      throw new Error('Expected first reminder to be injected')
+    }
 
-    // Second non-user turn: counter=2, skip
-    const toolResult2 = createTodoToolResult('1. [in_progress] Fix bug')
-    const result2 = await handler(
-      { messages: [userMessage, todoResult, toolResult2] },
+    const smallMessage = createUserMessage('ok')
+    const secondResult = await handler(
+      { messages: [userMessage, firstReminder, smallMessage] },
       { cwd: tempRoot },
     )
-    expect(result2?.messages).toEqual([userMessage, todoResult, toolResult2])
+    expect(secondResult?.messages).toEqual([userMessage, smallMessage])
 
-    // Third non-user turn: counter=3, inject
-    const toolResult3 = createTodoToolResult('1. [in_progress] Fix bug')
-    const result3 = await handler(
-      {
-        messages: [userMessage, todoResult, toolResult2, toolResult3],
-      },
+    const largeMessage = createUserMessage('x'.repeat(2400))
+    const thirdResult = await handler(
+      { messages: [userMessage, firstReminder, smallMessage, largeMessage] },
       { cwd: tempRoot },
     )
-    expect(result3?.messages).toHaveLength(5)
-    const lastMessage = result3?.messages?.at(-1)
-    expect(lastMessage?.role).toBe('custom')
+    expect(thirdResult?.messages).toHaveLength(4)
+    expect(thirdResult?.messages?.at(-1)?.role).toBe('custom')
   })
 
-  it('always injects on user turns regardless of counter', async () => {
-    await writeCradleSettings(tempRoot, { reminderInterval: 5 })
+  it('injects when the reminder payload changes below the token threshold', async () => {
+    await writeCradleSettings(tempRoot, { reminderTokenThreshold: 50_000 })
 
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
 
     const notify = vi.fn()
+    const sessionHandler = getSessionStartHandler(handlers)
+    await sessionHandler({}, { cwd: tempRoot, ui: { notify } })
+
     const beforeHandler = getBeforeAgentStartHandler(handlers)
     await beforeHandler(
       {
@@ -375,11 +378,28 @@ describe('registerSystemReminderHook', () => {
     const userMessage = createUserMessage('hello')
     const handler = getContextHandler(handlers)
 
-    // First user turn: always injects
-    const result = await handler({ messages: [userMessage] }, { cwd: tempRoot })
+    const firstResult = await handler(
+      { messages: [userMessage] },
+      { cwd: tempRoot },
+    )
+    const firstReminder = firstResult?.messages?.at(-1)
+    if (firstReminder === undefined) {
+      throw new Error('Expected first reminder to be injected')
+    }
 
-    expect(result?.messages).toHaveLength(2)
-    expect(result?.messages?.at(-1)?.role).toBe('custom')
+    const todoResult = createTodoToolResult('1. [in_progress] Fix bug')
+    const result = await handler(
+      { messages: [userMessage, firstReminder, todoResult] },
+      { cwd: tempRoot },
+    )
+
+    expect(result?.messages).toHaveLength(3)
+    const lastMessage = result?.messages?.at(-1)
+    expect(lastMessage?.role).toBe('custom')
+    if (lastMessage === undefined || !('content' in lastMessage)) {
+      throw new Error('Expected system reminder message')
+    }
+    expect(lastMessage.content).toContain('## Current Todos')
   })
 
   it('strips system reminder tags from the system prompt', async () => {

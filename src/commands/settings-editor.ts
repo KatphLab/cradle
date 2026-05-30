@@ -8,16 +8,15 @@ import {
 } from '@earendil-works/pi-tui'
 import path from 'node:path'
 
-import type {
-  CradleSettings,
-  DirectoryPermission,
-  SubagentModels,
-} from '../config/settings.js'
 import {
-  DEFAULT_INTERVAL,
-  type EditorTheme,
-  PERMISSION_COLUMNS,
-} from './settings-constants.js'
+  DEFAULT_REMINDER_TOKEN_THRESHOLD,
+  MAX_REMINDER_TOKEN_THRESHOLD,
+  MIN_REMINDER_TOKEN_THRESHOLD,
+  type CradleSettings,
+  type DirectoryPermission,
+  type SubagentModels,
+} from '../config/settings.js'
+import { PERMISSION_COLUMNS, type EditorTheme } from './settings-constants.js'
 import { SettingsRenderer } from './settings-renderer.js'
 import {
   formatDirectoryPath,
@@ -32,7 +31,7 @@ interface ModelOption {
 
 interface CradleSettingsResult {
   permissions: DirectoryPermission[]
-  reminderInterval: number
+  reminderTokenThreshold: number
   subagentModels: SubagentModels
 }
 
@@ -41,7 +40,7 @@ export class CradleSettingsEditor implements Component, Focusable {
   readonly cwd: string
   readonly theme: EditorTheme
   readonly dirInput: Input
-  readonly intervalInput: Input
+  readonly tokenThresholdInput: Input
   readonly subagentModels: SubagentModels
   readonly modelDisplayNames: Map<string, string>
   selectedRow: number
@@ -49,7 +48,7 @@ export class CradleSettingsEditor implements Component, Focusable {
   suggestions: string[] = []
   suggestionIndex = -1
 
-  private readonly initialInterval: number
+  private readonly initialTokenThreshold: number
   private readonly availableModels: string[]
   private readonly initialSubagentModels: SubagentModels
   private readonly renderer: SettingsRenderer
@@ -72,7 +71,8 @@ export class CradleSettingsEditor implements Component, Focusable {
     this.rows = (initialSettings.permissions ?? []).map((row) => ({ ...row }))
     this.cwd = cwd
     this.theme = theme
-    this.initialInterval = initialSettings.reminderInterval ?? DEFAULT_INTERVAL
+    this.initialTokenThreshold =
+      initialSettings.reminderTokenThreshold ?? DEFAULT_REMINDER_TOKEN_THRESHOLD
 
     const models = availableModels ?? []
     this.availableModels = models.map((m) => m.id)
@@ -99,8 +99,8 @@ export class CradleSettingsEditor implements Component, Focusable {
     }
     this.dirInput.onEscape = () => this.onCancel?.()
 
-    this.intervalInput = new Input()
-    this.intervalInput.setValue(String(this.initialInterval))
+    this.tokenThresholdInput = new Input()
+    this.tokenThresholdInput.setValue(String(this.initialTokenThreshold))
 
     this.selectedRow = this.rows.length
     this.selectedCol = 0
@@ -112,9 +112,9 @@ export class CradleSettingsEditor implements Component, Focusable {
     return this.rows.map((row) => ({ ...row }))
   }
 
-  getReminderInterval(): number {
-    const value = Number.parseInt(this.intervalInput.getValue())
-    return Number.isNaN(value) ? this.initialInterval : value
+  getReminderTokenThreshold(): number {
+    const value = Number.parseInt(this.tokenThresholdInput.getValue())
+    return Number.isNaN(value) ? this.initialTokenThreshold : value
   }
 
   getSubagentModels(): SubagentModels {
@@ -142,13 +142,13 @@ export class CradleSettingsEditor implements Component, Focusable {
   }
 
   isDirty(): boolean {
-    const intervalChanged =
-      this.intervalInput.getValue() !== String(this.initialInterval)
+    const tokenThresholdChanged =
+      this.tokenThresholdInput.getValue() !== String(this.initialTokenThreshold)
     const modelsChanged =
       this.subagentModels.low !== this.initialSubagentModels.low ||
       this.subagentModels.medium !== this.initialSubagentModels.medium ||
       this.subagentModels.high !== this.initialSubagentModels.high
-    return this.dirty || intervalChanged || modelsChanged
+    return this.dirty || tokenThresholdChanged || modelsChanged
   }
 
   addCurrentInput(): void {
@@ -219,13 +219,16 @@ export class CradleSettingsEditor implements Component, Focusable {
 
   private tryHandleSave(data: string): boolean {
     if (matchesKey(data, Key.ctrl('s'))) {
-      const clampedInterval = Math.max(
-        1,
-        Math.min(20, this.getReminderInterval()),
+      const clampedTokenThreshold = Math.max(
+        MIN_REMINDER_TOKEN_THRESHOLD,
+        Math.min(
+          MAX_REMINDER_TOKEN_THRESHOLD,
+          this.getReminderTokenThreshold(),
+        ),
       )
       this.onSave?.({
         permissions: this.getRows(),
-        reminderInterval: clampedInterval,
+        reminderTokenThreshold: clampedTokenThreshold,
         subagentModels: this.getSubagentModels(),
       })
       return true
@@ -391,7 +394,7 @@ export class CradleSettingsEditor implements Component, Focusable {
       return true
     }
     if (this.selectedRow === this.rows.length + 1) {
-      this.intervalInput.handleInput(data)
+      this.tokenThresholdInput.handleInput(data)
       this.tuiRequestRender?.()
       return true
     }
@@ -449,6 +452,6 @@ export class CradleSettingsEditor implements Component, Focusable {
 
   invalidate(): void {
     this.dirInput.invalidate()
-    this.intervalInput.invalidate()
+    this.tokenThresholdInput.invalidate()
   }
 }

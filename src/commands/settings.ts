@@ -40,7 +40,7 @@ export function registerSettingsCommand(
               write: boolean
               bash: boolean
             }[]
-            reminderInterval: number
+            reminderTokenThreshold: number
             subagentModels: {
               low?: string
               medium?: string
@@ -76,7 +76,7 @@ export function registerSettingsCommand(
 
       await saveCradleSettings(context.cwd, {
         permissions: result.permissions,
-        reminderInterval: result.reminderInterval,
+        reminderTokenThreshold: result.reminderTokenThreshold,
         subagentModels: result.subagentModels,
       })
 
@@ -87,7 +87,7 @@ export function registerSettingsCommand(
         result.subagentModels.high,
       ].filter(Boolean).length
       context.ui.notify(
-        `Cradle settings saved: ${String(permissionCount)} permissions, ${String(modelCount)} models, reminder interval ${String(result.reminderInterval)} turns`,
+        `Cradle settings saved: ${String(permissionCount)} permissions, ${String(modelCount)} models, reminder token threshold ${String(result.reminderTokenThreshold)}`,
         'info',
       )
     },

@@ -18,9 +18,13 @@ export interface SubagentModels {
   high?: string
 }
 
+export const DEFAULT_REMINDER_TOKEN_THRESHOLD = 6000
+export const MIN_REMINDER_TOKEN_THRESHOLD = 500
+export const MAX_REMINDER_TOKEN_THRESHOLD = 50_000
+
 export interface CradleSettings {
   permissions?: DirectoryPermission[]
-  reminderInterval?: number
+  reminderTokenThreshold?: number
   subagentModels?: SubagentModels
 }
 
@@ -50,8 +54,13 @@ function isSubagentModels(value: unknown): value is SubagentModels {
   return true
 }
 
-const MIN_REMINDER_INTERVAL = 1
-const MAX_REMINDER_INTERVAL = 20
+function normalizeReminderTokenThreshold(raw: unknown): number | undefined {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined
+  return Math.max(
+    MIN_REMINDER_TOKEN_THRESHOLD,
+    Math.min(MAX_REMINDER_TOKEN_THRESHOLD, Math.round(raw)),
+  )
+}
 
 function normalizeSettings(value: unknown, cwd: string): CradleSettings {
   if (!isRecord(value)) return {}
@@ -68,14 +77,9 @@ function normalizeSettings(value: unknown, cwd: string): CradleSettings {
       bash: permission.bash,
     })) ?? undefined
 
-  const rawInterval = value['reminderInterval']
-  const reminderInterval =
-    typeof rawInterval === 'number'
-      ? Math.max(
-          MIN_REMINDER_INTERVAL,
-          Math.min(MAX_REMINDER_INTERVAL, Math.round(rawInterval)),
-        )
-      : undefined
+  const reminderTokenThreshold = normalizeReminderTokenThreshold(
+    value['reminderTokenThreshold'],
+  )
 
   const rawSubagentModels = value['subagentModels']
   const subagentModels = isSubagentModels(rawSubagentModels)
@@ -84,7 +88,7 @@ function normalizeSettings(value: unknown, cwd: string): CradleSettings {
 
   return {
     ...(permissions !== undefined && { permissions }),
-    ...(reminderInterval !== undefined && { reminderInterval }),
+    ...(reminderTokenThreshold !== undefined && { reminderTokenThreshold }),
     ...(subagentModels !== undefined && { subagentModels }),
   }
 }
