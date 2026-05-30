@@ -4,14 +4,11 @@ import { formatAgentList } from '../subagents/agents.js'
 import { runSingleAgent } from '../subagents/runner.js'
 import type { AgentConfig } from '../subagents/types.js'
 import {
-  buildCanceledResponse,
   buildNoModeResponse,
   buildValidationErrorResponse,
   handleChainMode,
   handleSingleMode,
   makeDetailsFactory,
-  requestProjectAgentApproval,
-  type SubagentParametersType,
   type UpdateCallback,
   validateModeCount,
 } from './subagent-modes.js'
@@ -96,67 +93,11 @@ describe('subagent mode validation and responses', () => {
       type: 'text',
       text: 'Bad request\nAvailable agents: writer (user), reviewer (user), repo-agent (project)',
     })
-    expect(buildCanceledResponse(makeDetails).content[0]).toEqual({
-      type: 'text',
-      text: 'Canceled: project-local agents not approved.',
-    })
     expect(buildNoModeResponse(agents, makeDetails).content[0]).toEqual({
       type: 'text',
       text: 'Invalid parameters. Available agents: writer (user), reviewer (user), repo-agent (project)',
     })
     expect(formatAgentList).toHaveBeenCalledWith(agents, 10)
-  })
-})
-
-describe('requestProjectAgentApproval', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('does not prompt when requested agents are not project-local', async () => {
-    const confirm = vi.fn().mockResolvedValue(false)
-
-    await expect(
-      requestProjectAgentApproval(
-        { agent: 'writer', task: 'write' },
-        agents,
-        makeContext({ ui: { confirm } }),
-        discovery,
-      ),
-    ).resolves.toBe(true)
-
-    expect(confirm).not.toHaveBeenCalled()
-  })
-
-  it('prompts once for project agents requested across single, parallel, and chain data', async () => {
-    const confirm = vi.fn().mockResolvedValue(false)
-    const parameters: SubagentParametersType = {
-      agent: 'repo-agent',
-      task: 'inspect',
-      tasks: [
-        { agent: 'repo-agent', task: 'parallel inspect' },
-        { agent: 'writer', task: 'write' },
-      ],
-      chain: [
-        { agent: 'writer', task: 'draft' },
-        { agent: 'repo-agent', task: 'check {previous}' },
-      ],
-    }
-
-    await expect(
-      requestProjectAgentApproval(
-        parameters,
-        agents,
-        makeContext({ ui: { confirm } }),
-        { agents, projectAgentsDir: noProjectAgentsDirectory() },
-      ),
-    ).resolves.toBe(false)
-
-    expect(confirm).toHaveBeenCalledOnce()
-    expect(confirm).toHaveBeenCalledWith(
-      'Run project-local agents?',
-      'Agents: repo-agent\nSource: (unknown)\n\nProject agents are repo-controlled. Only continue for trusted repositories.',
-    )
   })
 })
 

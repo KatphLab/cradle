@@ -213,55 +213,6 @@ describe('subagentTool', () => {
     expect(handleChainMode).not.toHaveBeenCalled()
   })
 
-  it('cancels when project-local agents are not approved', async () => {
-    const confirm = vi.fn().mockResolvedValue(false)
-    const context = makeContext({ hasUI: true, ui: { confirm } })
-
-    const result = await subagentTool.execute(
-      'call-1',
-      { agent: 'repo-agent', agentScope: 'project', task: 'inspect' },
-      undefined,
-      undefined,
-      context,
-    )
-
-    expect(confirm).toHaveBeenCalledOnce()
-    expect(result.content[0]).toEqual({
-      type: 'text',
-      text: 'Canceled: project-local agents not approved.',
-    })
-    expect(handleSingleMode).not.toHaveBeenCalled()
-  })
-
-  it('skips project-agent confirmation when disabled or when there is no UI', async () => {
-    const confirm = vi.fn().mockResolvedValue(false)
-    const contextWithUi = makeContext({ hasUI: true, ui: { confirm } })
-    const contextWithoutUi = makeContext({ hasUI: false, ui: { confirm } })
-
-    await subagentTool.execute(
-      'call-1',
-      {
-        agent: 'repo-agent',
-        agentScope: 'both',
-        confirmProjectAgents: false,
-        task: 'inspect',
-      },
-      undefined,
-      undefined,
-      contextWithUi,
-    )
-    await subagentTool.execute(
-      'call-2',
-      { agent: 'repo-agent', agentScope: 'project', task: 'inspect' },
-      undefined,
-      undefined,
-      contextWithoutUi,
-    )
-
-    expect(confirm).not.toHaveBeenCalled()
-    expect(handleSingleMode).toHaveBeenCalledTimes(2)
-  })
-
   it('renders subagent call and result', () => {
     const theme = {
       bold: (text: string) => text,

@@ -9,7 +9,6 @@ import { formatAgentList } from '../subagents/agents.js'
 import { runSingleAgent } from '../subagents/runner.js'
 import type {
   AgentConfig,
-  AgentDiscoveryResult,
   AgentScope,
   SingleResult,
   SubagentDetails,
@@ -80,12 +79,6 @@ export const SubagentParameters = Type.Object({
     }),
   ),
   agentScope: Type.Optional(AgentScopeSchema),
-  confirmProjectAgents: Type.Optional(
-    Type.Boolean({
-      description: 'Prompt before running project-local agents. Default: true.',
-      default: true,
-    }),
-  ),
   cwd: Type.Optional(
     Type.String({
       description: 'Working directory for the agent process (single mode)',
@@ -125,34 +118,6 @@ export function validateModeCount(
   return undefined
 }
 
-export async function requestProjectAgentApproval(
-  parameters: SubagentParametersType,
-  agents: AgentConfig[],
-  context: ToolContext,
-  discovery: AgentDiscoveryResult,
-): Promise<boolean> {
-  const requestedAgentNames = new Set<string>()
-  if (parameters.chain)
-    for (const step of parameters.chain) requestedAgentNames.add(step.agent)
-  if (parameters.tasks)
-    for (const t of parameters.tasks) requestedAgentNames.add(t.agent)
-  if (parameters.agent) requestedAgentNames.add(parameters.agent)
-
-  const projectAgentsRequested = [...requestedAgentNames]
-    .map((name) => agents.find((a) => a.name === name))
-    .filter((a): a is AgentConfig => a?.source === 'project')
-
-  if (projectAgentsRequested.length === 0) return true
-
-  const names = projectAgentsRequested.map((a) => a.name).join(', ')
-  const directory = discovery.projectAgentsDir ?? '(unknown)'
-  const ok = await context.ui.confirm(
-    'Run project-local agents?',
-    `Agents: ${names}\nSource: ${directory}\n\nProject agents are repo-controlled. Only continue for trusted repositories.`,
-  )
-  return ok
-}
-
 export function makeDetailsFactory(
   agentScope: AgentScope,
   projectAgentsDirectory: string | undefined,
@@ -176,18 +141,6 @@ export function buildValidationErrorResponse(
       {
         type: 'text',
         text: `${message}\nAvailable agents: ${text}`,
-      },
-    ],
-    details: makeDetails('single')([]),
-  }
-}
-
-export function buildCanceledResponse(makeDetails: MakeDetails): ToolResult {
-  return {
-    content: [
-      {
-        type: 'text',
-        text: 'Canceled: project-local agents not approved.',
       },
     ],
     details: makeDetails('single')([]),

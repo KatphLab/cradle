@@ -2,14 +2,12 @@ import { defineTool } from '@earendil-works/pi-coding-agent'
 import { discoverAgents } from '../subagents/agents.js'
 import type { AgentConfig, AgentScope } from '../subagents/types.js'
 import {
-  buildCanceledResponse,
   buildNoModeResponse,
   buildValidationErrorResponse,
   handleChainMode,
   handleParallelMode,
   handleSingleMode,
   makeDetailsFactory,
-  requestProjectAgentApproval,
   SubagentParameters,
   validateModeCount,
   type MakeDetails,
@@ -77,7 +75,6 @@ export const subagentTool = defineTool({
     const agentScope: AgentScope = parameters.agentScope ?? 'user'
     const discovery = discoverAgents(context.cwd, agentScope)
     const agents = discovery.agents
-    const shouldConfirmProjectAgents = parameters.confirmProjectAgents ?? true
 
     const makeDetails = makeDetailsFactory(
       agentScope,
@@ -87,22 +84,6 @@ export const subagentTool = defineTool({
     const validationError = validateModeCount(parameters)
     if (validationError) {
       return buildValidationErrorResponse(validationError, agents, makeDetails)
-    }
-
-    if (
-      (agentScope === 'project' || agentScope === 'both') &&
-      shouldConfirmProjectAgents &&
-      context.hasUI
-    ) {
-      const approved = await requestProjectAgentApproval(
-        parameters,
-        agents,
-        context,
-        discovery,
-      )
-      if (!approved) {
-        return buildCanceledResponse(makeDetails)
-      }
     }
 
     return dispatchByMode(
