@@ -105,7 +105,7 @@ export function buildRenderCall(
   return new Text(renderCallSingleText(args, theme), 0, 0)
 }
 
-function renderResultFallback(result: AgentToolResult<unknown>) {
+export function renderResultFallback(result: AgentToolResult<unknown>) {
   const item = result.content[0]
   if (item === undefined) {
     return new Text('(no output)', 0, 0)
@@ -113,7 +113,7 @@ function renderResultFallback(result: AgentToolResult<unknown>) {
   return new Text(item.type === 'text' ? item.text : '(no output)', 0, 0)
 }
 
-function isSubagentDetails(value: unknown): value is SubagentDetails {
+export function isSubagentDetails(value: unknown): value is SubagentDetails {
   return (
     typeof value === 'object' &&
     value !== null &&

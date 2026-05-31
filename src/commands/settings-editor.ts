@@ -431,52 +431,34 @@ export class CradleSettingsEditor implements Component, Focusable {
   }
 
   private openModelSelect(tier: 'low' | 'medium' | 'high'): void {
-    const items = this.availableModels.map((id) => ({
-      value: id,
-      label: this.modelDisplayNames.get(id) ?? id,
-    }))
-    if (items.length === 0) return
-
-    const currentValue = this.subagentModels[tier]
-    const currentIndex = currentValue
-      ? this.availableModels.indexOf(currentValue)
-      : -1
-
-    const selectListTheme: SelectListTheme = {
-      selectedPrefix: (text) => this.theme.fg('accent', text),
-      selectedText: (text) => this.theme.fg('accent', this.theme.bold(text)),
-      description: (text) => this.theme.fg('dim', text),
-      scrollInfo: (text) => this.theme.fg('dim', text),
-      noMatch: (text) => this.theme.fg('warning', text),
-    }
-
-    this.selectList = new SelectList(
-      items,
-      Math.min(items.length, 8),
-      selectListTheme,
+    this.createModelSelectList(
+      () => this.subagentModels[tier],
+      (value) => {
+        this.subagentModels[tier] = value
+      },
     )
-
-    this.selectList.setSelectedIndex(Math.max(currentIndex, 0))
-    this.selectList.onSelect = (item) => {
-      this.subagentModels[tier] = item.value
-      this.dirty = true
-      this.selectList = undefined
-      this.tuiRequestRender?.()
-    }
-    this.selectList.onCancel = () => {
-      this.selectList = undefined
-      this.tuiRequestRender?.()
-    }
   }
 
   private openAdvisorModelSelect(): void {
+    this.createModelSelectList(
+      () => this.advisorModel,
+      (value) => {
+        this.advisorModel = value
+      },
+    )
+  }
+
+  private createModelSelectList(
+    getCurrentValue: () => string | undefined,
+    assignValue: (value: string) => void,
+  ): void {
     const items = this.availableModels.map((id) => ({
       value: id,
       label: this.modelDisplayNames.get(id) ?? id,
     }))
     if (items.length === 0) return
 
-    const currentValue = this.advisorModel
+    const currentValue = getCurrentValue()
     const currentIndex = currentValue
       ? this.availableModels.indexOf(currentValue)
       : -1
@@ -497,7 +479,7 @@ export class CradleSettingsEditor implements Component, Focusable {
 
     this.selectList.setSelectedIndex(Math.max(currentIndex, 0))
     this.selectList.onSelect = (item) => {
-      this.advisorModel = item.value
+      assignValue(item.value)
       this.dirty = true
       this.selectList = undefined
       this.tuiRequestRender?.()

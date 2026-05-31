@@ -1,8 +1,11 @@
 import type { AgentToolResult } from '@earendil-works/pi-agent-core'
 import { Text } from '@earendil-works/pi-tui'
-import type { SubagentDetails } from '../../subagents/types.js'
 import { getFinalOutput } from '../../subagents/utilities.js'
-import type { ThemeLike } from '../subagent-render.js'
+import {
+  isSubagentDetails,
+  renderResultFallback,
+  type ThemeLike,
+} from '../subagent-render.js'
 
 function renderCallPreview(context: string, limit: number): string {
   if (context.length > limit) {
@@ -36,23 +39,6 @@ export function buildAdvisorRenderCall(
   }
 
   return new Text(text, 0, 0)
-}
-
-function renderResultFallback(result: AgentToolResult<unknown>): Text {
-  const item = result.content[0]
-  if (item === undefined) {
-    return new Text('(no output)', 0, 0)
-  }
-  return new Text(item.type === 'text' ? item.text : '(no output)', 0, 0)
-}
-
-function isSubagentDetails(value: unknown): value is SubagentDetails {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'mode' in value &&
-    'results' in value
-  )
 }
 
 export function buildAdvisorRenderResult(
