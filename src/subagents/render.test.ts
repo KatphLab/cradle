@@ -157,7 +157,7 @@ function makeDetails(
   mode: SubagentDetails['mode'],
   results: SingleResult[],
 ): SubagentDetails {
-  return { mode, agentScope: 'both', projectAgentsDir: undefined, results }
+  return { mode, projectAgentsDir: undefined, results }
 }
 
 function isMockContainer(value: unknown): value is MockContainerInstance {

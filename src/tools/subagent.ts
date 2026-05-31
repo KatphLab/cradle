@@ -1,6 +1,6 @@
 import { defineTool } from '@earendil-works/pi-coding-agent'
 import { discoverAgents } from '../subagents/agents.js'
-import type { AgentConfig, AgentScope } from '../subagents/types.js'
+import type { AgentConfig } from '../subagents/types.js'
 import {
   buildNoModeResponse,
   buildValidationErrorResponse,
@@ -66,20 +66,14 @@ export const subagentTool = defineTool({
   description: [
     'Delegate tasks to specialized subagents with isolated context.',
     'Modes: single (agent + task), parallel (tasks array), chain (sequential with {previous} placeholder).',
-    'Default agent scope is "user" (from ~/.pi/agent/agents).',
-    'To enable project-local agents in .pi/agents, set agentScope: "both" (or "project").',
   ].join(' '),
   parameters: SubagentParameters,
 
   async execute(_toolCallId, parameters, signal, onUpdate, context) {
-    const agentScope: AgentScope = parameters.agentScope ?? 'user'
-    const discovery = discoverAgents(context.cwd, agentScope)
+    const discovery = discoverAgents(context.cwd)
     const agents = discovery.agents
 
-    const makeDetails = makeDetailsFactory(
-      agentScope,
-      discovery.projectAgentsDir,
-    )
+    const makeDetails = makeDetailsFactory(discovery.projectAgentsDir)
 
     const validationError = validateModeCount(parameters)
     if (validationError) {

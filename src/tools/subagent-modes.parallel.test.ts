@@ -27,7 +27,7 @@ describe('handleParallelMode', () => {
   })
 
   it('throws for missing parallel tasks and rejects oversized batches without running agents', async () => {
-    const makeDetails = makeDetailsFactory('user', noProjectAgentsDirectory())
+    const makeDetails = makeDetailsFactory(noProjectAgentsDirectory())
 
     await expect(
       handleParallelMode(
@@ -134,12 +134,11 @@ describe('handleParallelMode', () => {
       agents,
       undefined,
       onUpdate,
-      makeDetailsFactory('both', discovery.projectAgentsDir),
+      makeDetailsFactory(discovery.projectAgentsDir),
     )
 
     expect(response.details).toEqual({
       mode: 'parallel',
-      agentScope: 'both',
       projectAgentsDir: discovery.projectAgentsDir,
       results,
     })

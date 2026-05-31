@@ -155,7 +155,7 @@ describe('discoverAgents', () => {
       return validAgent(content, makeAgent('project-only'))
     })
 
-    const result = discoverAgents('/workspace/repo/src/deep', 'both')
+    const result = discoverAgents('/workspace/repo/src/deep')
 
     expect(result.projectAgentsDir).toBe(projectAgentsDirectory)
     expect(result.agents).toHaveLength(3)
@@ -189,7 +189,7 @@ describe('discoverAgents', () => {
     )
   })
 
-  it('loads only user agents for user scope while still reporting the nearest project directory', () => {
+  it('loads agents from all directories with project overriding user over extension', () => {
     configureProjectDirectory(projectAgentsDirectory)
     configureDirectories(
       new Map([
@@ -202,22 +202,21 @@ describe('discoverAgents', () => {
       validAgent('user only', makeAgent('user-only')),
     )
 
-    const result = discoverAgents('/workspace/repo/app', 'user')
+    const result = discoverAgents('/workspace/repo/app')
 
     expect(result.projectAgentsDir).toBe(projectAgentsDirectory)
     expect(result.agents).toEqual([
-      expect.objectContaining({ name: 'user-only', source: 'user' }),
+      expect.objectContaining({ name: 'user-only', source: 'project' }),
     ])
     expect(fsMocks.readdirSync).toHaveBeenCalledWith(userAgentsDirectory, {
       withFileTypes: true,
     })
-    expect(fsMocks.readdirSync).not.toHaveBeenCalledWith(
-      projectAgentsDirectory,
-      expect.anything(),
-    )
+    expect(fsMocks.readdirSync).toHaveBeenCalledWith(projectAgentsDirectory, {
+      withFileTypes: true,
+    })
   })
 
-  it('loads only project agents for project scope without reading the user directory', () => {
+  it('discovers agents from all directories with override priority', () => {
     configureProjectDirectory(projectAgentsDirectory)
     configureDirectories(
       new Map([
@@ -230,7 +229,7 @@ describe('discoverAgents', () => {
       validAgent('project only', makeAgent('project-only')),
     )
 
-    const result = discoverAgents('/workspace/repo/app', 'project')
+    const result = discoverAgents('/workspace/repo/app')
 
     expect(result.agents).toEqual([
       expect.objectContaining({ name: 'project-only', source: 'project' }),
@@ -238,10 +237,9 @@ describe('discoverAgents', () => {
     expect(fsMocks.readdirSync).toHaveBeenCalledWith(projectAgentsDirectory, {
       withFileTypes: true,
     })
-    expect(fsMocks.readdirSync).not.toHaveBeenCalledWith(
-      userAgentsDirectory,
-      expect.anything(),
-    )
+    expect(fsMocks.readdirSync).toHaveBeenCalledWith(userAgentsDirectory, {
+      withFileTypes: true,
+    })
   })
 
   it('returns no project agents when no project agents directory is found', () => {
@@ -250,10 +248,9 @@ describe('discoverAgents', () => {
     })
     configureDirectories(new Map([[userAgentsDirectory, []]]))
 
-    const result = discoverAgents('/workspace/orphan', 'project')
+    const result = discoverAgents('/workspace/orphan')
 
     expect(result).toEqual({ agents: [], projectAgentsDir: undefined })
-    expect(fsMocks.readdirSync).not.toHaveBeenCalled()
   })
 
   it('treats missing and unreadable directories as empty', () => {
@@ -262,8 +259,8 @@ describe('discoverAgents', () => {
       throw new Error('unreadable')
     })
 
-    expect(discoverAgents('/workspace/orphan', 'user').agents).toEqual([])
-    expect(discoverAgents('/workspace/orphan', 'user').agents).toEqual([])
+    expect(discoverAgents('/workspace/orphan').agents).toEqual([])
+    expect(discoverAgents('/workspace/orphan').agents).toEqual([])
   })
 
   it('skips unreadable, invalid, and agentless files', () => {
@@ -294,7 +291,7 @@ describe('discoverAgents', () => {
       // Suppress expected warning output during this test.
     })
 
-    const result = discoverAgents('/workspace/orphan', 'user')
+    const result = discoverAgents('/workspace/orphan')
 
     expect(result.agents).toEqual([])
     expect(warn).toHaveBeenCalledWith(

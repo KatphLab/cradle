@@ -89,9 +89,7 @@ export function makeContext(overrides: Partial<ToolContext> = {}): ToolContext {
 export function makeUpdate(result: SingleResult) {
   return {
     content: [{ type: 'text' as const, text: 'partial' }],
-    details: makeDetailsFactory('user', noProjectAgentsDirectory())('single')([
-      result,
-    ]),
+    details: makeDetailsFactory(noProjectAgentsDirectory())('single')([result]),
   }
 }
 

@@ -77,11 +77,10 @@ describe('subagent mode validation and responses', () => {
     ).toBe(invalid)
 
     const result = makeResult({ agent: 'writer' })
-    const makeDetails = makeDetailsFactory('both', discovery.projectAgentsDir)
+    const makeDetails = makeDetailsFactory(discovery.projectAgentsDir)
 
     expect(makeDetails('parallel')([result])).toEqual({
       mode: 'parallel',
-      agentScope: 'both',
       projectAgentsDir: '/repo/.pi/agents',
       results: [result],
     })
@@ -107,7 +106,7 @@ describe('handleSingleMode', () => {
   })
 
   it('throws when missing fields and runs a single agent with output', async () => {
-    const makeDetails = makeDetailsFactory('user', noProjectAgentsDirectory())
+    const makeDetails = makeDetailsFactory(noProjectAgentsDirectory())
 
     await expect(
       handleSingleMode(
@@ -130,7 +129,7 @@ describe('handleSingleMode', () => {
       ),
     ).rejects.toThrow('Missing agent or task in single mode')
 
-    const projectDetails = makeDetailsFactory('project', '/repo/.pi/agents')
+    const projectDetails = makeDetailsFactory('/repo/.pi/agents')
     const signal = new AbortController().signal
     const onUpdate = vi.fn() as UpdateCallback
     vi.mocked(runSingleAgent)
@@ -150,7 +149,7 @@ describe('handleSingleMode', () => {
       ),
     ).resolves.toMatchObject({
       content: [{ type: 'text', text: 'final output' }],
-      details: { mode: 'single', agentScope: 'project' },
+      details: { mode: 'single' },
     })
     await expect(
       handleSingleMode(
@@ -194,7 +193,7 @@ describe('handleSingleMode', () => {
       agents,
       undefined,
       undefined,
-      makeDetailsFactory('user', noProjectAgentsDirectory()),
+      makeDetailsFactory(noProjectAgentsDirectory()),
     )
 
     expect(response).toMatchObject({
@@ -211,7 +210,7 @@ describe('handleChainMode', () => {
   })
 
   it('throws when chain mode has no steps and runs steps sequentially', async () => {
-    const makeDetails = makeDetailsFactory('user', noProjectAgentsDirectory())
+    const makeDetails = makeDetailsFactory(noProjectAgentsDirectory())
 
     await expect(
       handleChainMode(
@@ -270,7 +269,7 @@ describe('handleChainMode', () => {
       agents,
       undefined,
       onUpdate,
-      makeDetailsFactory('both', '/repo/.pi/agents'),
+      makeDetailsFactory('/repo/.pi/agents'),
     )
 
     expect(response).toMatchObject({
@@ -330,7 +329,7 @@ describe('handleChainMode', () => {
       agents,
       undefined,
       undefined,
-      makeDetailsFactory('user', noProjectAgentsDirectory()),
+      makeDetailsFactory(noProjectAgentsDirectory()),
     )
 
     expect(response).toMatchObject({

@@ -1,6 +1,6 @@
 import type { Message } from '@earendil-works/pi-ai'
 
-export type AgentScope = 'user' | 'project' | 'both'
+export type AgentSource = 'user' | 'project' | 'extension'
 
 export type TaskComplexity = 'low' | 'medium' | 'high'
 
@@ -10,7 +10,7 @@ export interface AgentConfig {
   tools?: string[]
   model?: string
   systemPrompt: string
-  source: 'user' | 'project'
+  source: AgentSource
   filePath: string
 }
 
@@ -31,7 +31,7 @@ export interface UsageStats {
 
 export interface SingleResult {
   agent: string
-  agentSource: 'user' | 'project' | 'unknown'
+  agentSource: AgentSource | 'unknown'
   task: string
   exitCode: number
   messages: Message[]
@@ -45,7 +45,6 @@ export interface SingleResult {
 
 export interface SubagentDetails {
   mode: 'single' | 'parallel' | 'chain'
-  agentScope: AgentScope
   projectAgentsDir: string | undefined
   results: SingleResult[]
 }

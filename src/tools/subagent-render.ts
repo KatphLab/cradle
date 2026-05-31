@@ -8,7 +8,7 @@ import {
   buildSingleResultCollapsed,
   buildSingleResultExpanded,
 } from '../subagents/render.js'
-import type { AgentScope, SubagentDetails } from '../subagents/types.js'
+import type { SubagentDetails } from '../subagents/types.js'
 import type { SubagentParametersType } from './subagent-modes.js'
 
 export interface ThemeLike {
@@ -25,7 +25,6 @@ function renderAgentPreview(task: string, limit: number): string {
 
 function renderCallChainText(
   args: SubagentParametersType,
-  scope: AgentScope,
   theme: ThemeLike,
 ): string {
   const chain = args.chain
@@ -33,8 +32,7 @@ function renderCallChainText(
 
   let text =
     theme.fg('toolTitle', theme.bold('subagent ')) +
-    theme.fg('accent', `chain (${chain.length} steps)`) +
-    theme.fg('muted', ` [${scope}]`)
+    theme.fg('accent', `chain (${chain.length} steps)`)
 
   for (const [index, step] of chain.entries()) {
     if (index >= 3) break
@@ -55,7 +53,6 @@ function renderCallChainText(
 
 function renderCallParallelText(
   args: SubagentParametersType,
-  scope: AgentScope,
   theme: ThemeLike,
 ): string {
   const tasks = args.tasks
@@ -63,8 +60,7 @@ function renderCallParallelText(
 
   let text =
     theme.fg('toolTitle', theme.bold('subagent ')) +
-    theme.fg('accent', `parallel (${tasks.length} tasks)`) +
-    theme.fg('muted', ` [${scope}]`)
+    theme.fg('accent', `parallel (${tasks.length} tasks)`)
 
   for (const [index, t] of tasks.entries()) {
     if (index >= 3) break
@@ -83,14 +79,12 @@ function renderCallParallelText(
 
 function renderCallSingleText(
   args: SubagentParametersType,
-  scope: AgentScope,
   theme: ThemeLike,
 ): string {
   const agentName = args.agent ?? '...'
   const preview = args.task ? renderAgentPreview(args.task, 60) : '...'
   let text = theme.fg('toolTitle', theme.bold('subagent '))
   text += theme.fg('accent', agentName)
-  text += theme.fg('muted', ` [${scope}]`)
   text += '\n  '
   text += theme.fg('dim', preview)
   return text
@@ -100,17 +94,15 @@ export function buildRenderCall(
   args: SubagentParametersType,
   theme: ThemeLike,
 ) {
-  const scope: AgentScope = args.agentScope ?? 'user'
-
   if (args.chain && args.chain.length > 0) {
-    return new Text(renderCallChainText(args, scope, theme), 0, 0)
+    return new Text(renderCallChainText(args, theme), 0, 0)
   }
 
   if (args.tasks && args.tasks.length > 0) {
-    return new Text(renderCallParallelText(args, scope, theme), 0, 0)
+    return new Text(renderCallParallelText(args, theme), 0, 0)
   }
 
-  return new Text(renderCallSingleText(args, scope, theme), 0, 0)
+  return new Text(renderCallSingleText(args, theme), 0, 0)
 }
 
 function renderResultFallback(result: AgentToolResult<unknown>) {
@@ -126,8 +118,7 @@ function isSubagentDetails(value: unknown): value is SubagentDetails {
     typeof value === 'object' &&
     value !== null &&
     'mode' in value &&
-    'results' in value &&
-    'agentScope' in value
+    'results' in value
   )
 }
 

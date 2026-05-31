@@ -96,7 +96,6 @@ function makeToolResult(mode: 'single' | 'parallel' | 'chain' = 'single') {
   return {
     content: [{ type: 'text' as const, text: `${mode} done` }],
     details: {
-      agentScope: 'user' as const,
       mode,
       projectAgentsDir: undefined,
       results: [makeSingleResult()],
@@ -136,7 +135,7 @@ describe('subagentTool', () => {
     )
 
     expect(result).toEqual(makeToolResult('single'))
-    expect(discoverAgents).toHaveBeenCalledWith('/repo', 'user')
+    expect(discoverAgents).toHaveBeenCalledWith('/repo')
     expect(handleSingleMode).toHaveBeenCalledWith(
       parameters,
       context,

@@ -122,7 +122,6 @@ function makeDetails(
 ): SubagentDetails {
   return {
     mode,
-    agentScope: 'user',
     projectAgentsDir: undefined,
     results,
   }
@@ -144,7 +143,6 @@ describe('buildRenderCall', () => {
       '<toolTitle><bold>subagent </bold></toolTitle>',
     )
     expect(textOf(rendered)).toContain('<accent>coder</accent>')
-    expect(textOf(rendered)).toContain('<muted> [user]</muted>')
     expect(textOf(rendered)).toContain(
       '<dim>Implement a focused unit test</dim>',
     )
@@ -154,10 +152,9 @@ describe('buildRenderCall', () => {
     expect(textOf(emptyRendered)).toContain('<dim>...</dim>')
   })
 
-  it('renders chain mode with scope, cleaned previous placeholder, truncation, and overflow count', () => {
+  it('renders chain mode with cleaned previous placeholder, truncation, and overflow count', () => {
     const rendered = buildRenderCall(
       {
-        agentScope: 'both',
         chain: [
           { agent: 'planner', task: 'Plan {previous} the work' },
           {
@@ -172,7 +169,6 @@ describe('buildRenderCall', () => {
     )
 
     expect(textOf(rendered)).toContain('<accent>chain (4 steps)</accent>')
-    expect(textOf(rendered)).toContain('<muted> [both]</muted>')
     expect(textOf(rendered)).toContain(
       '<muted>1.</muted><accent>planner</accent>',
     )
@@ -187,10 +183,9 @@ describe('buildRenderCall', () => {
     )
   })
 
-  it('renders parallel mode with scope, task previews, and overflow count', () => {
+  it('renders parallel mode with task previews and overflow count', () => {
     const rendered = buildRenderCall(
       {
-        agentScope: 'project',
         tasks: [
           { agent: 'docs', task: 'Write documentation' },
           { agent: 'lint', task: 'Check '.repeat(9) },
@@ -202,7 +197,6 @@ describe('buildRenderCall', () => {
     )
 
     expect(textOf(rendered)).toContain('<accent>parallel (4 tasks)</accent>')
-    expect(textOf(rendered)).toContain('<muted> [project]</muted>')
     expect(textOf(rendered)).toContain(
       '<accent>docs</accent><dim> Write documentation</dim>',
     )

@@ -216,8 +216,7 @@ describe('runSingleAgent', () => {
       'json',
       '-p',
       '--no-session',
-      '--model',
-      'claude-sonnet',
+      '--no-context-files',
       '--tools',
       'read,write',
       'Task: implement feature',
@@ -239,7 +238,7 @@ describe('runSingleAgent', () => {
       agent: 'writer',
       agentSource: 'user',
       exitCode: 7,
-      model: 'claude-sonnet',
+      model: 'runtime-model',
       stderr: 'warning details',
       step: 2,
       stopReason: 'stop',
@@ -308,11 +307,20 @@ describe('runSingleAgent', () => {
       'json',
       '-p',
       '--no-session',
+      '--no-context-files',
       'Task: do work',
     ])
     expect(spawn).toHaveBeenCalledWith(
       'pi-bin',
-      ['run', '--mode', 'json', '-p', '--no-session', 'Task: do work'],
+      [
+        'run',
+        '--mode',
+        'json',
+        '-p',
+        '--no-session',
+        '--no-context-files',
+        'Task: do work',
+      ],
       expect.objectContaining({ cwd: '/repo' }),
     )
     expect(result).toMatchObject({
@@ -381,7 +389,7 @@ describe('runSingleAgent', () => {
     await expect(promise).resolves.toMatchObject({ exitCode: 130 })
   })
 
-  it('uses agent model over settings-based model', async () => {
+  it('uses settings-based model by complexity regardless of agent model', async () => {
     const agent = makeAgent({ model: 'agent-model' })
     const promise = runSingleAgent(
       makeOptions({
@@ -400,7 +408,7 @@ describe('runSingleAgent', () => {
     await promise
 
     expect(getPiInvocation).toHaveBeenCalledWith(
-      expect.arrayContaining(['--model', 'agent-model']),
+      expect.arrayContaining(['--model', 'settings-model']),
     )
   })
 

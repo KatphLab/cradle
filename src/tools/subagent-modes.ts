@@ -9,7 +9,6 @@ import { formatAgentList } from '../subagents/agents.js'
 import { runSingleAgent } from '../subagents/runner.js'
 import type {
   AgentConfig,
-  AgentScope,
   SingleResult,
   SubagentDetails,
 } from '../subagents/types.js'
@@ -53,12 +52,6 @@ const ChainItem = Type.Object(
   { additionalProperties: false },
 )
 
-const AgentScopeSchema = StringEnum(['user', 'project', 'both'] as const, {
-  description:
-    'Which agent directories to use. Default: "user". Use "both" to include project-local agents.',
-  default: 'user',
-})
-
 export const SubagentParameters = Type.Object({
   agent: Type.Optional(
     Type.String({
@@ -78,7 +71,6 @@ export const SubagentParameters = Type.Object({
       description: 'Array of {agent, task} for sequential execution',
     }),
   ),
-  agentScope: Type.Optional(AgentScopeSchema),
   cwd: Type.Optional(
     Type.String({
       description: 'Working directory for the agent process (single mode)',
@@ -119,12 +111,10 @@ export function validateModeCount(
 }
 
 export function makeDetailsFactory(
-  agentScope: AgentScope,
   projectAgentsDirectory: string | undefined,
 ): MakeDetails {
   return (mode) => (results) => ({
     mode,
-    agentScope,
     projectAgentsDir: projectAgentsDirectory,
     results,
   })

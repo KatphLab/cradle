@@ -70,12 +70,11 @@ function createEmptyUsage(): UsageStats {
 }
 
 function resolveModel(
-  agent: AgentConfig,
   complexity: TaskComplexity | undefined,
   settings: CradleSettings | undefined,
 ): string | undefined {
-  if (complexity === undefined) return agent.model
-  return agent.model ?? settings?.subagentModels?.[complexity]
+  if (complexity === undefined) return undefined
+  return settings?.subagentModels?.[complexity]
 }
 
 function buildPiArgs(
@@ -83,7 +82,13 @@ function buildPiArgs(
   task: string,
   resolvedModel: string | undefined,
 ): string[] {
-  const args: string[] = ['--mode', 'json', '-p', '--no-session']
+  const args: string[] = [
+    '--mode',
+    'json',
+    '-p',
+    '--no-session',
+    '--no-context-files',
+  ]
   if (resolvedModel) args.push('--model', resolvedModel)
   if (agent.tools && agent.tools.length > 0)
     args.push('--tools', agent.tools.join(','))
@@ -461,11 +466,7 @@ export async function runSingleAgent(
     )
   }
 
-  const resolvedModel = resolveModel(
-    agent,
-    options.complexity,
-    options.settings,
-  )
+  const resolvedModel = resolveModel(options.complexity, options.settings)
   const args = buildPiArgs(agent, options.task, resolvedModel)
   const currentResult = createInitialResult(
     agent,
