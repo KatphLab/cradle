@@ -26,6 +26,7 @@ export interface CradleSettings {
   permissions?: DirectoryPermission[]
   reminderTokenThreshold?: number
   subagentModels?: SubagentModels
+  advisorModel?: string
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -62,6 +63,11 @@ function normalizeReminderTokenThreshold(raw: unknown): number | undefined {
   )
 }
 
+function normalizeAdvisorModel(raw: unknown): string | undefined {
+  if (typeof raw === 'string' && raw.length > 0) return raw
+  return undefined
+}
+
 function normalizeSettings(value: unknown, cwd: string): CradleSettings {
   if (!isRecord(value)) return {}
 
@@ -86,10 +92,13 @@ function normalizeSettings(value: unknown, cwd: string): CradleSettings {
     ? rawSubagentModels
     : undefined
 
+  const advisorModel = normalizeAdvisorModel(value['advisorModel'])
+
   return {
     ...(permissions !== undefined && { permissions }),
     ...(reminderTokenThreshold !== undefined && { reminderTokenThreshold }),
     ...(subagentModels !== undefined && { subagentModels }),
+    ...(advisorModel !== undefined && { advisorModel }),
   }
 }
 

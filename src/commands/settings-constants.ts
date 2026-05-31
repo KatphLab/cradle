@@ -14,6 +14,7 @@ export interface EditorState {
   readonly dirInput: Input
   readonly tokenThresholdInput: Input
   readonly subagentModels: SubagentModels
+  readonly advisorModel: string | undefined
   readonly modelDisplayNames: Map<string, string>
   readonly selectedRow: number
   readonly selectedCol: number
@@ -39,3 +40,4 @@ export const TIER_LABELS: Record<'low' | 'medium' | 'high', string> = {
   medium: 'Medium Model',
   high: 'High Model',
 }
+export const ADVISOR_MODEL_LABEL = 'Advisor Model'

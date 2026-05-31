@@ -33,6 +33,7 @@ interface CradleSettingsResult {
   permissions: DirectoryPermission[]
   reminderTokenThreshold: number
   subagentModels: SubagentModels
+  advisorModel: string | undefined
 }
 
 export class CradleSettingsEditor implements Component, Focusable {
@@ -42,6 +43,7 @@ export class CradleSettingsEditor implements Component, Focusable {
   readonly dirInput: Input
   readonly tokenThresholdInput: Input
   readonly subagentModels: SubagentModels
+  advisorModel: string | undefined
   readonly modelDisplayNames: Map<string, string>
   selectedRow: number
   selectedCol: number
@@ -51,6 +53,7 @@ export class CradleSettingsEditor implements Component, Focusable {
   private readonly initialTokenThreshold: number
   private readonly availableModels: string[]
   private readonly initialSubagentModels: SubagentModels
+  private readonly initialAdvisorModel: string | undefined
   private readonly renderer: SettingsRenderer
   private dirty = false
   private lastInputValue = ''
@@ -92,6 +95,9 @@ export class CradleSettingsEditor implements Component, Focusable {
     }
     this.subagentModels = subagentModels
     this.initialSubagentModels = { ...this.subagentModels }
+
+    this.advisorModel = initialSettings.advisorModel
+    this.initialAdvisorModel = initialSettings.advisorModel
 
     this.dirInput = new Input()
     this.dirInput.onSubmit = () => {
@@ -148,7 +154,10 @@ export class CradleSettingsEditor implements Component, Focusable {
       this.subagentModels.low !== this.initialSubagentModels.low ||
       this.subagentModels.medium !== this.initialSubagentModels.medium ||
       this.subagentModels.high !== this.initialSubagentModels.high
-    return this.dirty || tokenThresholdChanged || modelsChanged
+    const advisorChanged = this.advisorModel !== this.initialAdvisorModel
+    return (
+      this.dirty || tokenThresholdChanged || modelsChanged || advisorChanged
+    )
   }
 
   addCurrentInput(): void {
@@ -230,6 +239,7 @@ export class CradleSettingsEditor implements Component, Focusable {
         permissions: this.getRows(),
         reminderTokenThreshold: clampedTokenThreshold,
         subagentModels: this.getSubagentModels(),
+        advisorModel: this.advisorModel,
       })
       return true
     }
@@ -318,7 +328,7 @@ export class CradleSettingsEditor implements Component, Focusable {
   }
 
   private moveDown(): boolean {
-    if (this.selectedRow < this.rows.length + 4) {
+    if (this.selectedRow < this.rows.length + 5) {
       this.selectedRow++
       const isNowOnDataRow = this.selectedRow < this.rows.length
       const isNowOnDirectoryInput = this.selectedRow === this.rows.length
@@ -375,11 +385,20 @@ export class CradleSettingsEditor implements Component, Focusable {
       this.tuiRequestRender?.()
       return true
     }
+    return this.tryHandleModelToggle()
+  }
+
+  private tryHandleModelToggle(): boolean {
     if (
       this.selectedRow >= this.rows.length + 2 &&
       this.selectedRow <= this.rows.length + 4
     ) {
       this.openModelSelect(this.getTierFromRow(this.selectedRow))
+      this.tuiRequestRender?.()
+      return true
+    }
+    if (this.selectedRow === this.rows.length + 5) {
+      this.openAdvisorModelSelect()
       this.tuiRequestRender?.()
       return true
     }
@@ -440,6 +459,45 @@ export class CradleSettingsEditor implements Component, Focusable {
     this.selectList.setSelectedIndex(Math.max(currentIndex, 0))
     this.selectList.onSelect = (item) => {
       this.subagentModels[tier] = item.value
+      this.dirty = true
+      this.selectList = undefined
+      this.tuiRequestRender?.()
+    }
+    this.selectList.onCancel = () => {
+      this.selectList = undefined
+      this.tuiRequestRender?.()
+    }
+  }
+
+  private openAdvisorModelSelect(): void {
+    const items = this.availableModels.map((id) => ({
+      value: id,
+      label: this.modelDisplayNames.get(id) ?? id,
+    }))
+    if (items.length === 0) return
+
+    const currentValue = this.advisorModel
+    const currentIndex = currentValue
+      ? this.availableModels.indexOf(currentValue)
+      : -1
+
+    const selectListTheme: SelectListTheme = {
+      selectedPrefix: (text) => this.theme.fg('accent', text),
+      selectedText: (text) => this.theme.fg('accent', this.theme.bold(text)),
+      description: (text) => this.theme.fg('dim', text),
+      scrollInfo: (text) => this.theme.fg('dim', text),
+      noMatch: (text) => this.theme.fg('warning', text),
+    }
+
+    this.selectList = new SelectList(
+      items,
+      Math.min(items.length, 8),
+      selectListTheme,
+    )
+
+    this.selectList.setSelectedIndex(Math.max(currentIndex, 0))
+    this.selectList.onSelect = (item) => {
+      this.advisorModel = item.value
       this.dirty = true
       this.selectList = undefined
       this.tuiRequestRender?.()

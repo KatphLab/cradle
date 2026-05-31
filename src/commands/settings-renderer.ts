@@ -1,5 +1,6 @@
 import { truncateToWidth } from '@earendil-works/pi-tui'
 import {
+  ADVISOR_MODEL_LABEL,
   GAP,
   PERMISSION_LABELS,
   TIER_LABELS,
@@ -23,6 +24,7 @@ export class SettingsRenderer {
       ...this.renderSuggestions(width),
       ...this.renderTokenThresholdSection(width),
       ...this.renderModelSection(width),
+      ...this.renderAdvisorModelSection(width),
       ...this.renderHelp(width),
     ]
   }
@@ -176,6 +178,29 @@ export class SettingsRenderer {
     }
 
     return ['', this.editor.theme.bold('Subagent Models'), ...lines]
+  }
+
+  private renderAdvisorModelSection(width: number): string[] {
+    const rowIndex = this.editor.rows.length + 5
+    const isFocused = this.editor.selectedRow === rowIndex
+    const prefix = isFocused ? '> ' : '  '
+    const value = this.editor.advisorModel ?? '(none)'
+    const displayValue = this.editor.modelDisplayNames.get(value) ?? value
+    const label = ADVISOR_MODEL_LABEL
+    const labelWidth = prefix.length + label.length + 2
+    const maxValueWidth = Math.max(0, width - labelWidth)
+    const selectList = this.editor.getSelectList()
+
+    const lines = [
+      `${prefix}${label}: ${truncateToWidth(displayValue, maxValueWidth)}`,
+    ]
+
+    if (selectList && isFocused) {
+      const selectListLines = selectList.render(width)
+      lines.push(...selectListLines)
+    }
+
+    return ['', this.editor.theme.bold('Advisor'), ...lines]
   }
 
   private renderHelp(width: number): string[] {

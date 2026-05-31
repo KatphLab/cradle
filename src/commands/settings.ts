@@ -6,8 +6,30 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import path from 'node:path'
 
-import { loadCradleSettings, saveCradleSettings } from '../config/settings.js'
+import {
+  loadCradleSettings,
+  saveCradleSettings,
+  type CradleSettings,
+} from '../config/settings.js'
 import { CradleSettingsEditor } from './settings-editor.js'
+
+interface SettingsSaveResult {
+  permissions: { path: string; read: boolean; write: boolean; bash: boolean }[]
+  reminderTokenThreshold: number
+  subagentModels: { low?: string; medium?: string; high?: string }
+  advisorModel: string | undefined
+}
+
+function buildSaveNotification(result: SettingsSaveResult): string {
+  const permissionCount = result.permissions.length
+  const modelCount =
+    [
+      result.subagentModels.low,
+      result.subagentModels.medium,
+      result.subagentModels.high,
+    ].filter(Boolean).length + (result.advisorModel ? 1 : 0)
+  return `Cradle settings saved: ${String(permissionCount)} permissions, ${String(modelCount)} models, reminder token threshold ${String(result.reminderTokenThreshold)}`
+}
 
 /** @public */
 export function registerSettingsCommand(
@@ -32,64 +54,43 @@ export function registerSettingsCommand(
         provider: m.provider,
       }))
 
-      const result = await context.ui.custom<
-        | {
-            permissions: {
-              path: string
-              read: boolean
-              write: boolean
-              bash: boolean
-            }[]
-            reminderTokenThreshold: number
-            subagentModels: {
-              low?: string
-              medium?: string
-              high?: string
-            }
+      const result = await context.ui.custom<SettingsSaveResult | undefined>(
+        (tui, theme, _kb, done) => {
+          const editor = new CradleSettingsEditor(
+            settings,
+            context.cwd,
+            theme,
+            availableModels,
+          )
+          editor.tuiRequestRender = () => {
+            tui.requestRender()
           }
-        | undefined
-      >((tui, theme, _kb, done) => {
-        const editor = new CradleSettingsEditor(
-          settings,
-          context.cwd,
-          theme,
-          availableModels,
-        )
-        editor.tuiRequestRender = () => {
-          tui.requestRender()
-        }
 
-        editor.onSave = (value) => {
-          done(value)
-        }
-        editor.onCancel = () => {
-          done(void 0)
-        }
+          editor.onSave = (value) => {
+            done(value)
+          }
+          editor.onCancel = () => {
+            done(void 0)
+          }
 
-        return editor
-      })
+          return editor
+        },
+      )
 
       if (result === undefined) {
         context.ui.notify('Cradle settings unchanged', 'info')
         return
       }
-
-      await saveCradleSettings(context.cwd, {
+      const settingsToSave: CradleSettings = {
         permissions: result.permissions,
         reminderTokenThreshold: result.reminderTokenThreshold,
         subagentModels: result.subagentModels,
-      })
-
-      const permissionCount = result.permissions.length
-      const modelCount = [
-        result.subagentModels.low,
-        result.subagentModels.medium,
-        result.subagentModels.high,
-      ].filter(Boolean).length
-      context.ui.notify(
-        `Cradle settings saved: ${String(permissionCount)} permissions, ${String(modelCount)} models, reminder token threshold ${String(result.reminderTokenThreshold)}`,
-        'info',
-      )
+      }
+      if (result.advisorModel !== undefined) {
+        settingsToSave.advisorModel = result.advisorModel
+      }
+      await saveCradleSettings(context.cwd, settingsToSave)
+      context.ui.notify(buildSaveNotification(result), 'info')
     },
   })
 }
