@@ -32,7 +32,10 @@ export const writeTool = defineTool({
       path.basename(path.dirname(filePath)) === 'agents'
 
     if (isAgentFile) {
-      const validation = validateAgent(parameters.content)
+      const agentSource = filePath.includes(path.join('.pi', 'agents'))
+        ? 'project'
+        : 'user'
+      const validation = validateAgent(parameters.content, agentSource)
       if (!validation.valid) {
         const errors = validation.errors.join('\n')
         return {
