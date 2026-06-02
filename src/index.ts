@@ -15,6 +15,7 @@ import { lsTool } from './tools/ls.js'
 import { readTool } from './tools/read.js'
 import { subagentTool } from './tools/subagent.js'
 import { todoTool } from './tools/todo.js'
+import { webFetchTool } from './tools/web-fetch.js'
 import { writeTool } from './tools/write.js'
 import { createSpecModeState } from './utils/spec-state.js'
 
@@ -39,6 +40,7 @@ export default function configureExtension(
   pi.registerTool(writeTool)
   pi.registerTool(bashTool)
   pi.registerTool(todoTool)
+  pi.registerTool(webFetchTool)
   pi.registerTool(subagentTool)
   pi.registerTool(advisorTool)
 
