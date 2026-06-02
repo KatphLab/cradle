@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { validateAgent } from './validate.js'
+import { validateAgent } from '../validate.js'
 
 function makeAgent(overrides: {
   name?: string

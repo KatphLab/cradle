@@ -7,7 +7,7 @@ import {
   isTextPart,
   type MockProcess,
   waitForSpawn,
-} from './runner.test-helpers.js'
+} from '../runner.test-helpers.js'
 
 describe('isTextPart', () => {
   it('returns true for valid text part', () => {

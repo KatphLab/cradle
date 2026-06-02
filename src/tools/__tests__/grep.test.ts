@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { grepTool } from './grep.js'
+import { grepTool } from '../grep.js'
 
 const cwd = process.cwd()
 

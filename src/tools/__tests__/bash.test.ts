@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { bashTool } from './bash.js'
+import { bashTool } from '../bash.js'
 
 let withPatternsDirectory: string
 let withoutPatternsDirectory: string

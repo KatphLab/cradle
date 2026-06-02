@@ -8,9 +8,9 @@ import {
   buildParallelResultExpanded,
   buildSingleResultCollapsed,
   buildSingleResultExpanded,
-} from '../subagents/render.js'
-import type { SingleResult, SubagentDetails } from '../subagents/types.js'
-import { buildRenderCall, buildRenderResult } from './subagent-render.js'
+} from '../../subagents/render.js'
+import type { SingleResult, SubagentDetails } from '../../subagents/types.js'
+import { buildRenderCall, buildRenderResult } from '../subagent-render.js'
 
 interface MockTextInstance {
   kind: 'Text'
@@ -33,7 +33,7 @@ vi.mock('@earendil-works/pi-tui', () => ({
   }),
 }))
 
-vi.mock('../subagents/render.js', () => ({
+vi.mock('../../subagents/render.js', () => ({
   buildChainResultCollapsed: vi.fn((details: SubagentDetails) => ({
     kind: 'chain-collapsed',
     details,

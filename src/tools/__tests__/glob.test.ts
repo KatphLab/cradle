@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { globTool } from './glob.js'
+import { globTool } from '../glob.js'
 
 const cwd = process.cwd()
 

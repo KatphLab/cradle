@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { formatAgentList } from '../subagents/agents.js'
-import { runSingleAgent } from '../subagents/runner.js'
-import type { AgentConfig } from '../subagents/types.js'
+import { formatAgentList } from '../../subagents/agents.js'
+import { runSingleAgent } from '../../subagents/runner.js'
+import type { AgentConfig } from '../../subagents/types.js'
 import {
   buildNoModeResponse,
   buildValidationErrorResponse,
@@ -11,7 +11,7 @@ import {
   makeDetailsFactory,
   type UpdateCallback,
   validateModeCount,
-} from './subagent-modes.js'
+} from '../subagent-modes.js'
 import {
   agents,
   assistantText,
@@ -20,9 +20,9 @@ import {
   makeResult,
   makeUpdate,
   noProjectAgentsDirectory,
-} from './subagent-modes.test-helpers.js'
+} from '../subagent-modes.test-helpers.js'
 
-vi.mock('../subagents/agents.js', () => ({
+vi.mock('../../subagents/agents.js', () => ({
   formatAgentList: vi.fn((agents: AgentConfig[], maxItems: number) => {
     const listed = agents.slice(0, maxItems)
     return {
@@ -35,7 +35,7 @@ vi.mock('../subagents/agents.js', () => ({
   }),
 }))
 
-vi.mock('../subagents/runner.js', () => ({
+vi.mock('../../subagents/runner.js', () => ({
   runSingleAgent: vi.fn(),
 }))
 

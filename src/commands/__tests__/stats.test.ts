@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { registerStatsCommand, resetStatsCount } from './stats.js'
+import { registerStatsCommand, resetStatsCount } from '../stats.js'
 
 describe('registerStatsCommand', () => {
   beforeEach(() => {

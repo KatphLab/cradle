@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { runSingleAgent } from '../subagents/runner.js'
-import { MAX_PARALLEL_TASKS } from '../subagents/utilities.js'
+import { runSingleAgent } from '../../subagents/runner.js'
+import { MAX_PARALLEL_TASKS } from '../../subagents/utilities.js'
 import {
   handleParallelMode,
   makeDetailsFactory,
   type UpdateCallback,
-} from './subagent-modes.js'
+} from '../subagent-modes.js'
 import {
   agents,
   assistantText,
@@ -15,9 +15,9 @@ import {
   makeResult,
   makeUpdate,
   noProjectAgentsDirectory,
-} from './subagent-modes.test-helpers.js'
+} from '../subagent-modes.test-helpers.js'
 
-vi.mock('../subagents/runner.js', () => ({
+vi.mock('../../subagents/runner.js', () => ({
   runSingleAgent: vi.fn(),
 }))
 

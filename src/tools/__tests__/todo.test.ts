@@ -1,7 +1,7 @@
 import type { SessionEntry } from '@earendil-works/pi-coding-agent'
 import { describe, expect, it } from 'vitest'
 
-import { todoTool, type TodoToolTodo } from './todo.js'
+import { todoTool, type TodoToolTodo } from '../todo.js'
 
 function executeTodo(
   todos: TodoToolTodo[],

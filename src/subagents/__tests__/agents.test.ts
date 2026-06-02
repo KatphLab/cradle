@@ -3,7 +3,7 @@ import path from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { AgentValidationResult } from './validate.js'
+import type { AgentValidationResult } from '../validate.js'
 
 const fsMocks = vi.hoisted(() => ({
   existsSync: vi.fn<(directory: PathLike) => boolean>(),
@@ -26,10 +26,10 @@ const validateMocks = vi.hoisted(() => ({
 
 vi.mock('node:fs', () => fsMocks)
 vi.mock('@earendil-works/pi-coding-agent', () => codingAgentMocks)
-vi.mock('./validate.js', () => validateMocks)
+vi.mock('../validate.js', () => validateMocks)
 
-import { discoverAgents, formatAgentList } from './agents.js'
-import type { AgentConfig } from './types.js'
+import { discoverAgents, formatAgentList } from '../agents.js'
+import type { AgentConfig } from '../types.js'
 
 const userAgentRoot = '/home/test/.pi'
 const userAgentsDirectory = path.join(userAgentRoot, 'agents')

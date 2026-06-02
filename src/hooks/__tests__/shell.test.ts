@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { registerShellHook } from './shell.js'
+import { registerShellHook } from '../shell.js'
 
 let withPatternsDirectory: string
 let withoutPatternsDirectory: string

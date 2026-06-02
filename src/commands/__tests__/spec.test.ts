@@ -4,7 +4,7 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { registerSpecCommand, setSpecModeEnabled } from './spec.js'
+import { registerSpecCommand, setSpecModeEnabled } from '../spec.js'
 
 type ToolInfo = ReturnType<ExtensionAPI['getAllTools']>[number]
 

@@ -11,8 +11,8 @@ import {
   buildParallelResultExpanded,
   buildSingleResultCollapsed,
   buildSingleResultExpanded,
-} from './render.js'
-import type { SingleResult, SubagentDetails, UsageStats } from './types.js'
+} from '../render.js'
+import type { SingleResult, SubagentDetails, UsageStats } from '../types.js'
 
 const mocks = vi.hoisted(() => ({
   markdownTheme: { kind: 'markdown-theme' },

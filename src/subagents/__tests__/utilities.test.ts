@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Message } from '@earendil-works/pi-ai'
 import { withFileMutationQueue } from '@earendil-works/pi-coding-agent'
 
-import type { SingleResult } from './types.js'
+import type { SingleResult } from '../types.js'
 import {
   PER_TASK_OUTPUT_CAP,
   formatTokens,
@@ -20,7 +20,7 @@ import {
   mapWithConcurrencyLimit,
   truncateParallelOutput,
   writePromptToTemporaryFile,
-} from './utilities.js'
+} from '../utilities.js'
 
 vi.mock('node:fs', () => ({
   default: {

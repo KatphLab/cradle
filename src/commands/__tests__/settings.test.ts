@@ -7,8 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   formatDirectoryPath,
   scanDirectorySuggestions,
-} from './settings-utilities.js'
-import { registerSettingsCommand } from './settings.js'
+} from '../settings-utilities.js'
+import { registerSettingsCommand } from '../settings.js'
 
 let tempRoot: string
 

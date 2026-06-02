@@ -6,7 +6,7 @@ import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { registerSystemReminderHook } from './system-reminder.js'
+import { registerSystemReminderHook } from '../system-reminder.js'
 
 interface RegisteredHandler {
   event: string

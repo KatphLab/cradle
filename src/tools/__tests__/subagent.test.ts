@@ -1,19 +1,19 @@
 import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { discoverAgents } from '../subagents/agents.js'
+import { discoverAgents } from '../../subagents/agents.js'
 import type {
   AgentConfig,
   AgentDiscoveryResult,
   SingleResult,
-} from '../subagents/types.js'
-import type { SubagentParametersType, ToolContext } from './subagent-modes.js'
+} from '../../subagents/types.js'
+import type { SubagentParametersType, ToolContext } from '../subagent-modes.js'
 import {
   handleChainMode,
   handleParallelMode,
   handleSingleMode,
-} from './subagent-modes.js'
-import { subagentTool } from './subagent.js'
+} from '../subagent-modes.js'
+import { subagentTool } from '../subagent.js'
 
 vi.mock('@earendil-works/pi-coding-agent', () => ({
   defineTool: vi.fn(
@@ -21,7 +21,7 @@ vi.mock('@earendil-works/pi-coding-agent', () => ({
   ),
 }))
 
-vi.mock('../subagents/agents.js', () => ({
+vi.mock('../../subagents/agents.js', () => ({
   discoverAgents: vi.fn(),
   formatAgentList: vi.fn((agents: AgentConfig[], maxItems: number) => {
     const listed = agents.slice(0, maxItems)
@@ -35,12 +35,12 @@ vi.mock('../subagents/agents.js', () => ({
   }),
 }))
 
-vi.mock('./subagent-render.js', () => ({
+vi.mock('../subagent-render.js', () => ({
   buildRenderCall: vi.fn(() => 'render-call'),
   buildRenderResult: vi.fn(() => 'render-result'),
 }))
 
-vi.mock('./subagent-modes.js', async (importOriginal) => {
+vi.mock('../subagent-modes.js', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
   return {
     ...actual,

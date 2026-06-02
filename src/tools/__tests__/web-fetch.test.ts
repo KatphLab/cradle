@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { webFetchTool } from './web-fetch.js'
+import { webFetchTool } from '../web-fetch.js'
 
 interface MockTextInstance {
   kind: 'Text'

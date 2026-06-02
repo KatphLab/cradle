@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { editTool } from './edit.js'
+import { editTool } from '../edit.js'
 
 const cwd = process.cwd()
 

@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import type { Message } from '@earendil-works/pi-ai'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { runSingleAgent } from './runner.js'
+import { runSingleAgent } from '../runner.js'
 import {
   createAssistantMessage,
   createMockProcess,
@@ -18,12 +18,12 @@ import {
   waitForSpawn,
   type MockProcess,
   type OnUpdate,
-} from './runner.test-helpers.js'
+} from '../runner.test-helpers.js'
 import {
   getFinalOutput,
   getPiInvocation,
   writePromptToTemporaryFile,
-} from './utilities.js'
+} from '../utilities.js'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -68,7 +68,7 @@ vi.mock('node:fs', () => ({
   },
 }))
 
-vi.mock('./utilities.js', () => {
+vi.mock('../utilities.js', () => {
   return {
     getFinalOutput: vi.fn(findFinalOutput),
     getPiInvocation: vi.fn((args: string[]) => ({

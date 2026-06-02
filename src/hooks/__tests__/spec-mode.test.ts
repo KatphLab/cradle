@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { registerSpecModeHook } from './spec-mode.js'
+import { registerSpecModeHook } from '../spec-mode.js'
 
 const ALL_TOOL_NAMES = ['read', 'write']
 const SPEC_MODE_TOOLS = ['read', 'glob', 'grep', 'ls', 'edit', 'write', 'todo']
