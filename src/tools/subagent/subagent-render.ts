@@ -7,14 +7,10 @@ import {
   buildParallelResultExpanded,
   buildSingleResultCollapsed,
   buildSingleResultExpanded,
-} from '../subagents/render.js'
-import type { SubagentDetails } from '../subagents/types.js'
+} from '../../subagents/render.js'
+import type { SubagentDetails } from '../../subagents/types.js'
+import type { ThemeLike } from '../../utils/theme.js'
 import type { SubagentParametersType } from './subagent-modes.js'
-
-export interface ThemeLike {
-  fg(color: string, text: string): string
-  bold(text: string): string
-}
 
 function renderAgentPreview(task: string, limit: number): string {
   if (task.length > limit) {

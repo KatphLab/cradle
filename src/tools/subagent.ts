@@ -15,8 +15,11 @@ import {
   type ToolContext,
   type ToolResult,
   type UpdateCallback,
-} from './subagent-modes.js'
-import { buildRenderCall, buildRenderResult } from './subagent-render.js'
+} from './subagent/subagent-modes.js'
+import {
+  buildRenderCall,
+  buildRenderResult,
+} from './subagent/subagent-render.js'
 
 async function dispatchByMode(
   parameters: SubagentParametersType,

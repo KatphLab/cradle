@@ -7,13 +7,16 @@ import type {
   AgentDiscoveryResult,
   SingleResult,
 } from '../../subagents/types.js'
-import type { SubagentParametersType, ToolContext } from '../subagent-modes.js'
+import { subagentTool } from '../subagent.js'
+import type {
+  SubagentParametersType,
+  ToolContext,
+} from '../subagent/subagent-modes.js'
 import {
   handleChainMode,
   handleParallelMode,
   handleSingleMode,
-} from '../subagent-modes.js'
-import { subagentTool } from '../subagent.js'
+} from '../subagent/subagent-modes.js'
 
 vi.mock('@earendil-works/pi-coding-agent', () => ({
   defineTool: vi.fn(
@@ -35,12 +38,12 @@ vi.mock('../../subagents/agents.js', () => ({
   }),
 }))
 
-vi.mock('../subagent-render.js', () => ({
+vi.mock('../subagent/subagent-render.js', () => ({
   buildRenderCall: vi.fn(() => 'render-call'),
   buildRenderResult: vi.fn(() => 'render-result'),
 }))
 
-vi.mock('../subagent-modes.js', async (importOriginal) => {
+vi.mock('../subagent/subagent-modes.js', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
   return {
     ...actual,

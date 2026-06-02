@@ -5,7 +5,7 @@ import { defineTool } from '@earendil-works/pi-coding-agent'
 import { Text } from '@earendil-works/pi-tui'
 import TurndownService from 'turndown'
 
-import type { ThemeLike } from './subagent-render.js'
+import type { ThemeLike } from '../utils/theme.js'
 
 const MAX_RESPONSE_BYTES = 5 * 1024 * 1024 // 5 MB
 

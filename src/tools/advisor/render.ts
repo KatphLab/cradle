@@ -1,11 +1,11 @@
 import type { AgentToolResult } from '@earendil-works/pi-agent-core'
 import { Text } from '@earendil-works/pi-tui'
 import { getFinalOutput } from '../../subagents/utilities.js'
+import type { ThemeLike } from '../../utils/theme.js'
 import {
   isSubagentDetails,
   renderResultFallback,
-  type ThemeLike,
-} from '../subagent-render.js'
+} from '../subagent/subagent-render.js'
 
 function renderCallPreview(context: string, limit: number): string {
   if (context.length > limit) {
