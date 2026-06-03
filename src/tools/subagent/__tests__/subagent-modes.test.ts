@@ -1,134 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { formatAgentList } from '../../../subagents/agents.js'
 import { runSingleAgent } from '../../../subagents/runner.js'
-import type { AgentConfig } from '../../../subagents/types.js'
 import {
-  buildNoModeResponse,
-  buildValidationErrorResponse,
   handleChainMode,
   handleSingleMode,
   makeDetailsFactory,
   type UpdateCallback,
-  validateModeCount,
 } from '../subagent-modes.js'
 import {
   agents,
   assistantText,
-  discovery,
   makeContext,
   makeResult,
   makeUpdate,
   noProjectAgentsDirectory,
 } from '../subagent-modes.test-helpers.js'
 
-vi.mock('../../../subagents/agents.js', () => ({
-  formatAgentList: vi.fn((agents: AgentConfig[], maxItems: number) => {
-    const listed = agents.slice(0, maxItems)
-    return {
-      text:
-        listed.length === 0
-          ? 'none'
-          : listed.map((agent) => `${agent.name} (${agent.source})`).join(', '),
-      remaining: agents.length - listed.length,
-    }
-  }),
-}))
-
 vi.mock('../../../subagents/runner.js', () => ({
   runSingleAgent: vi.fn(),
 }))
-
-describe('subagent mode validation and responses', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('validates mode counts and builds response payloads with available agents', () => {
-    const invalid = 'Invalid parameters. Provide exactly one mode.'
-
-    expect(
-      validateModeCount({ agent: 'writer', task: 'write' }),
-    ).toBeUndefined()
-    expect(
-      validateModeCount({ tasks: [{ agent: 'writer', task: 'write' }] }),
-    ).toBeUndefined()
-    expect(
-      validateModeCount({ chain: [{ agent: 'writer', task: 'write' }] }),
-    ).toBeUndefined()
-
-    expect(validateModeCount({})).toBe(invalid)
-    expect(validateModeCount({ agent: 'writer' })).toBe(invalid)
-    expect(validateModeCount({ task: 'write' })).toBe(invalid)
-    expect(validateModeCount({ tasks: [] })).toBe(invalid)
-    expect(validateModeCount({ chain: [] })).toBe(invalid)
-    expect(
-      validateModeCount({
-        agent: 'writer',
-        task: 'write',
-        chain: [{ agent: 'reviewer', task: 'review' }],
-      }),
-    ).toBe(invalid)
-    expect(
-      validateModeCount({
-        tasks: [{ agent: 'writer', task: 'write' }],
-        chain: [{ agent: 'reviewer', task: 'review' }],
-      }),
-    ).toBe(invalid)
-
-    const result = makeResult({ agent: 'writer' })
-    const makeDetails = makeDetailsFactory(discovery.projectAgentsDir)
-
-    expect(makeDetails('parallel')([result])).toEqual({
-      mode: 'parallel',
-      projectAgentsDir: '/repo/.pi/agents',
-      results: [result],
-    })
-
-    expect(
-      buildValidationErrorResponse('Bad request', agents, makeDetails)
-        .content[0],
-    ).toEqual({
-      type: 'text',
-      text: 'Bad request\nAvailable agents: writer (user), reviewer (user), repo-agent (project)',
-    })
-    expect(buildNoModeResponse(agents, makeDetails).content[0]).toEqual({
-      type: 'text',
-      text: 'Invalid parameters. Available agents: writer (user), reviewer (user), repo-agent (project)',
-    })
-    expect(formatAgentList).toHaveBeenCalledWith(agents, 10)
-  })
-})
 
 describe('handleSingleMode', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('throws when missing fields and runs a single agent with output', async () => {
-    const makeDetails = makeDetailsFactory(noProjectAgentsDirectory())
-
-    await expect(
-      handleSingleMode(
-        { task: 'write' },
-        makeContext(),
-        agents,
-        undefined,
-        undefined,
-        makeDetails,
-      ),
-    ).rejects.toThrow('Missing agent or task in single mode')
-    await expect(
-      handleSingleMode(
-        { agent: 'writer' },
-        makeContext(),
-        agents,
-        undefined,
-        undefined,
-        makeDetails,
-      ),
-    ).rejects.toThrow('Missing agent or task in single mode')
-
+  it('runs a single agent with output', async () => {
     const projectDetails = makeDetailsFactory('/repo/.pi/agents')
     const signal = new AbortController().signal
     const onUpdate = vi.fn() as UpdateCallback
@@ -140,7 +37,7 @@ describe('handleSingleMode', () => {
 
     await expect(
       handleSingleMode(
-        { agent: 'writer', task: 'write', cwd: '/work' },
+        { agent: 'writer', task: 'write', complexity: 'low', cwd: '/work' },
         makeContext(),
         agents,
         signal,
@@ -153,7 +50,7 @@ describe('handleSingleMode', () => {
     })
     await expect(
       handleSingleMode(
-        { agent: 'writer', task: 'silent' },
+        { agent: 'writer', task: 'silent', complexity: 'low' },
         makeContext(),
         agents,
         undefined,
@@ -188,7 +85,7 @@ describe('handleSingleMode', () => {
     vi.mocked(runSingleAgent).mockResolvedValue(failed)
 
     const response = await handleSingleMode(
-      { agent: 'writer', task: 'write' },
+      { agent: 'writer', task: 'write', complexity: 'low' },
       makeContext(),
       agents,
       undefined,
@@ -209,30 +106,7 @@ describe('handleChainMode', () => {
     vi.clearAllMocks()
   })
 
-  it('throws when chain mode has no steps and runs steps sequentially', async () => {
-    const makeDetails = makeDetailsFactory(noProjectAgentsDirectory())
-
-    await expect(
-      handleChainMode(
-        {},
-        makeContext(),
-        agents,
-        undefined,
-        undefined,
-        makeDetails,
-      ),
-    ).rejects.toThrow('Missing chain in chain mode')
-    await expect(
-      handleChainMode(
-        { chain: [] },
-        makeContext(),
-        agents,
-        undefined,
-        undefined,
-        makeDetails,
-      ),
-    ).rejects.toThrow('Missing chain in chain mode')
-
+  it('runs chain steps sequentially', async () => {
     const firstResult = makeResult({
       agent: 'writer',
       task: 'draft',
@@ -261,8 +135,13 @@ describe('handleChainMode', () => {
     const response = await handleChainMode(
       {
         chain: [
-          { agent: 'writer', task: 'draft', cwd: '/draft' },
-          { agent: 'reviewer', task: 'review {previous}', cwd: '/review' },
+          { agent: 'writer', task: 'draft', complexity: 'low', cwd: '/draft' },
+          {
+            agent: 'reviewer',
+            task: 'review {previous}',
+            complexity: 'low',
+            cwd: '/review',
+          },
         ],
       },
       makeContext(),
@@ -320,9 +199,9 @@ describe('handleChainMode', () => {
     const response = await handleChainMode(
       {
         chain: [
-          { agent: 'writer', task: 'draft' },
-          { agent: 'reviewer', task: 'review {previous}' },
-          { agent: 'writer', task: 'never runs' },
+          { agent: 'writer', task: 'draft', complexity: 'low' },
+          { agent: 'reviewer', task: 'review {previous}', complexity: 'low' },
+          { agent: 'writer', task: 'never runs', complexity: 'low' },
         ],
       },
       makeContext(),

@@ -5,6 +5,7 @@ import { MAX_PARALLEL_TASKS } from '../../../subagents/utilities.js'
 import {
   handleParallelMode,
   makeDetailsFactory,
+  type ParallelModeParameters,
   type UpdateCallback,
 } from '../subagent-modes.js'
 import {
@@ -31,14 +32,14 @@ describe('handleParallelMode', () => {
 
     await expect(
       handleParallelMode(
-        {},
+        {} as ParallelModeParameters,
         makeContext(),
         agents,
         undefined,
         undefined,
         makeDetails,
       ),
-    ).rejects.toThrow('Missing tasks in parallel mode')
+    ).rejects.toThrow()
     await expect(
       handleParallelMode(
         { tasks: [] },
@@ -55,6 +56,7 @@ describe('handleParallelMode', () => {
       (_, index) => ({
         agent: 'writer',
         task: `task ${index}`,
+        complexity: 'low' as const,
       }),
     )
     const response = await handleParallelMode(
@@ -125,9 +127,14 @@ describe('handleParallelMode', () => {
     const response = await handleParallelMode(
       {
         tasks: [
-          { agent: 'writer', task: 'write', cwd: '/one' },
-          { agent: 'reviewer', task: 'review', cwd: '/two' },
-          { agent: 'repo-agent', task: 'inspect', cwd: '/three' },
+          { agent: 'writer', task: 'write', complexity: 'low', cwd: '/one' },
+          { agent: 'reviewer', task: 'review', complexity: 'low', cwd: '/two' },
+          {
+            agent: 'repo-agent',
+            task: 'inspect',
+            complexity: 'low',
+            cwd: '/three',
+          },
         ],
       },
       makeContext(),

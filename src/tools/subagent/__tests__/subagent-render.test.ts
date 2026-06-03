@@ -134,7 +134,11 @@ describe('buildRenderCall', () => {
 
   it('renders a single subagent call with defaults and missing fields', () => {
     const rendered = buildRenderCall(
-      { agent: 'coder', task: 'Implement a focused unit test' },
+      {
+        agent: 'coder',
+        task: 'Implement a focused unit test',
+        complexity: 'low',
+      },
       theme,
     )
 
@@ -147,22 +151,30 @@ describe('buildRenderCall', () => {
       '<dim>Implement a focused unit test</dim>',
     )
 
-    const emptyRendered = buildRenderCall({}, theme)
-    expect(textOf(emptyRendered)).toContain('<accent>...</accent>')
-    expect(textOf(emptyRendered)).toContain('<dim>...</dim>')
+    const emptyRendered = buildRenderCall(
+      { agent: 'unknown', task: '', complexity: 'low' },
+      theme,
+    )
+    expect(textOf(emptyRendered)).toContain('<accent>unknown</accent>')
+    expect(textOf(emptyRendered)).toContain('<dim></dim>')
   })
 
   it('renders chain mode with cleaned previous placeholder, truncation, and overflow count', () => {
     const rendered = buildRenderCall(
       {
         chain: [
-          { agent: 'planner', task: 'Plan {previous} the work' },
+          {
+            agent: 'planner',
+            task: 'Plan {previous} the work',
+            complexity: 'low',
+          },
           {
             agent: 'coder',
             task: 'Implement '.repeat(8),
+            complexity: 'low',
           },
-          { agent: 'reviewer', task: 'Review the result' },
-          { agent: 'tester', task: 'Test the result' },
+          { agent: 'reviewer', task: 'Review the result', complexity: 'low' },
+          { agent: 'tester', task: 'Test the result', complexity: 'low' },
         ],
       },
       theme,
@@ -187,10 +199,10 @@ describe('buildRenderCall', () => {
     const rendered = buildRenderCall(
       {
         tasks: [
-          { agent: 'docs', task: 'Write documentation' },
-          { agent: 'lint', task: 'Check '.repeat(9) },
-          { agent: 'test', task: 'Run tests' },
-          { agent: 'review', task: 'Review changes' },
+          { agent: 'docs', task: 'Write documentation', complexity: 'low' },
+          { agent: 'lint', task: 'Check '.repeat(9), complexity: 'low' },
+          { agent: 'test', task: 'Run tests', complexity: 'low' },
+          { agent: 'review', task: 'Review changes', complexity: 'low' },
         ],
       },
       theme,
@@ -212,8 +224,17 @@ describe('buildRenderCall', () => {
       {
         agent: 'single',
         task: 'single task',
-        tasks: [{ agent: 'parallel', task: 'parallel task' }],
-        chain: [{ agent: 'chain', task: 'chain task' }],
+        complexity: 'low' as const,
+        tasks: [
+          {
+            agent: 'parallel',
+            task: 'parallel task',
+            complexity: 'low' as const,
+          },
+        ],
+        chain: [
+          { agent: 'chain', task: 'chain task', complexity: 'low' as const },
+        ],
       },
       theme,
     )

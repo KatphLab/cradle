@@ -2,14 +2,11 @@ import { defineTool } from '@earendil-works/pi-coding-agent'
 import { discoverAgents } from '../subagents/agents.js'
 import type { AgentConfig } from '../subagents/types.js'
 import {
-  buildNoModeResponse,
-  buildValidationErrorResponse,
   handleChainMode,
   handleParallelMode,
   handleSingleMode,
   makeDetailsFactory,
   SubagentParameters,
-  validateModeCount,
   type MakeDetails,
   type SubagentParametersType,
   type ToolContext,
@@ -29,7 +26,7 @@ async function dispatchByMode(
   onUpdate: UpdateCallback | undefined,
   makeDetails: MakeDetails,
 ): Promise<ToolResult> {
-  if (parameters.chain && parameters.chain.length > 0) {
+  if ('chain' in parameters) {
     return handleChainMode(
       parameters,
       context,
@@ -39,7 +36,7 @@ async function dispatchByMode(
       makeDetails,
     )
   }
-  if (parameters.tasks && parameters.tasks.length > 0) {
+  if ('tasks' in parameters) {
     return handleParallelMode(
       parameters,
       context,
@@ -49,17 +46,14 @@ async function dispatchByMode(
       makeDetails,
     )
   }
-  if (parameters.agent && parameters.task) {
-    return handleSingleMode(
-      parameters,
-      context,
-      agents,
-      signal,
-      onUpdate,
-      makeDetails,
-    )
-  }
-  return buildNoModeResponse(agents, makeDetails)
+  return handleSingleMode(
+    parameters,
+    context,
+    agents,
+    signal,
+    onUpdate,
+    makeDetails,
+  )
 }
 
 /** @public */
@@ -77,11 +71,6 @@ export const subagentTool = defineTool({
     const agents = discovery.agents
 
     const makeDetails = makeDetailsFactory(discovery.projectAgentsDir)
-
-    const validationError = validateModeCount(parameters)
-    if (validationError) {
-      return buildValidationErrorResponse(validationError, agents, makeDetails)
-    }
 
     return dispatchByMode(
       parameters,

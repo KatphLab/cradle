@@ -10,7 +10,12 @@ import {
 } from '../../subagents/render.js'
 import type { SubagentDetails } from '../../subagents/types.js'
 import type { ThemeLike } from '../../utils/helpers.js'
-import type { SubagentParametersType } from './subagent-modes.js'
+import type {
+  ChainModeParameters,
+  ParallelModeParameters,
+  SingleModeParameters,
+  SubagentParametersType,
+} from './subagent-modes.js'
 
 function renderAgentPreview(task: string, limit: number): string {
   if (task.length > limit) {
@@ -20,11 +25,11 @@ function renderAgentPreview(task: string, limit: number): string {
 }
 
 function renderCallChainText(
-  args: SubagentParametersType,
+  args: ChainModeParameters,
   theme: ThemeLike,
 ): string {
   const chain = args.chain
-  if (!chain || chain.length === 0) return ''
+  if (chain.length === 0) return ''
 
   let text =
     theme.fg('toolTitle', theme.bold('subagent ')) +
@@ -48,11 +53,11 @@ function renderCallChainText(
 }
 
 function renderCallParallelText(
-  args: SubagentParametersType,
+  args: ParallelModeParameters,
   theme: ThemeLike,
 ): string {
   const tasks = args.tasks
-  if (!tasks || tasks.length === 0) return ''
+  if (tasks.length === 0) return ''
 
   let text =
     theme.fg('toolTitle', theme.bold('subagent ')) +
@@ -74,11 +79,11 @@ function renderCallParallelText(
 }
 
 function renderCallSingleText(
-  args: SubagentParametersType,
+  args: SingleModeParameters,
   theme: ThemeLike,
 ): string {
-  const agentName = args.agent ?? '...'
-  const preview = args.task ? renderAgentPreview(args.task, 60) : '...'
+  const agentName = args.agent
+  const preview = renderAgentPreview(args.task, 60)
   let text = theme.fg('toolTitle', theme.bold('subagent '))
   text += theme.fg('accent', agentName)
   text += '\n  '
@@ -90,15 +95,19 @@ export function buildRenderCall(
   args: SubagentParametersType,
   theme: ThemeLike,
 ) {
-  if (args.chain && args.chain.length > 0) {
+  if ('chain' in args && args.chain.length > 0) {
     return new Text(renderCallChainText(args, theme), 0, 0)
   }
 
-  if (args.tasks && args.tasks.length > 0) {
+  if ('tasks' in args && args.tasks.length > 0) {
     return new Text(renderCallParallelText(args, theme), 0, 0)
   }
 
-  return new Text(renderCallSingleText(args, theme), 0, 0)
+  if ('agent' in args) {
+    return new Text(renderCallSingleText(args, theme), 0, 0)
+  }
+
+  return new Text('subagent ...', 0, 0)
 }
 
 export function renderResultFallback(result: AgentToolResult<unknown>) {

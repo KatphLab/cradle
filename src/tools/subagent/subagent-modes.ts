@@ -5,7 +5,6 @@ import type {
 import { StringEnum } from '@earendil-works/pi-ai'
 import { Type, type Static } from 'typebox'
 import { loadCradleSettings } from '../../config/settings.js'
-import { formatAgentList } from '../../subagents/agents.js'
 import { runSingleAgent } from '../../subagents/runner.js'
 import type {
   AgentConfig,
@@ -30,10 +29,10 @@ const TaskItem = Type.Object(
   {
     agent: Type.String({ description: 'Name of the agent to invoke' }),
     task: Type.String({ description: 'Task to delegate to the agent' }),
+    complexity: ComplexitySchema,
     cwd: Type.Optional(
       Type.String({ description: 'Working directory for the agent process' }),
     ),
-    complexity: Type.Optional(ComplexitySchema),
   },
   { additionalProperties: false },
 )
@@ -44,42 +43,60 @@ const ChainItem = Type.Object(
     task: Type.String({
       description: 'Task with optional {previous} placeholder for prior output',
     }),
+    complexity: ComplexitySchema,
     cwd: Type.Optional(
       Type.String({ description: 'Working directory for the agent process' }),
     ),
-    complexity: Type.Optional(ComplexitySchema),
   },
   { additionalProperties: false },
 )
 
-export const SubagentParameters = Type.Object({
-  agent: Type.Optional(
-    Type.String({
-      description: 'Name of the agent to invoke (for single mode)',
+const SingleMode = Type.Object(
+  {
+    agent: Type.String({
+      description: 'Name of the agent to invoke (single mode)',
     }),
-  ),
-  task: Type.Optional(
-    Type.String({ description: 'Task to delegate (for single mode)' }),
-  ),
-  tasks: Type.Optional(
-    Type.Array(TaskItem, {
-      description: 'Array of {agent, task} for parallel execution',
-    }),
-  ),
-  chain: Type.Optional(
-    Type.Array(ChainItem, {
-      description: 'Array of {agent, task} for sequential execution',
-    }),
-  ),
-  cwd: Type.Optional(
-    Type.String({
-      description: 'Working directory for the agent process (single mode)',
-    }),
-  ),
-  complexity: Type.Optional(ComplexitySchema),
-})
+    task: Type.String({ description: 'Task to delegate (single mode)' }),
+    complexity: ComplexitySchema,
+    cwd: Type.Optional(
+      Type.String({ description: 'Working directory for the agent process' }),
+    ),
+  },
+  { additionalProperties: false },
+)
 
-export type SubagentParametersType = Static<typeof SubagentParameters>
+const ParallelMode = Type.Object(
+  {
+    tasks: Type.Array(TaskItem, {
+      description: 'Array of {agent, task, complexity} for parallel execution',
+    }),
+  },
+  { additionalProperties: false },
+)
+
+const ChainMode = Type.Object(
+  {
+    chain: Type.Array(ChainItem, {
+      description:
+        'Array of {agent, task, complexity} for sequential execution',
+    }),
+  },
+  { additionalProperties: false },
+)
+
+export const SubagentParameters = Type.Union([
+  SingleMode,
+  ParallelMode,
+  ChainMode,
+])
+
+export type SingleModeParameters = Static<typeof SingleMode>
+export type ParallelModeParameters = Static<typeof ParallelMode>
+export type ChainModeParameters = Static<typeof ChainMode>
+export type SubagentParametersType =
+  | SingleModeParameters
+  | ParallelModeParameters
+  | ChainModeParameters
 
 export interface ToolContext {
   cwd: string
@@ -97,19 +114,6 @@ export type ToolResult = AgentToolResult<SubagentDetails> & {
 
 export type UpdateCallback = AgentToolUpdateCallback<SubagentDetails>
 
-export function validateModeCount(
-  parameters: SubagentParametersType,
-): string | undefined {
-  const hasChain = (parameters.chain?.length ?? 0) > 0
-  const hasTasks = (parameters.tasks?.length ?? 0) > 0
-  const hasSingle = Boolean(parameters.agent && parameters.task)
-  const modeCount = Number(hasChain) + Number(hasTasks) + Number(hasSingle)
-  if (modeCount !== 1) {
-    return 'Invalid parameters. Provide exactly one mode.'
-  }
-  return undefined
-}
-
 export function makeDetailsFactory(
   projectAgentsDirectory: string | undefined,
 ): MakeDetails {
@@ -120,41 +124,8 @@ export function makeDetailsFactory(
   })
 }
 
-export function buildValidationErrorResponse(
-  message: string,
-  agents: AgentConfig[],
-  makeDetails: MakeDetails,
-): ToolResult {
-  const { text } = formatAgentList(agents, 10)
-  return {
-    content: [
-      {
-        type: 'text',
-        text: `${message}\nAvailable agents: ${text}`,
-      },
-    ],
-    details: makeDetails('single')([]),
-  }
-}
-
-export function buildNoModeResponse(
-  agents: AgentConfig[],
-  makeDetails: MakeDetails,
-): ToolResult {
-  const { text } = formatAgentList(agents, 10)
-  return {
-    content: [
-      {
-        type: 'text',
-        text: `Invalid parameters. Available agents: ${text}`,
-      },
-    ],
-    details: makeDetails('single')([]),
-  }
-}
-
 export async function handleSingleMode(
-  parameters: SubagentParametersType,
+  parameters: SingleModeParameters,
   context: ToolContext,
   agents: AgentConfig[],
   signal: AbortSignal | undefined,
@@ -206,7 +177,7 @@ export async function handleSingleMode(
 }
 
 export async function handleChainMode(
-  parameters: SubagentParametersType,
+  parameters: ChainModeParameters,
   context: ToolContext,
   agents: AgentConfig[],
   signal: AbortSignal | undefined,
@@ -214,7 +185,7 @@ export async function handleChainMode(
   makeDetails: MakeDetails,
 ): Promise<ToolResult> {
   const chain = parameters.chain
-  if (!chain || chain.length === 0) {
+  if (chain.length === 0) {
     throw new Error('Missing chain in chain mode')
   }
   const settings = await loadCradleSettings(context.cwd)
@@ -366,7 +337,7 @@ function buildParallelFinalResponse(
 }
 
 export async function handleParallelMode(
-  parameters: SubagentParametersType,
+  parameters: ParallelModeParameters,
   context: ToolContext,
   agents: AgentConfig[],
   signal: AbortSignal | undefined,
@@ -374,7 +345,7 @@ export async function handleParallelMode(
   makeDetails: MakeDetails,
 ): Promise<ToolResult> {
   const tasks = parameters.tasks
-  if (!tasks || tasks.length === 0) {
+  if (tasks.length === 0) {
     throw new Error('Missing tasks in parallel mode')
   }
   const settings = await loadCradleSettings(context.cwd)

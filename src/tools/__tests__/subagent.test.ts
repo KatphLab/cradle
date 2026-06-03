@@ -127,6 +127,7 @@ describe('subagentTool', () => {
     const parameters: SubagentParametersType = {
       agent: 'writer',
       task: 'write',
+      complexity: 'low',
     }
 
     const result = await subagentTool.execute(
@@ -152,10 +153,10 @@ describe('subagentTool', () => {
   it('dispatches parallel and chain modes', async () => {
     const context = makeContext()
     const parallelParameters: SubagentParametersType = {
-      tasks: [{ agent: 'writer', task: 'write' }],
+      tasks: [{ agent: 'writer', task: 'write', complexity: 'low' }],
     }
     const chainParameters: SubagentParametersType = {
-      chain: [{ agent: 'writer', task: 'write' }],
+      chain: [{ agent: 'writer', task: 'write', complexity: 'low' }],
     }
 
     await expect(
@@ -195,26 +196,6 @@ describe('subagentTool', () => {
     )
   })
 
-  it('returns a validation response before dispatching when mode count is invalid', async () => {
-    const result = await subagentTool.execute(
-      'call-1',
-      {},
-      undefined,
-      undefined,
-      makeContext(),
-    )
-
-    expect(result.content[0]).toMatchObject({
-      type: 'text',
-      text: expect.stringContaining(
-        'Invalid parameters. Provide exactly one mode.',
-      ),
-    })
-    expect(handleSingleMode).not.toHaveBeenCalled()
-    expect(handleParallelMode).not.toHaveBeenCalled()
-    expect(handleChainMode).not.toHaveBeenCalled()
-  })
-
   it('renders subagent call and result', () => {
     const theme = {
       bold: (text: string) => text,
@@ -224,12 +205,21 @@ describe('subagentTool', () => {
     const options = { expanded: true, isPartial: false }
 
     expect(
-      // @ts-expect-error minimal context mock
-      subagentTool.renderCall?.({ agent: 'writer', task: 'write' }, theme, {}),
+      subagentTool.renderCall?.(
+        { agent: 'writer', task: 'write', complexity: 'low' },
+        // @ts-expect-error minimal mock — Theme requires 15+ fields
+        theme,
+        {},
+      ),
     ).toBe('render-call')
     expect(
-      // @ts-expect-error minimal context mock
-      subagentTool.renderResult?.(result, options, theme, {}),
+      subagentTool.renderResult?.(
+        result,
+        options,
+        // @ts-expect-error minimal mock — Theme requires 15+ fields
+        theme,
+        {},
+      ),
     ).toBe('render-result')
   })
 })
