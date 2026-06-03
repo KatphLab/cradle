@@ -8,6 +8,7 @@ import {
   SPEC_MODE_TOOLS,
   type SpecModeState,
 } from '../utils/spec-state.js'
+import { filterMainAgentTools } from '../utils/tool-policy.js'
 
 function persistSpecModeState(
   pi: Pick<ExtensionAPI, 'appendEntry'>,
@@ -41,7 +42,7 @@ function disableSpecMode(
   state: SpecModeState,
 ): void {
   state.setEnabled(false)
-  pi.setActiveTools(getAllToolNames(pi))
+  pi.setActiveTools(filterMainAgentTools(getAllToolNames(pi)))
   persistSpecModeState(pi, false)
   context.ui.setStatus('spec-mode', undefined)
   context.ui.notify('Spec mode disabled. Full tool access restored.', 'info')

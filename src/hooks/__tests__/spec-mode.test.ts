@@ -161,6 +161,42 @@ describe('registerSpecModeHook', () => {
     expect(allowedResult).toBeUndefined()
   })
 
+  it('excludes web_fetch from restored tools when spec mode is disabled', async () => {
+    const { handlers, setActiveTools } = registerHook()
+    const sessionStart = getHandler(handlers, 'session_start')
+
+    // Override getAllTools to include web_fetch
+    const piWithWebFetch: Pick<
+      ExtensionAPI,
+      'on' | 'getAllTools' | 'setActiveTools'
+    > = {
+      on: (_event, _handler) => {
+        // already registered
+      },
+      getAllTools: () =>
+        ['read', 'write', 'web_fetch_internal'].map((name) => ({
+          name,
+          description: `${name} description`,
+          parameters: { type: 'object', properties: {} },
+          sourceInfo: {
+            path: `<test:${name}>`,
+            source: 'builtin',
+            scope: 'temporary',
+            origin: 'top-level',
+          },
+        })),
+      setActiveTools,
+    }
+    const state = createMockSpecModeState()
+    registerSpecModeHook(piWithWebFetch, state)
+
+    const context = createContext([])
+    // @ts-expect-error minimal handler mock
+    await sessionStart?.({}, context)
+
+    expect(setActiveTools).toHaveBeenCalledWith(['read', 'write'])
+  })
+
   it('blocks edit and write outside .pi/specs while enabled', () => {
     const { handlers, state } = registerHook()
     const toolCall = getHandler(handlers, 'tool_call')

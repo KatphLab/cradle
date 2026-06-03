@@ -9,10 +9,13 @@ export interface WebFetchDetails {
 interface WebFetchItem {
   url: string
   provider: string
-  filePath: string
   status: number
   contentType: string
   size: number
+  artifactPath: string
+  metadataPath: string
+  cacheStatus: 'hit' | 'refresh' | 'error'
+  urlHash: string
 }
 
 export interface FetchResult {
@@ -24,6 +27,19 @@ export interface FetchResult {
 export interface WebFetchProvider {
   name: string
   fetch(url: string, signal?: AbortSignal): Promise<FetchResult>
+}
+
+export interface CacheMetadata {
+  url: string
+  normalizedUrl: string
+  provider: string
+  status: number
+  contentType: string
+  size: number
+  fetchedAt: number
+  artifactPath: string
+  metadataPath: string
+  urlHash: string
 }
 
 export function toolError(message: string): {

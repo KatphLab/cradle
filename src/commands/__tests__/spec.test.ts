@@ -138,6 +138,30 @@ describe('registerSpecCommand', () => {
     expect(setActiveTools).toHaveBeenCalledWith(ALL_TOOL_NAMES)
   })
 
+  it('excludes web_fetch when disabling spec mode', () => {
+    const setActiveTools = vi.fn()
+    const appendEntry = vi.fn()
+    const state = createMockSpecModeState()
+    const context = createContext()
+
+    setSpecModeEnabled(
+      {
+        appendEntry,
+        getAllTools: () =>
+          ['read', 'write', 'web_fetch_internal'].map((name) =>
+            createToolInfo(name),
+          ),
+        setActiveTools,
+      },
+      // @ts-expect-error minimal command context mock
+      context,
+      state,
+      false,
+    )
+
+    expect(setActiveTools).toHaveBeenCalledWith(['read', 'write'])
+  })
+
   it('does not query all tools while enabling spec mode repeatedly', () => {
     const setActiveTools = vi.fn()
     const appendEntry = vi.fn()

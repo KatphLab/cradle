@@ -233,6 +233,7 @@ describe('runSingleAgent', () => {
       cwd: '/worktree',
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: expect.objectContaining({ CRADLE_SUBAGENT: '1' }),
     })
     expect(result).toMatchObject({
       agent: 'writer',

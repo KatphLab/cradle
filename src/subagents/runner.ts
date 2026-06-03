@@ -440,6 +440,7 @@ function runAgentProcess(options: ProcessRunOptions): Promise<number> {
       cwd: options.cwd,
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, CRADLE_SUBAGENT: '1' },
     })
 
     setupProcessEventHandlers(

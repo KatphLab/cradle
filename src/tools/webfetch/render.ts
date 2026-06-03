@@ -9,7 +9,11 @@ const COLLAPSED_ITEM_LIMIT = 3
 const COLLAPSED_LINE_LIMIT = 80
 
 function buildItemLine(item: WebFetchDetails['items'][number]): string {
-  return `${item.url} → ${item.filePath} (${String(item.status)} ${item.contentType}, ${formatSize(item.size)})`
+  const cacheLabel = item.cacheStatus === 'hit' ? ' (cached)' : ''
+  if (item.cacheStatus === 'error') {
+    return `${item.url} → fetch failed`
+  }
+  return `${item.url} → ${item.artifactPath} (${String(item.status)} ${item.contentType}, ${formatSize(item.size)})${cacheLabel}`
 }
 
 function buildHeader(itemCount: number, theme: ThemeLike): string {
