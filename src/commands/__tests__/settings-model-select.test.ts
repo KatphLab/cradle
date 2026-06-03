@@ -16,11 +16,11 @@ function makeConfig(
 ) {
   return {
     assignValue: vi.fn(),
-    availableModels: ['a', 'b'],
-    getCurrentValue: () => 'b',
+    availableModels: ['test/a', 'test/b'],
+    getCurrentValue: () => 'test/b',
     modelDisplayNames: new Map([
-      ['a', 'test/a'],
-      ['b', 'test/b'],
+      ['test/a', 'test/a'],
+      ['test/b', 'test/b'],
     ]),
     onCancel: vi.fn(),
     onSelect: vi.fn(),
@@ -53,9 +53,9 @@ describe('createModelSelectList', () => {
     const selectList = createModelSelectList(config)
     if (selectList === undefined) throw new Error('Expected select list')
 
-    selectList.onSelect?.({ value: 'a', label: 'test/a' })
+    selectList.onSelect?.({ value: 'test/a', label: 'test/a' })
 
-    expect(config.assignValue).toHaveBeenCalledWith('a')
+    expect(config.assignValue).toHaveBeenCalledWith('test/a')
     expect(config.onSelect).toHaveBeenCalledOnce()
     expect(config.onCancel).not.toHaveBeenCalled()
   })

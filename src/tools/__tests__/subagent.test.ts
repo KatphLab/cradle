@@ -10,6 +10,7 @@ import type {
 import { subagentTool } from '../subagent.js'
 import type {
   SubagentParametersType,
+  SubagentToolParameters,
   ToolContext,
 } from '../subagent/subagent-modes.js'
 import {
@@ -122,9 +123,13 @@ describe('subagentTool', () => {
     vi.mocked(handleChainMode).mockResolvedValue(makeToolResult('chain'))
   })
 
-  it('uses a root object parameter schema', () => {
+  it('uses a Codex-compatible root object parameter schema', () => {
     expect(subagentTool.parameters).toMatchObject({ type: 'object' })
-    expect(subagentTool.parameters).toHaveProperty('anyOf')
+    expect(subagentTool.parameters).not.toHaveProperty('anyOf')
+    expect(subagentTool.parameters).not.toHaveProperty('oneOf')
+    expect(subagentTool.parameters).not.toHaveProperty('allOf')
+    expect(subagentTool.parameters).not.toHaveProperty('enum')
+    expect(subagentTool.parameters).not.toHaveProperty('not')
   })
 
   it('discovers user agents by default and dispatches single mode', async () => {
@@ -153,6 +158,40 @@ describe('subagentTool', () => {
       undefined,
       expect.any(Function),
     )
+  })
+
+  it('rejects ambiguous or incomplete mode selections before dispatching', async () => {
+    const context = makeContext()
+    const mixedParameters: SubagentToolParameters = {
+      agent: 'writer',
+      task: 'write',
+      complexity: 'low',
+      tasks: [{ agent: 'reviewer', task: 'review', complexity: 'low' }],
+    }
+    const incompleteParameters: SubagentToolParameters = { agent: 'writer' }
+
+    await expect(
+      subagentTool.execute(
+        'call-1',
+        mixedParameters,
+        undefined,
+        undefined,
+        context,
+      ),
+    ).rejects.toThrow('Specify exactly one subagent mode')
+    await expect(
+      subagentTool.execute(
+        'call-2',
+        incompleteParameters,
+        undefined,
+        undefined,
+        context,
+      ),
+    ).rejects.toThrow('Missing agent, task, or complexity in single mode')
+
+    expect(handleSingleMode).not.toHaveBeenCalled()
+    expect(handleParallelMode).not.toHaveBeenCalled()
+    expect(handleChainMode).not.toHaveBeenCalled()
   })
 
   it('dispatches parallel and chain modes', async () => {

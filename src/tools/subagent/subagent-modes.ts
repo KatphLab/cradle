@@ -10,6 +10,7 @@ import type {
   AgentConfig,
   SingleResult,
   SubagentDetails,
+  TaskComplexity,
 } from '../../subagents/types.js'
 import {
   getFinalOutput,
@@ -58,35 +59,6 @@ const ChainItem = Type.Object(
   { additionalProperties: false },
 )
 
-const SingleMode = Type.Object(
-  {
-    agent: AgentParameter,
-    task: TaskParameter,
-    complexity: ComplexitySchema,
-    cwd: Type.Optional(CwdParameter),
-  },
-  { additionalProperties: false },
-)
-
-const ParallelMode = Type.Object(
-  {
-    tasks: Type.Array(TaskItem, {
-      description: 'Array of {agent, task, complexity} for parallel execution',
-    }),
-  },
-  { additionalProperties: false },
-)
-
-const ChainMode = Type.Object(
-  {
-    chain: Type.Array(ChainItem, {
-      description:
-        'Array of {agent, task, complexity} for sequential execution',
-    }),
-  },
-  { additionalProperties: false },
-)
-
 export const SubagentParameters = Type.Object(
   {
     agent: Type.Optional(AgentParameter),
@@ -106,20 +78,89 @@ export const SubagentParameters = Type.Object(
       }),
     ),
   },
-  {
-    additionalProperties: false,
-    anyOf: [SingleMode, ParallelMode, ChainMode],
-  },
+  { additionalProperties: false },
 )
 
-export type SingleModeParameters = Static<typeof SingleMode>
-export type ParallelModeParameters = Static<typeof ParallelMode>
-export type ChainModeParameters = Static<typeof ChainMode>
+type TaskItemParameters = Static<typeof TaskItem>
+type ChainItemParameters = Static<typeof ChainItem>
+
+export interface SingleModeParameters {
+  agent: string
+  task: string
+  complexity: TaskComplexity
+  cwd?: string
+}
+
+export interface ParallelModeParameters {
+  tasks: TaskItemParameters[]
+}
+
+export interface ChainModeParameters {
+  chain: ChainItemParameters[]
+}
 export type SubagentParametersType =
   | SingleModeParameters
   | ParallelModeParameters
   | ChainModeParameters
 export type SubagentToolParameters = Static<typeof SubagentParameters>
+type SubagentMode = 'single' | 'parallel' | 'chain'
+
+const MODE_SELECTION_ERROR =
+  'Specify exactly one subagent mode: single (agent + task), parallel (tasks), or chain (chain).'
+
+function hasSingleModeFields(parameters: SubagentToolParameters): boolean {
+  return (
+    parameters.agent !== undefined ||
+    parameters.task !== undefined ||
+    parameters.complexity !== undefined ||
+    parameters.cwd !== undefined
+  )
+}
+
+export function resolveSubagentMode(
+  parameters: SubagentToolParameters,
+): SubagentMode {
+  const modes: SubagentMode[] = []
+  if (hasSingleModeFields(parameters)) modes.push('single')
+  if (parameters.tasks !== undefined) modes.push('parallel')
+  if (parameters.chain !== undefined) modes.push('chain')
+
+  const selectedMode = modes[0]
+  if (modes.length !== 1 || selectedMode === undefined) {
+    throw new Error(MODE_SELECTION_ERROR)
+  }
+
+  return selectedMode
+}
+
+export function toSingleMode(
+  parameters: SubagentToolParameters,
+): SingleModeParameters {
+  const { agent, task, complexity } = parameters
+  if (agent === undefined || task === undefined || complexity === undefined) {
+    throw new Error('Missing agent, task, or complexity in single mode')
+  }
+
+  const singleParameters: SingleModeParameters = { agent, task, complexity }
+  if (parameters.cwd !== undefined) singleParameters.cwd = parameters.cwd
+  return singleParameters
+}
+
+export function toParallelMode(
+  parameters: SubagentToolParameters,
+): ParallelModeParameters {
+  const { tasks } = parameters
+  if (tasks === undefined) throw new Error('Missing tasks in parallel mode')
+  return { tasks }
+}
+
+export function toChainMode(
+  parameters: SubagentToolParameters,
+): ChainModeParameters {
+  const { chain } = parameters
+  if (chain === undefined) throw new Error('Missing chain in chain mode')
+  return { chain }
+}
 
 export interface ToolContext {
   cwd: string

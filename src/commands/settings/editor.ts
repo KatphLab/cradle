@@ -18,7 +18,7 @@ import {
   togglePermission,
   updateSuggestions,
 } from './editor-state.js'
-import type { ModelOption } from './model-select.js'
+import { getModelReference, type ModelOption } from './model-select.js'
 import { SettingsRenderer } from './renderer.js'
 import type { CradleSettingsResult, EditorLike } from './types.js'
 
@@ -75,9 +75,12 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
     this.theme = theme
 
     const models = availableModels ?? []
-    this.availableModels = models.map((m) => m.id)
+    this.availableModels = models.map((model) => getModelReference(model))
     this.modelDisplayNames = new Map(
-      models.map((m) => [m.id, `${m.provider}/${m.id}`]),
+      models.map((model) => {
+        const reference = getModelReference(model)
+        return [reference, reference] as const
+      }),
     )
 
     this.rows = (projectSettings.permissions ?? []).map((row) => ({ ...row }))

@@ -15,7 +15,21 @@ import {
   type ProjectSettings,
 } from '../config/settings.js'
 import { CradleSettingsEditor } from './settings/editor.js'
+import type { ModelOption } from './settings/model-select.js'
 import type { CradleSettingsResult } from './settings/types.js'
+
+function getAvailableModelOptions(): ModelOption[] {
+  const authStorage = AuthStorage.create(path.join(getAgentDir(), 'auth.json'))
+  const registry = ModelRegistry.create(
+    authStorage,
+    path.join(getAgentDir(), 'models.json'),
+  )
+  return registry.getAvailable().map((model) => ({
+    id: model.id,
+    name: model.name,
+    provider: model.provider,
+  }))
+}
 
 function buildSaveNotification(result: CradleSettingsResult): string {
   const permissionCount = result.permissions.length
@@ -43,19 +57,7 @@ export function registerSettingsCommand(
         loadGlobalSettings(),
       ])
 
-      const authStorage = AuthStorage.create(
-        path.join(getAgentDir(), 'auth.json'),
-      )
-      const registry = ModelRegistry.create(
-        authStorage,
-        path.join(getAgentDir(), 'models.json'),
-      )
-      const models = registry.getAvailable()
-      const availableModels = models.map((m) => ({
-        id: m.id,
-        name: m.name,
-        provider: m.provider,
-      }))
+      const availableModels = getAvailableModelOptions()
 
       const result = await context.ui.custom<CradleSettingsResult | undefined>(
         (tui, theme, _kb, done) => {

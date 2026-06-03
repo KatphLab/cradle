@@ -6,9 +6,13 @@ import {
   handleParallelMode,
   handleSingleMode,
   makeDetailsFactory,
+  resolveSubagentMode,
   SubagentParameters,
+  toChainMode,
+  toParallelMode,
+  toSingleMode,
   type MakeDetails,
-  type SubagentParametersType,
+  type SubagentToolParameters,
   type ToolContext,
   type ToolResult,
   type UpdateCallback,
@@ -19,16 +23,18 @@ import {
 } from './subagent/subagent-render.js'
 
 async function dispatchByMode(
-  parameters: SubagentParametersType,
+  parameters: SubagentToolParameters,
   context: ToolContext,
   agents: AgentConfig[],
   signal: AbortSignal | undefined,
   onUpdate: UpdateCallback | undefined,
   makeDetails: MakeDetails,
 ): Promise<ToolResult> {
-  if ('chain' in parameters) {
+  const mode = resolveSubagentMode(parameters)
+
+  if (mode === 'chain') {
     return handleChainMode(
-      parameters,
+      toChainMode(parameters),
       context,
       agents,
       signal,
@@ -36,9 +42,9 @@ async function dispatchByMode(
       makeDetails,
     )
   }
-  if ('tasks' in parameters) {
+  if (mode === 'parallel') {
     return handleParallelMode(
-      parameters,
+      toParallelMode(parameters),
       context,
       agents,
       signal,
@@ -47,7 +53,7 @@ async function dispatchByMode(
     )
   }
   return handleSingleMode(
-    parameters,
+    toSingleMode(parameters),
     context,
     agents,
     signal,
@@ -68,7 +74,7 @@ export const subagentTool = defineTool({
 
   async execute(
     _toolCallId,
-    parameters: SubagentParametersType,
+    parameters: SubagentToolParameters,
     signal,
     onUpdate,
     context,

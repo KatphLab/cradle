@@ -8,6 +8,10 @@ export interface ModelOption {
   provider: string
 }
 
+export function getModelReference(model: ModelOption): string {
+  return `${model.provider}/${model.id}`
+}
+
 export interface ModelSelectConfig {
   availableModels: readonly string[]
   modelDisplayNames: ReadonlyMap<string, string>
