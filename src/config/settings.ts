@@ -36,9 +36,6 @@ export interface GlobalSettings {
   firecrawlApiKey?: string
 }
 
-/** @deprecated Use ProjectSettings or GlobalSettings instead. */
-export interface CradleSettings extends ProjectSettings, GlobalSettings {}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && Boolean(value) && !Array.isArray(value)
 }

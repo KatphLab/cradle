@@ -1,12 +1,12 @@
 import type { TextContent } from '@earendil-works/pi-ai'
-import { Type, type Static } from '@earendil-works/pi-ai'
+import { Type } from '@earendil-works/pi-ai'
 
 export interface WebFetchDetails {
   items: WebFetchItem[]
   mode: 'single' | 'chain'
 }
 
-export interface WebFetchItem {
+interface WebFetchItem {
   url: string
   provider: string
   filePath: string
@@ -42,5 +42,3 @@ export const ChainItem = Type.Object(
   },
   { additionalProperties: false },
 )
-
-export type ChainItemType = Static<typeof ChainItem>
