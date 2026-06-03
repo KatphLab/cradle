@@ -18,6 +18,7 @@ export interface EditorState {
   readonly tokenThresholdInput: Input
   readonly firecrawlApiKeyInput: Input
   readonly tavilyApiKeyInput: Input
+  readonly exaApiKeyInput: Input
   readonly subagentModels: SubagentModels
   readonly advisorModel: string | undefined
   readonly modelDisplayNames: Map<string, string>

@@ -15,17 +15,9 @@ import {
   type ProjectSettings,
 } from '../config/settings.js'
 import { CradleSettingsEditor } from './settings/editor.js'
+import type { CradleSettingsResult } from './settings/types.js'
 
-interface SettingsSaveResult {
-  permissions: { path: string; read: boolean; write: boolean; bash: boolean }[]
-  reminderTokenThreshold: number
-  subagentModels: { low?: string; medium?: string; high?: string }
-  advisorModel: string | undefined
-  firecrawlApiKey: string | undefined
-  tavilyApiKey: string | undefined
-}
-
-function buildSaveNotification(result: SettingsSaveResult): string {
+function buildSaveNotification(result: CradleSettingsResult): string {
   const permissionCount = result.permissions.length
   const modelCount =
     [
@@ -35,7 +27,8 @@ function buildSaveNotification(result: SettingsSaveResult): string {
     ].filter(Boolean).length + (result.advisorModel ? 1 : 0)
   const firecrawlStatus = result.firecrawlApiKey ? ' firecrawl' : ''
   const tavilyStatus = result.tavilyApiKey ? ' tavily' : ''
-  return `Cradle settings saved: ${String(permissionCount)} permissions, ${String(modelCount)} models, reminder token threshold ${String(result.reminderTokenThreshold)}${firecrawlStatus}${tavilyStatus}`
+  const exaStatus = result.exaApiKey ? ' exa' : ''
+  return `Cradle settings saved: ${String(permissionCount)} permissions, ${String(modelCount)} models, reminder token threshold ${String(result.reminderTokenThreshold)}${firecrawlStatus}${tavilyStatus}${exaStatus}`
 }
 
 /** @public */
@@ -64,7 +57,7 @@ export function registerSettingsCommand(
         provider: m.provider,
       }))
 
-      const result = await context.ui.custom<SettingsSaveResult | undefined>(
+      const result = await context.ui.custom<CradleSettingsResult | undefined>(
         (tui, theme, _kb, done) => {
           const editor = new CradleSettingsEditor(
             projectSettings,
@@ -109,6 +102,9 @@ export function registerSettingsCommand(
       }
       if (result.tavilyApiKey !== undefined) {
         globalToSave.tavilyApiKey = result.tavilyApiKey
+      }
+      if (result.exaApiKey !== undefined) {
+        globalToSave.exaApiKey = result.exaApiKey
       }
 
       await Promise.all([

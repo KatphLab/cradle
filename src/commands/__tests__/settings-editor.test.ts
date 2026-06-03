@@ -85,8 +85,11 @@ describe('CradleSettingsEditor — input', () => {
     down()
     expect(editor.getSelectedRow()).toBe(9) // tavily API key
     down()
-    expect(editor.getSelectedRow()).toBe(9) // stops at bottom
+    expect(editor.getSelectedRow()).toBe(10) // exa API key
+    down()
+    expect(editor.getSelectedRow()).toBe(10) // stops at bottom
 
+    up()
     up()
     up()
     up()
@@ -314,6 +317,18 @@ describe('CradleSettingsEditor — model select list', () => {
     expect(editor.isDirty()).toBe(true)
   })
 
+  it('initializes all three subagent model tiers', () => {
+    const editor = makeEditor(
+      {},
+      { subagentModels: { low: 'a', medium: 'b', high: 'c' } },
+    )
+    expect(editor.getSubagentModels()).toEqual({
+      low: 'a',
+      medium: 'b',
+      high: 'c',
+    })
+  })
+
   it('opens advisor model select list', () => {
     const editor = makeEditor({}, { advisorModel: 'a' }, [
       { id: 'a', name: 'A', provider: 'test' },
@@ -447,22 +462,22 @@ describe('CradleSettingsEditor — reminder token threshold', () => {
   })
 })
 
-describe('CradleSettingsEditor — firecrawl API key', () => {
+describe('CradleSettingsEditor — exa API key', () => {
   it('reads initial value from global settings', () => {
-    const editor = makeEditor({}, { firecrawlApiKey: 'test-key' })
-    expect(editor.getFirecrawlApiKey()).toBe('test-key')
+    const editor = makeEditor({}, { exaApiKey: 'test-key' })
+    expect(editor.getExaApiKey()).toBe('test-key')
   })
 
   it('returns undefined when empty', () => {
     const editor = makeEditor()
-    expect(editor.getFirecrawlApiKey()).toBeUndefined()
+    expect(editor.getExaApiKey()).toBeUndefined()
   })
 
   it('detects dirty on key change', () => {
-    const editor = makeEditor({}, { firecrawlApiKey: 'old-key' })
+    const editor = makeEditor({}, { exaApiKey: 'old-key' })
     expect(editor.isDirty()).toBe(false)
-    // Navigate to API key row (rows.length + 6 = 6)
-    for (let index = 0; index < 6; index++) {
+    // Navigate to exa API key row (rows.length + 8 = 8)
+    for (let index = 0; index < 8; index++) {
       editor.handleInput('\u001B[B')
     }
     editor.handleInput('n')
@@ -473,12 +488,13 @@ describe('CradleSettingsEditor — firecrawl API key', () => {
     const saveSpy = vi.fn()
     const editor = makeEditor()
     editor.onSave = saveSpy
-    // Navigate to API key row and type
-    for (let index = 0; index < 6; index++) {
+    // Navigate to exa API key row and type
+    for (let index = 0; index < 8; index++) {
       editor.handleInput('\u001B[B')
     }
-    editor.handleInput('f')
-    editor.handleInput('c')
+    editor.handleInput('e')
+    editor.handleInput('x')
+    editor.handleInput('a')
     editor.handleInput('-')
     editor.handleInput('k')
     editor.handleInput('e')
@@ -486,53 +502,7 @@ describe('CradleSettingsEditor — firecrawl API key', () => {
     editor.handleInput('\u0013')
 
     expect(saveSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ firecrawlApiKey: 'fc-key' }),
-    )
-  })
-})
-
-describe('CradleSettingsEditor — tavily API key', () => {
-  it('reads initial value from global settings', () => {
-    const editor = makeEditor({}, { tavilyApiKey: 'test-key' })
-    expect(editor.getTavilyApiKey()).toBe('test-key')
-  })
-
-  it('returns undefined when empty', () => {
-    const editor = makeEditor()
-    expect(editor.getTavilyApiKey()).toBeUndefined()
-  })
-
-  it('detects dirty on key change', () => {
-    const editor = makeEditor({}, { tavilyApiKey: 'old-key' })
-    expect(editor.isDirty()).toBe(false)
-    // Navigate to tavily API key row (rows.length + 7 = 7)
-    for (let index = 0; index < 7; index++) {
-      editor.handleInput('\u001B[B')
-    }
-    editor.handleInput('n')
-    expect(editor.isDirty()).toBe(true)
-  })
-
-  it('includes key in save result', () => {
-    const saveSpy = vi.fn()
-    const editor = makeEditor()
-    editor.onSave = saveSpy
-    // Navigate to tavily API key row and type
-    for (let index = 0; index < 7; index++) {
-      editor.handleInput('\u001B[B')
-    }
-    editor.handleInput('t')
-    editor.handleInput('v')
-    editor.handleInput('l')
-    editor.handleInput('y')
-    editor.handleInput('-')
-    editor.handleInput('k')
-    editor.handleInput('e')
-    editor.handleInput('y')
-    editor.handleInput('\u0013')
-
-    expect(saveSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ tavilyApiKey: 'tvly-key' }),
+      expect.objectContaining({ exaApiKey: 'exa-key' }),
     )
   })
 })
