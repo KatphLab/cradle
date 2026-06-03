@@ -62,3 +62,8 @@ export function isApiKeyChanged(
 ): boolean {
   return input.getValue().trim() !== (initialValue ?? '')
 }
+
+export function maskApiKey(value: string | undefined): string {
+  if (!value || value.length <= 6) return value ?? ''
+  return `${value.slice(0, 3)}${'•'.repeat(value.length - 6)}${value.slice(-3)}`
+}

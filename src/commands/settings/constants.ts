@@ -19,6 +19,9 @@ export interface EditorState {
   readonly firecrawlApiKeyInput: Input
   readonly tavilyApiKeyInput: Input
   readonly exaApiKeyInput: Input
+  readonly firecrawlApiKey: string | undefined
+  readonly tavilyApiKey: string | undefined
+  readonly exaApiKey: string | undefined
   readonly subagentModels: SubagentModels
   readonly advisorModel: string | undefined
   readonly modelDisplayNames: Map<string, string>
@@ -47,3 +50,4 @@ export const TIER_LABELS: Record<'low' | 'medium' | 'high', string> = {
   high: 'High Model',
 }
 export const ADVISOR_MODEL_LABEL = 'Advisor Model'
+export const SEARCH_API_KEYS_LABEL = 'Search API Keys'

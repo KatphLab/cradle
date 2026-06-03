@@ -1,9 +1,10 @@
 import { truncateToWidth } from '@earendil-works/pi-tui'
-import { API_KEY_FIELDS } from './api-keys.js'
+import { API_KEY_FIELDS, maskApiKey } from './api-keys.js'
 import {
   ADVISOR_MODEL_LABEL,
   GAP,
   PERMISSION_LABELS,
+  SEARCH_API_KEYS_LABEL,
   TIER_LABELS,
   TOGGLE_WIDTH,
   TOKEN_THRESHOLD_LABEL,
@@ -212,13 +213,32 @@ export class SettingsRenderer {
   }
 
   private renderApiKeySections(width: number): string[] {
-    return API_KEY_FIELDS.flatMap((field) => {
+    const lines: string[] = ['', this.editor.theme.bold(SEARCH_API_KEYS_LABEL)]
+
+    for (const field of API_KEY_FIELDS) {
       const isFocused =
         this.editor.selectedRow === this.editor.rows.length + field.rowOffset
       const prefix = isFocused ? '> ' : '  '
-      const inputWidth = Math.max(0, width - prefix.length)
-      const [firstLine = ''] = this.editor[field.inputKey].render(inputWidth)
-      return ['', this.editor.theme.bold(field.label), `${prefix}${firstLine}`]
-    })
+      const input = this.editor[field.inputKey]
+      const currentValue = input.getValue()
+      const savedKey = this.editor[field.settingKey]
+
+      const isChanged = currentValue.trim() !== (savedKey ?? '')
+      let displayValue: string
+      if (isChanged && currentValue.length > 0) {
+        displayValue = currentValue
+      } else {
+        const keyToMask = currentValue.length > 0 ? currentValue : savedKey
+        displayValue = maskApiKey(keyToMask)
+      }
+
+      const label = `${field.label}: `
+      const labelWidth = prefix.length + label.length
+      const maxValueWidth = Math.max(0, width - labelWidth)
+      const truncatedValue = truncateToWidth(displayValue, maxValueWidth)
+      lines.push(`${prefix}${label}${truncatedValue}`)
+    }
+
+    return lines
   }
 }
