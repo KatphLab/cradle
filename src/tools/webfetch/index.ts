@@ -10,6 +10,7 @@ import {
 } from '../../utils/subagent-tool-helpers.js'
 import { createFirecrawlProvider } from './providers/firecrawl.js'
 import { nativeProvider } from './providers/native.js'
+import { createTavilyProvider } from './providers/tavily.js'
 import { renderWebFetchResult } from './render.js'
 import {
   ChainItem,
@@ -45,6 +46,10 @@ const MaxAgeSecondsParameter = Type.Optional(
 async function getProviders(): Promise<WebFetchProvider[]> {
   const globalSettings = await loadGlobalSettings()
   const providers: WebFetchProvider[] = []
+
+  if (globalSettings.tavilyApiKey) {
+    providers.push(createTavilyProvider(globalSettings.tavilyApiKey))
+  }
 
   if (globalSettings.firecrawlApiKey) {
     providers.push(createFirecrawlProvider(globalSettings.firecrawlApiKey))

@@ -8,9 +8,11 @@ import type { WebSearchProvider } from '../types.js'
 
 const mocks = vi.hoisted(() => ({
   createFirecrawlSearchProvider: vi.fn(),
+  createTavilySearchProvider: vi.fn(),
   firecrawlSearch: vi.fn(),
   loadGlobalSettings: vi.fn(),
   runSingleAgent: vi.fn(),
+  tavilySearch: vi.fn(),
 }))
 
 vi.mock('../../../config/settings.js', () => ({
@@ -19,6 +21,10 @@ vi.mock('../../../config/settings.js', () => ({
 
 vi.mock('../providers/firecrawl.js', () => ({
   createFirecrawlSearchProvider: mocks.createFirecrawlSearchProvider,
+}))
+
+vi.mock('../providers/tavily.js', () => ({
+  createTavilySearchProvider: mocks.createTavilySearchProvider,
 }))
 
 vi.mock('../../../subagents/runner.js', () => ({
@@ -83,6 +89,14 @@ interface FacadeExecuteParameters {
 beforeEach(() => {
   vi.resetAllMocks()
   mocks.loadGlobalSettings.mockResolvedValue({})
+  mocks.createTavilySearchProvider.mockReturnValue({
+    name: 'tavily',
+    search: mocks.tavilySearch,
+  } satisfies WebSearchProvider)
+  mocks.createFirecrawlSearchProvider.mockReturnValue({
+    name: 'firecrawl',
+    search: mocks.firecrawlSearch,
+  } satisfies WebSearchProvider)
 })
 
 async function executeInternalSearch(parameters: InternalExecuteParameters) {
@@ -145,10 +159,6 @@ function getRunSingleAgentOptions(): RunSingleAgentOptions {
 describe('webSearchInternalTool', () => {
   it('performs a search and returns results', async () => {
     mocks.loadGlobalSettings.mockResolvedValue({ firecrawlApiKey: 'key' })
-    mocks.createFirecrawlSearchProvider.mockReturnValue({
-      name: 'firecrawl',
-      search: mocks.firecrawlSearch,
-    } satisfies WebSearchProvider)
     mocks.firecrawlSearch.mockResolvedValue({
       items: [
         {
@@ -178,12 +188,56 @@ describe('webSearchInternalTool', () => {
     })
   })
 
+  it('uses Tavily first when configured and falls back to Firecrawl', async () => {
+    mocks.loadGlobalSettings.mockResolvedValue({
+      tavilyApiKey: 'tvly-key',
+      firecrawlApiKey: 'fc-key',
+    })
+    mocks.tavilySearch.mockRejectedValue(new Error('tavily down'))
+    mocks.firecrawlSearch.mockResolvedValue({
+      items: [
+        {
+          title: 'Fallback',
+          description: 'Fallback result',
+          url: 'https://fallback.com',
+        },
+      ],
+    })
+
+    const result = await executeInternalSearch({ query: 'test' })
+
+    expect(mocks.tavilySearch).toHaveBeenCalledWith(
+      expect.objectContaining({ query: 'test' }),
+      undefined,
+    )
+    expect(firstText(result)).toContain('Fallback')
+    expect(result.details?.provider).toBe('firecrawl')
+  })
+
+  it('uses Tavily when only tavilyApiKey is configured', async () => {
+    mocks.loadGlobalSettings.mockResolvedValue({ tavilyApiKey: 'tvly-key' })
+    mocks.tavilySearch.mockResolvedValue({
+      items: [
+        {
+          title: 'Tavily Result',
+          description: 'From Tavily',
+          url: 'https://tavily.com',
+        },
+      ],
+    })
+
+    const result = await executeInternalSearch({ query: 'test' })
+
+    expect(firstText(result)).toContain('Tavily Result')
+    expect(result.details?.provider).toBe('tavily')
+  })
+
   it('throws when all providers fail', async () => {
-    mocks.loadGlobalSettings.mockResolvedValue({ firecrawlApiKey: 'key' })
-    mocks.createFirecrawlSearchProvider.mockReturnValue({
-      name: 'firecrawl',
-      search: mocks.firecrawlSearch,
-    } satisfies WebSearchProvider)
+    mocks.loadGlobalSettings.mockResolvedValue({
+      tavilyApiKey: 'tvly-key',
+      firecrawlApiKey: 'key',
+    })
+    mocks.tavilySearch.mockRejectedValue(new Error('tavily down'))
     mocks.firecrawlSearch.mockRejectedValue(new Error('search down'))
 
     const result = await executeInternalSearch({ query: 'test' })
@@ -192,12 +246,11 @@ describe('webSearchInternalTool', () => {
   })
 
   it('passes optional parameters to provider', async () => {
-    mocks.loadGlobalSettings.mockResolvedValue({ firecrawlApiKey: 'key' })
-    mocks.createFirecrawlSearchProvider.mockReturnValue({
-      name: 'firecrawl',
-      search: mocks.firecrawlSearch,
-    } satisfies WebSearchProvider)
-    mocks.firecrawlSearch.mockResolvedValue({ items: [] })
+    mocks.loadGlobalSettings.mockResolvedValue({
+      tavilyApiKey: 'tvly-key',
+      firecrawlApiKey: 'key',
+    })
+    mocks.tavilySearch.mockResolvedValue({ items: [] })
 
     await executeInternalSearch({
       query: 'test',
@@ -207,7 +260,7 @@ describe('webSearchInternalTool', () => {
       country: 'DE',
     })
 
-    expect(mocks.firecrawlSearch).toHaveBeenCalledWith(
+    expect(mocks.tavilySearch).toHaveBeenCalledWith(
       {
         query: 'test',
         limit: 5,

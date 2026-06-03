@@ -10,10 +10,12 @@ import { ensureCacheDirectoryPath } from '../utilities.js'
 
 const mocks = vi.hoisted(() => ({
   createFirecrawlProvider: vi.fn(),
+  createTavilyProvider: vi.fn(),
   firecrawlFetch: vi.fn(),
   loadGlobalSettings: vi.fn(),
   nativeFetch: vi.fn(),
   runSingleAgent: vi.fn(),
+  tavilyFetch: vi.fn(),
 }))
 
 vi.mock('../../../config/settings.js', () => ({
@@ -22,6 +24,10 @@ vi.mock('../../../config/settings.js', () => ({
 
 vi.mock('../providers/firecrawl.js', () => ({
   createFirecrawlProvider: mocks.createFirecrawlProvider,
+}))
+
+vi.mock('../providers/tavily.js', () => ({
+  createTavilyProvider: mocks.createTavilyProvider,
 }))
 
 vi.mock('../providers/native.js', () => ({
@@ -88,6 +94,10 @@ beforeEach(async () => {
   mocks.createFirecrawlProvider.mockReturnValue({
     name: 'firecrawl',
     fetch: mocks.firecrawlFetch,
+  } satisfies WebFetchProvider)
+  mocks.createTavilyProvider.mockReturnValue({
+    name: 'tavily',
+    fetch: mocks.tavilyFetch,
   } satisfies WebFetchProvider)
   cacheDirectory = await ensureCacheDirectoryPath()
 })
@@ -304,6 +314,46 @@ describe('webFetchInternalTool', () => {
     )
     expect(result.details).toBeUndefined()
     expect(mocks.nativeFetch).toHaveBeenCalledOnce()
+  })
+
+  it('uses Tavily first when configured and falls back to native fetch', async () => {
+    mocks.loadGlobalSettings.mockResolvedValue({ tavilyApiKey: 'tvly-key' })
+    mocks.tavilyFetch.mockRejectedValue(new Error('tavily down'))
+    mocks.nativeFetch.mockResolvedValue({
+      content: 'native content',
+      contentType: 'text/plain',
+      status: 200,
+    })
+
+    const result = await executeInternalFetch({ url: 'https://example.com' })
+
+    expect(mocks.createTavilyProvider).toHaveBeenCalledWith('tvly-key')
+    expect(mocks.tavilyFetch).toHaveBeenCalledWith(
+      'https://example.com',
+      undefined,
+    )
+    expect(result.details?.items[0]?.provider).toBe('native')
+  })
+
+  it('uses Tavily before Firecrawl when both are configured', async () => {
+    mocks.loadGlobalSettings.mockResolvedValue({
+      tavilyApiKey: 'tvly-key',
+      firecrawlApiKey: 'fc-key',
+    })
+    mocks.tavilyFetch.mockRejectedValue(new Error('tavily down'))
+    mocks.firecrawlFetch.mockResolvedValue({
+      content: 'firecrawl content',
+      contentType: 'text/plain',
+      status: 200,
+    })
+
+    const result = await executeInternalFetch({ url: 'https://example.com' })
+
+    expect(mocks.tavilyFetch).toHaveBeenCalledWith(
+      'https://example.com',
+      undefined,
+    )
+    expect(result.details?.items[0]?.provider).toBe('firecrawl')
   })
 
   it('uses Firecrawl first when configured and falls back to native fetch', async () => {
