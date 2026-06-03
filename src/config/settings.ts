@@ -219,7 +219,11 @@ function getEarendilWorksDirectories(): string[] {
 }
 
 function getDefaultReadDirectories(): string[] {
-  return [path.join(homedir(), '.agents'), path.join(homedir(), '.pi')]
+  return [
+    path.join(homedir(), '.agents'),
+    path.join(homedir(), '.pi'),
+    path.join(homedir(), '.cache', 'cradle'),
+  ]
 }
 
 function isPathInDirectory(filePath: string, directory: string): boolean {
