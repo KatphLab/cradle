@@ -1,6 +1,7 @@
 import { isRecord } from '../../../utils/helpers.js'
 import { handleTavilyError } from '../../../utils/tavily.js'
 import type { WebSearchProvider, WebSearchResponse } from '../types.js'
+import { fetchPostJson } from './helpers.js'
 
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search'
 
@@ -65,21 +66,13 @@ export function createTavilySearchProvider(apiKey: string): WebSearchProvider {
     async search(parameters, signal): Promise<WebSearchResponse> {
       const body = buildSearchBody(parameters)
 
-      const response = await fetch(TAVILY_SEARCH_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        ...(signal !== undefined && { signal }),
-      })
-
-      if (!response.ok) {
-        await handleTavilyError(response)
-      }
-
-      const json = await response.json()
+      const json = await fetchPostJson(
+        TAVILY_SEARCH_URL,
+        apiKey,
+        body,
+        handleTavilyError,
+        signal,
+      )
       const results = extractResults(json)
 
       return {
