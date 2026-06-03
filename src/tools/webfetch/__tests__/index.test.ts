@@ -9,8 +9,10 @@ import type { WebFetchProvider } from '../types.js'
 import { ensureCacheDirectoryPath } from '../utilities.js'
 
 const mocks = vi.hoisted(() => ({
+  createExaProvider: vi.fn(),
   createFirecrawlProvider: vi.fn(),
   createTavilyProvider: vi.fn(),
+  exaFetch: vi.fn(),
   firecrawlFetch: vi.fn(),
   loadGlobalSettings: vi.fn(),
   nativeFetch: vi.fn(),
@@ -28,6 +30,10 @@ vi.mock('../providers/firecrawl.js', () => ({
 
 vi.mock('../providers/tavily.js', () => ({
   createTavilyProvider: mocks.createTavilyProvider,
+}))
+
+vi.mock('../providers/exa.js', () => ({
+  createExaProvider: mocks.createExaProvider,
 }))
 
 vi.mock('../providers/native.js', () => ({
@@ -98,6 +104,10 @@ beforeEach(async () => {
   mocks.createTavilyProvider.mockReturnValue({
     name: 'tavily',
     fetch: mocks.tavilyFetch,
+  } satisfies WebFetchProvider)
+  mocks.createExaProvider.mockReturnValue({
+    name: 'exa',
+    fetch: mocks.exaFetch,
   } satisfies WebFetchProvider)
   cacheDirectory = await ensureCacheDirectoryPath()
 })

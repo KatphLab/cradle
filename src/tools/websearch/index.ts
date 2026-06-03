@@ -7,6 +7,7 @@ import {
   buildSubagentResult,
   executeToolSubagent,
 } from '../../utils/subagent-tool-helpers.js'
+import { createExaSearchProvider } from './providers/exa.js'
 import { createFirecrawlSearchProvider } from './providers/firecrawl.js'
 import { createTavilySearchProvider } from './providers/tavily.js'
 import { renderWebSearchResult } from './render.js'
@@ -32,6 +33,10 @@ async function getProviders(): Promise<WebSearchProvider[]> {
     providers.push(
       createFirecrawlSearchProvider(globalSettings.firecrawlApiKey),
     )
+  }
+
+  if (globalSettings.exaApiKey) {
+    providers.push(createExaSearchProvider(globalSettings.exaApiKey))
   }
 
   return providers
@@ -113,7 +118,7 @@ export const webSearchInternalTool = defineTool({
     const providers = await getProviders()
     if (providers.length === 0) {
       return searchToolError(
-        'No web search provider configured. Set tavilyApiKey or firecrawlApiKey in global settings.',
+        'No web search provider configured. Set tavilyApiKey, firecrawlApiKey, or exaApiKey in global settings.',
       )
     }
 

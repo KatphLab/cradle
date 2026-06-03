@@ -7,8 +7,10 @@ import type * as SubagentUtilities from '../../../subagents/utilities.js'
 import type { WebSearchProvider } from '../types.js'
 
 const mocks = vi.hoisted(() => ({
+  createExaSearchProvider: vi.fn(),
   createFirecrawlSearchProvider: vi.fn(),
   createTavilySearchProvider: vi.fn(),
+  exaSearch: vi.fn(),
   firecrawlSearch: vi.fn(),
   loadGlobalSettings: vi.fn(),
   runSingleAgent: vi.fn(),
@@ -25,6 +27,10 @@ vi.mock('../providers/firecrawl.js', () => ({
 
 vi.mock('../providers/tavily.js', () => ({
   createTavilySearchProvider: mocks.createTavilySearchProvider,
+}))
+
+vi.mock('../providers/exa.js', () => ({
+  createExaSearchProvider: mocks.createExaSearchProvider,
 }))
 
 vi.mock('../../../subagents/runner.js', () => ({
@@ -96,6 +102,10 @@ beforeEach(() => {
   mocks.createFirecrawlSearchProvider.mockReturnValue({
     name: 'firecrawl',
     search: mocks.firecrawlSearch,
+  } satisfies WebSearchProvider)
+  mocks.createExaSearchProvider.mockReturnValue({
+    name: 'exa',
+    search: mocks.exaSearch,
   } satisfies WebSearchProvider)
 })
 

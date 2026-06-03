@@ -35,6 +35,7 @@ export interface GlobalSettings {
   advisorModel?: string
   firecrawlApiKey?: string
   tavilyApiKey?: string
+  exaApiKey?: string
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -82,6 +83,11 @@ function normalizeFirecrawlApiKey(raw: unknown): string | undefined {
 }
 
 function normalizeTavilyApiKey(raw: unknown): string | undefined {
+  if (typeof raw === 'string' && raw.length > 0) return raw
+  return undefined
+}
+
+function normalizeExaApiKey(raw: unknown): string | undefined {
   if (typeof raw === 'string' && raw.length > 0) return raw
   return undefined
 }
@@ -157,6 +163,7 @@ function normalizeGlobalSettings(value: unknown): GlobalSettings {
 
   const firecrawlApiKey = normalizeFirecrawlApiKey(value['firecrawlApiKey'])
   const tavilyApiKey = normalizeTavilyApiKey(value['tavilyApiKey'])
+  const exaApiKey = normalizeExaApiKey(value['exaApiKey'])
 
   return {
     ...(reminderTokenThreshold !== undefined && { reminderTokenThreshold }),
@@ -164,6 +171,7 @@ function normalizeGlobalSettings(value: unknown): GlobalSettings {
     ...(advisorModel !== undefined && { advisorModel }),
     ...(firecrawlApiKey !== undefined && { firecrawlApiKey }),
     ...(tavilyApiKey !== undefined && { tavilyApiKey }),
+    ...(exaApiKey !== undefined && { exaApiKey }),
   }
 }
 

@@ -8,6 +8,7 @@ import {
   buildSubagentResult,
   executeToolSubagent,
 } from '../../utils/subagent-tool-helpers.js'
+import { createExaProvider } from './providers/exa.js'
 import { createFirecrawlProvider } from './providers/firecrawl.js'
 import { nativeProvider } from './providers/native.js'
 import { createTavilyProvider } from './providers/tavily.js'
@@ -53,6 +54,10 @@ async function getProviders(): Promise<WebFetchProvider[]> {
 
   if (globalSettings.firecrawlApiKey) {
     providers.push(createFirecrawlProvider(globalSettings.firecrawlApiKey))
+  }
+
+  if (globalSettings.exaApiKey) {
+    providers.push(createExaProvider(globalSettings.exaApiKey))
   }
 
   providers.push(nativeProvider)
