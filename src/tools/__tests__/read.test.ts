@@ -1,5 +1,5 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -27,7 +27,7 @@ let deniedFile: string
 beforeAll(async () => {
   tempRoot = await mkdtemp(path.join(tmpdir(), 'pi-read-test-'))
   extraRoot = await mkdtemp(path.join(tmpdir(), 'pi-read-extra-'))
-  deniedRoot = await mkdtemp(path.join(tmpdir(), 'pi-read-denied-'))
+  deniedRoot = await mkdtemp(path.join(homedir(), 'pi-read-denied-'))
   extraFile = path.join(extraRoot, 'extra.txt')
   deniedFile = path.join(deniedRoot, 'denied.txt')
 

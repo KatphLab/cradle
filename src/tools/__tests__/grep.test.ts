@@ -1,5 +1,5 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -40,7 +40,7 @@ let searchFile: string
 
 beforeAll(async () => {
   tempRoot = await mkdtemp(path.join(tmpdir(), 'pi-grep-test-'))
-  deniedRoot = await mkdtemp(path.join(tmpdir(), 'pi-grep-denied-'))
+  deniedRoot = await mkdtemp(path.join(homedir(), 'pi-grep-denied-'))
   searchFile = path.join(tempRoot, 'search.txt')
 
   await writeFile(searchFile, 'hello world\nfoo bar\nhello again')

@@ -1,5 +1,5 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -45,7 +45,7 @@ let globDirectory: string
 
 beforeAll(async () => {
   tempRoot = await mkdtemp(path.join(tmpdir(), 'pi-glob-test-'))
-  deniedRoot = await mkdtemp(path.join(tmpdir(), 'pi-glob-denied-'))
+  deniedRoot = await mkdtemp(path.join(homedir(), 'pi-glob-denied-'))
   globDirectory = path.join(tempRoot, 'glob-me')
 
   await mkdir(globDirectory, { recursive: true })

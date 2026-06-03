@@ -12,15 +12,19 @@ function buildItemLine(item: WebFetchDetails['items'][number]): string {
   return `${item.url} → ${item.filePath} (${String(item.status)} ${item.contentType}, ${formatSize(item.size)})`
 }
 
+function buildHeader(itemCount: number, theme: ThemeLike): string {
+  const urlCount = String(itemCount)
+  const plural = itemCount === 1 ? '' : 's'
+  const headerTitle = theme.fg('toolTitle', theme.bold('web_fetch '))
+  const headerCount = theme.fg('accent', `${urlCount} URL${plural} fetched`)
+  return `${headerTitle}${headerCount}`
+}
+
 function renderCollapsedResult(
   details: WebFetchDetails,
   theme: ThemeLike,
 ): Text {
-  const urlCount = String(details.items.length)
-  const plural = details.items.length === 1 ? '' : 's'
-  const headerTitle = theme.fg('toolTitle', theme.bold('web_fetch '))
-  const headerCount = theme.fg('accent', `${urlCount} URL${plural} fetched`)
-  const header = `${headerTitle}${headerCount}`
+  const header = buildHeader(details.items.length, theme)
 
   const shown = details.items.slice(0, COLLAPSED_ITEM_LIMIT)
   const lines = shown.map((item) => {
@@ -42,11 +46,7 @@ function renderExpandedResult(
   details: WebFetchDetails,
   theme: ThemeLike,
 ): Text {
-  const urlCount = String(details.items.length)
-  const plural = details.items.length === 1 ? '' : 's'
-  const headerTitle = theme.fg('toolTitle', theme.bold('web_fetch '))
-  const headerCount = theme.fg('accent', `${urlCount} URL${plural} fetched`)
-  const header = `${headerTitle}${headerCount}`
+  const header = buildHeader(details.items.length, theme)
   const separator = theme.fg('dim', '─'.repeat(40))
   const lines = details.items.map((item) => {
     return `  ${separator}\n  ${buildItemLine(item)}`
