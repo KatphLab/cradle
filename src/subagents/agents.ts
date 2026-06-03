@@ -1,9 +1,10 @@
 import * as fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { getAgentDir } from '@earendil-works/pi-coding-agent'
 
-import type { AgentConfig, AgentDiscoveryResult, AgentScope } from './types.js'
+import type { AgentConfig, AgentDiscoveryResult, AgentSource } from './types.js'
 import { validateAgent } from './validate.js'
 
 function readDirectoryEntries(directory: string): fs.Dirent[] {
@@ -19,7 +20,7 @@ function readDirectoryEntries(directory: string): fs.Dirent[] {
 
 function loadAgentFromFile(
   filePath: string,
-  source: 'user' | 'project',
+  source: AgentSource,
 ): AgentConfig | undefined {
   let content: string
   try {
@@ -28,7 +29,7 @@ function loadAgentFromFile(
     return undefined
   }
 
-  const validation = validateAgent(content)
+  const validation = validateAgent(content, source)
   if (!validation.valid) {
     const errors = validation.errors.join('; ')
     console.warn(`Skipping agent ${filePath}: ${errors}`)
@@ -44,7 +45,7 @@ function loadAgentFromFile(
 
 function loadAgentsFromDirectory(
   directory: string,
-  source: 'user' | 'project',
+  source: AgentSource,
 ): AgentConfig[] {
   const agents: AgentConfig[] = []
   const entries = readDirectoryEntries(directory)
@@ -92,30 +93,32 @@ function mergeAgentsIntoMap(
   }
 }
 
-export function discoverAgents(
-  cwd: string,
-  scope: AgentScope,
-): AgentDiscoveryResult {
+const extensionAgentsDirectory = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'agents',
+)
+
+export function discoverAgents(cwd: string): AgentDiscoveryResult {
   const userDirectory = path.join(getAgentDir(), 'agents')
   const projectAgentsDirectory = findNearestProjectAgentsDirectory(cwd)
 
-  const userAgents =
-    scope === 'project' ? [] : loadAgentsFromDirectory(userDirectory, 'user')
+  const userAgents = loadAgentsFromDirectory(userDirectory, 'user')
   const projectAgents =
-    scope === 'user' || !projectAgentsDirectory
+    projectAgentsDirectory === undefined
       ? []
       : loadAgentsFromDirectory(projectAgentsDirectory, 'project')
+  const extensionAgents = loadAgentsFromDirectory(
+    extensionAgentsDirectory,
+    'extension',
+  )
 
   const agentMap = new Map<string, AgentConfig>()
 
-  if (scope === 'both') {
-    mergeAgentsIntoMap(agentMap, userAgents)
-    mergeAgentsIntoMap(agentMap, projectAgents)
-  } else if (scope === 'user') {
-    mergeAgentsIntoMap(agentMap, userAgents)
-  } else {
-    mergeAgentsIntoMap(agentMap, projectAgents)
-  }
+  // Priority: project > user > extension
+  mergeAgentsIntoMap(agentMap, extensionAgents)
+  mergeAgentsIntoMap(agentMap, userAgents)
+  mergeAgentsIntoMap(agentMap, projectAgents)
 
   return {
     agents: [...agentMap.values()],

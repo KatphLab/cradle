@@ -4,26 +4,31 @@ import {
   type ExtensionAPI,
 } from '@earendil-works/pi-coding-agent'
 
-import { loadCradleSettings, type CradleSettings } from '../config/settings.js'
+import {
+  DEFAULT_REMINDER_TOKEN_THRESHOLD,
+  loadGlobalSettings,
+  type GlobalSettings,
+} from '../config/settings.js'
 import { formatTodoReminder, reconstructTodos } from '../utils/todo-state.js'
 
 const SYSTEM_REMINDER_TYPE = 'cradle-system-reminder'
 const SYSTEM_REMINDER_TOKEN_LIMIT = 500
-const DEFAULT_REMINDER_INTERVAL = 3
 
 const SYSTEM_REMINDER_TAG_PATTERN =
   /<system-reminder>([\s\S]*?)<\/system-reminder>/g
 
 /** @public */
 export function registerSystemReminderHook(pi: Pick<ExtensionAPI, 'on'>): void {
-  let cachedSettings: CradleSettings = {}
+  let cachedSettings: GlobalSettings = {}
   let cachedReminder: string | undefined = undefined
-  let eventsSinceLastInjection = 0
+  let lastInjectedPayload: string | undefined = undefined
+  let lastInjectedNonReminderTokens = 0
 
-  pi.on('session_start', async (_event, _context) => {
-    eventsSinceLastInjection = 0
+  pi.on('session_start', async (_event) => {
     cachedReminder = undefined
-    cachedSettings = await loadCradleSettings(_context.cwd)
+    lastInjectedPayload = undefined
+    lastInjectedNonReminderTokens = 0
+    cachedSettings = await loadGlobalSettings()
   })
 
   pi.on('before_agent_start', (event, context) => {
@@ -42,48 +47,36 @@ export function registerSystemReminderHook(pi: Pick<ExtensionAPI, 'on'>): void {
     return { systemPrompt: extracted.systemPrompt }
   })
 
-  pi.on('context', (event, _context) => {
+  pi.on('context', (event) => {
     const messages = event.messages.filter(
       (message) => !isSystemReminder(message),
     )
 
-    const interval =
-      cachedSettings.reminderInterval ?? DEFAULT_REMINDER_INTERVAL
-    const lastRole = getLastNonReminderMessageRole(event.messages)
-    const isUserTurn = lastRole === 'user'
-
-    if (isUserTurn) {
-      eventsSinceLastInjection = 0
-    } else {
-      eventsSinceLastInjection++
-    }
-
-    if (!isUserTurn && eventsSinceLastInjection < interval) {
+    const payload = buildReminderPayload(cachedReminder, event.messages)
+    if (payload === undefined) {
+      lastInjectedPayload = undefined
+      lastInjectedNonReminderTokens = countMessagesTokens(messages)
       return { messages }
     }
 
-    eventsSinceLastInjection = 0
+    const currentNonReminderTokens = countMessagesTokens(messages)
+    const tokenDistance =
+      currentNonReminderTokens - lastInjectedNonReminderTokens
+    const reminderTokenThreshold =
+      cachedSettings.reminderTokenThreshold ?? DEFAULT_REMINDER_TOKEN_THRESHOLD
+    const payloadChanged = payload !== lastInjectedPayload
+    const contextAppearsTruncated = tokenDistance < 0
+    const thresholdReached = tokenDistance >= reminderTokenThreshold
 
-    const parts: string[] = []
-
-    // Cached reminder from system prompt
-    if (cachedReminder) {
-      parts.push(cachedReminder)
-    }
-
-    // Active task list reminder
-    const currentTodos = reconstructTodos(event.messages)
-    const hasActiveTodos = currentTodos.some((t) => t.status !== 'completed')
-    if (hasActiveTodos) {
-      parts.push(formatTodoReminder(currentTodos))
-    }
-
-    if (parts.length === 0) {
+    if (!payloadChanged && !contextAppearsTruncated && !thresholdReached) {
       return { messages }
     }
+
+    lastInjectedPayload = payload
+    lastInjectedNonReminderTokens = currentNonReminderTokens
 
     return {
-      messages: [...messages, createSystemReminderMessage(parts.join('\n\n'))],
+      messages: [...messages, createSystemReminderMessage(payload)],
     }
   })
 }
@@ -112,6 +105,35 @@ function extractSystemReminder(
   return { reminder, systemPrompt: cleanedSystemPrompt }
 }
 
+function buildReminderPayload(
+  cachedReminder: string | undefined,
+  messages: AgentMessage[],
+): string | undefined {
+  const parts: string[] = []
+
+  if (cachedReminder) {
+    parts.push(cachedReminder)
+  }
+
+  const currentTodos = reconstructTodos(messages)
+  const hasActiveTodos = currentTodos.some(
+    (todo) => todo.status !== 'completed',
+  )
+  if (hasActiveTodos) {
+    parts.push(formatTodoReminder(currentTodos))
+  }
+
+  if (parts.length === 0) {
+    return undefined
+  }
+
+  return parts.join('\n\n')
+}
+
+function countMessagesTokens(messages: AgentMessage[]): number {
+  return messages.reduce((total, message) => total + estimateTokens(message), 0)
+}
+
 function countSystemReminderTokens(reminder: string): number {
   return estimateTokens({
     role: 'custom',
@@ -130,18 +152,6 @@ function createSystemReminderMessage(reminder: string): AgentMessage {
     display: false,
     timestamp: Date.now(),
   }
-}
-
-function getLastNonReminderMessageRole(
-  messages: AgentMessage[],
-): string | undefined {
-  for (let index = messages.length - 1; index >= 0; index--) {
-    const message = messages[index]
-    if (message !== undefined && !isSystemReminder(message)) {
-      return message.role
-    }
-  }
-  return undefined
 }
 
 function isSystemReminder(message: AgentMessage): boolean {

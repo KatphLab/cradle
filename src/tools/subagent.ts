@@ -1,22 +1,22 @@
 import { defineTool } from '@earendil-works/pi-coding-agent'
 import { discoverAgents } from '../subagents/agents.js'
-import type { AgentConfig, AgentScope } from '../subagents/types.js'
+import type { AgentConfig } from '../subagents/types.js'
 import {
-  buildNoModeResponse,
-  buildValidationErrorResponse,
   handleChainMode,
   handleParallelMode,
   handleSingleMode,
   makeDetailsFactory,
   SubagentParameters,
-  validateModeCount,
   type MakeDetails,
   type SubagentParametersType,
   type ToolContext,
   type ToolResult,
   type UpdateCallback,
-} from './subagent-modes.js'
-import { buildRenderCall, buildRenderResult } from './subagent-render.js'
+} from './subagent/subagent-modes.js'
+import {
+  buildRenderCall,
+  buildRenderResult,
+} from './subagent/subagent-render.js'
 
 async function dispatchByMode(
   parameters: SubagentParametersType,
@@ -26,7 +26,7 @@ async function dispatchByMode(
   onUpdate: UpdateCallback | undefined,
   makeDetails: MakeDetails,
 ): Promise<ToolResult> {
-  if (parameters.chain && parameters.chain.length > 0) {
+  if ('chain' in parameters) {
     return handleChainMode(
       parameters,
       context,
@@ -36,7 +36,7 @@ async function dispatchByMode(
       makeDetails,
     )
   }
-  if (parameters.tasks && parameters.tasks.length > 0) {
+  if ('tasks' in parameters) {
     return handleParallelMode(
       parameters,
       context,
@@ -46,17 +46,14 @@ async function dispatchByMode(
       makeDetails,
     )
   }
-  if (parameters.agent && parameters.task) {
-    return handleSingleMode(
-      parameters,
-      context,
-      agents,
-      signal,
-      onUpdate,
-      makeDetails,
-    )
-  }
-  return buildNoModeResponse(agents, makeDetails)
+  return handleSingleMode(
+    parameters,
+    context,
+    agents,
+    signal,
+    onUpdate,
+    makeDetails,
+  )
 }
 
 /** @public */
@@ -66,25 +63,20 @@ export const subagentTool = defineTool({
   description: [
     'Delegate tasks to specialized subagents with isolated context.',
     'Modes: single (agent + task), parallel (tasks array), chain (sequential with {previous} placeholder).',
-    'Default agent scope is "user" (from ~/.pi/agent/agents).',
-    'To enable project-local agents in .pi/agents, set agentScope: "both" (or "project").',
   ].join(' '),
   parameters: SubagentParameters,
 
-  async execute(_toolCallId, parameters, signal, onUpdate, context) {
-    const agentScope: AgentScope = parameters.agentScope ?? 'user'
-    const discovery = discoverAgents(context.cwd, agentScope)
+  async execute(
+    _toolCallId,
+    parameters: SubagentParametersType,
+    signal,
+    onUpdate,
+    context,
+  ) {
+    const discovery = discoverAgents(context.cwd)
     const agents = discovery.agents
 
-    const makeDetails = makeDetailsFactory(
-      agentScope,
-      discovery.projectAgentsDir,
-    )
-
-    const validationError = validateModeCount(parameters)
-    if (validationError) {
-      return buildValidationErrorResponse(validationError, agents, makeDetails)
-    }
+    const makeDetails = makeDetailsFactory(discovery.projectAgentsDir)
 
     return dispatchByMode(
       parameters,
@@ -96,11 +88,11 @@ export const subagentTool = defineTool({
     )
   },
 
-  renderCall(args, theme, _context) {
+  renderCall(args, theme) {
     return buildRenderCall(args, theme)
   },
 
-  renderResult(result, { expanded }, theme, _context) {
+  renderResult(result, { expanded }, theme) {
     return buildRenderResult(result, expanded, theme)
   },
 })

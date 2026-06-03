@@ -189,7 +189,6 @@ export function makeOptions(
     makeDetails:
       overrides.makeDetails ??
       ((results: SingleResult[]): SubagentDetails => ({
-        agentScope: 'user',
         mode: 'single',
         projectAgentsDir: undefined,
         results,

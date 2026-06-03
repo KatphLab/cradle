@@ -8,16 +8,16 @@ import {
 } from '@earendil-works/pi-tui'
 import path from 'node:path'
 
-import type {
-  CradleSettings,
-  DirectoryPermission,
-  SubagentModels,
-} from '../config/settings.js'
 import {
-  DEFAULT_INTERVAL,
-  type EditorTheme,
-  PERMISSION_COLUMNS,
-} from './settings-constants.js'
+  DEFAULT_REMINDER_TOKEN_THRESHOLD,
+  MAX_REMINDER_TOKEN_THRESHOLD,
+  MIN_REMINDER_TOKEN_THRESHOLD,
+  type DirectoryPermission,
+  type GlobalSettings,
+  type ProjectSettings,
+  type SubagentModels,
+} from '../config/settings.js'
+import { PERMISSION_COLUMNS, type EditorTheme } from './settings-constants.js'
 import { SettingsRenderer } from './settings-renderer.js'
 import {
   formatDirectoryPath,
@@ -32,26 +32,35 @@ interface ModelOption {
 
 interface CradleSettingsResult {
   permissions: DirectoryPermission[]
-  reminderInterval: number
+  reminderTokenThreshold: number
   subagentModels: SubagentModels
+  advisorModel: string | undefined
+  firecrawlApiKey: string | undefined
 }
+
+const TOTAL_EXTRA_ROWS = 6 // token, 3x subagent, advisor, firecrawl key
 
 export class CradleSettingsEditor implements Component, Focusable {
   readonly rows: DirectoryPermission[]
   readonly cwd: string
   readonly theme: EditorTheme
   readonly dirInput: Input
-  readonly intervalInput: Input
+  readonly tokenThresholdInput: Input
   readonly subagentModels: SubagentModels
+  advisorModel: string | undefined
+  firecrawlApiKey: string | undefined
+  readonly firecrawlApiKeyInput: Input
   readonly modelDisplayNames: Map<string, string>
   selectedRow: number
   selectedCol: number
   suggestions: string[] = []
   suggestionIndex = -1
 
-  private readonly initialInterval: number
+  private readonly initialTokenThreshold: number
   private readonly availableModels: string[]
   private readonly initialSubagentModels: SubagentModels
+  private readonly initialAdvisorModel: string | undefined
+  private readonly initialFirecrawlApiKey: string | undefined
   private readonly renderer: SettingsRenderer
   private dirty = false
   private lastInputValue = ''
@@ -64,15 +73,14 @@ export class CradleSettingsEditor implements Component, Focusable {
   focused = false
 
   constructor(
-    initialSettings: CradleSettings,
+    projectSettings: ProjectSettings,
+    globalSettings: GlobalSettings,
     cwd: string,
     theme: EditorTheme,
     availableModels?: ModelOption[],
   ) {
-    this.rows = (initialSettings.permissions ?? []).map((row) => ({ ...row }))
     this.cwd = cwd
     this.theme = theme
-    this.initialInterval = initialSettings.reminderInterval ?? DEFAULT_INTERVAL
 
     const models = availableModels ?? []
     this.availableModels = models.map((m) => m.id)
@@ -80,18 +88,16 @@ export class CradleSettingsEditor implements Component, Focusable {
       models.map((m) => [m.id, `${m.provider}/${m.id}`]),
     )
 
-    const subagentModels: SubagentModels = {}
-    if (initialSettings.subagentModels?.low !== undefined) {
-      subagentModels.low = initialSettings.subagentModels.low
-    }
-    if (initialSettings.subagentModels?.medium !== undefined) {
-      subagentModels.medium = initialSettings.subagentModels.medium
-    }
-    if (initialSettings.subagentModels?.high !== undefined) {
-      subagentModels.high = initialSettings.subagentModels.high
-    }
-    this.subagentModels = subagentModels
-    this.initialSubagentModels = { ...this.subagentModels }
+    this.rows = (projectSettings.permissions ?? []).map((row) => ({ ...row }))
+    ;({
+      tokenThreshold: this.initialTokenThreshold,
+      subagentModels: this.subagentModels,
+      initialSubagentModels: this.initialSubagentModels,
+      advisorModel: this.advisorModel,
+      initialAdvisorModel: this.initialAdvisorModel,
+      firecrawlApiKey: this.firecrawlApiKey,
+      initialFirecrawlApiKey: this.initialFirecrawlApiKey,
+    } = this.initFromGlobal(globalSettings))
 
     this.dirInput = new Input()
     this.dirInput.onSubmit = () => {
@@ -99,8 +105,13 @@ export class CradleSettingsEditor implements Component, Focusable {
     }
     this.dirInput.onEscape = () => this.onCancel?.()
 
-    this.intervalInput = new Input()
-    this.intervalInput.setValue(String(this.initialInterval))
+    this.tokenThresholdInput = new Input()
+    this.tokenThresholdInput.setValue(String(this.initialTokenThreshold))
+
+    this.firecrawlApiKeyInput = new Input()
+    if (this.firecrawlApiKey) {
+      this.firecrawlApiKeyInput.setValue(this.firecrawlApiKey)
+    }
 
     this.selectedRow = this.rows.length
     this.selectedCol = 0
@@ -108,17 +119,56 @@ export class CradleSettingsEditor implements Component, Focusable {
     this.renderer = new SettingsRenderer(this)
   }
 
+  private initFromGlobal(globalSettings: GlobalSettings): {
+    tokenThreshold: number
+    subagentModels: SubagentModels
+    initialSubagentModels: SubagentModels
+    advisorModel: string | undefined
+    initialAdvisorModel: string | undefined
+    firecrawlApiKey: string | undefined
+    initialFirecrawlApiKey: string | undefined
+  } {
+    const tokenThreshold =
+      globalSettings.reminderTokenThreshold ?? DEFAULT_REMINDER_TOKEN_THRESHOLD
+
+    const subagentModels: SubagentModels = {}
+    if (globalSettings.subagentModels?.low !== undefined) {
+      subagentModels.low = globalSettings.subagentModels.low
+    }
+    if (globalSettings.subagentModels?.medium !== undefined) {
+      subagentModels.medium = globalSettings.subagentModels.medium
+    }
+    if (globalSettings.subagentModels?.high !== undefined) {
+      subagentModels.high = globalSettings.subagentModels.high
+    }
+
+    return {
+      tokenThreshold,
+      subagentModels,
+      initialSubagentModels: { ...subagentModels },
+      advisorModel: globalSettings.advisorModel,
+      initialAdvisorModel: globalSettings.advisorModel,
+      firecrawlApiKey: globalSettings.firecrawlApiKey,
+      initialFirecrawlApiKey: globalSettings.firecrawlApiKey,
+    }
+  }
+
   getRows(): DirectoryPermission[] {
     return this.rows.map((row) => ({ ...row }))
   }
 
-  getReminderInterval(): number {
-    const value = Number.parseInt(this.intervalInput.getValue())
-    return Number.isNaN(value) ? this.initialInterval : value
+  getReminderTokenThreshold(): number {
+    const value = Number.parseInt(this.tokenThresholdInput.getValue())
+    return Number.isNaN(value) ? this.initialTokenThreshold : value
   }
 
   getSubagentModels(): SubagentModels {
     return { ...this.subagentModels }
+  }
+
+  getFirecrawlApiKey(): string | undefined {
+    const value = this.firecrawlApiKeyInput.getValue().trim()
+    return value.length > 0 ? value : undefined
   }
 
   getSuggestions(): string[] {
@@ -137,18 +187,32 @@ export class CradleSettingsEditor implements Component, Focusable {
     return this.dirInput
   }
 
+  getFirecrawlApiKeyInput(): Input {
+    return this.firecrawlApiKeyInput
+  }
+
   getSelectList(): SelectList | undefined {
     return this.selectList
   }
 
   isDirty(): boolean {
-    const intervalChanged =
-      this.intervalInput.getValue() !== String(this.initialInterval)
+    const tokenThresholdChanged =
+      this.tokenThresholdInput.getValue() !== String(this.initialTokenThreshold)
     const modelsChanged =
       this.subagentModels.low !== this.initialSubagentModels.low ||
       this.subagentModels.medium !== this.initialSubagentModels.medium ||
       this.subagentModels.high !== this.initialSubagentModels.high
-    return this.dirty || intervalChanged || modelsChanged
+    const advisorChanged = this.advisorModel !== this.initialAdvisorModel
+    const firecrawlKeyChanged =
+      this.firecrawlApiKeyInput.getValue().trim() !==
+      (this.initialFirecrawlApiKey ?? '')
+    return (
+      this.dirty ||
+      tokenThresholdChanged ||
+      modelsChanged ||
+      advisorChanged ||
+      firecrawlKeyChanged
+    )
   }
 
   addCurrentInput(): void {
@@ -219,14 +283,19 @@ export class CradleSettingsEditor implements Component, Focusable {
 
   private tryHandleSave(data: string): boolean {
     if (matchesKey(data, Key.ctrl('s'))) {
-      const clampedInterval = Math.max(
-        1,
-        Math.min(20, this.getReminderInterval()),
+      const clampedTokenThreshold = Math.max(
+        MIN_REMINDER_TOKEN_THRESHOLD,
+        Math.min(
+          MAX_REMINDER_TOKEN_THRESHOLD,
+          this.getReminderTokenThreshold(),
+        ),
       )
       this.onSave?.({
         permissions: this.getRows(),
-        reminderInterval: clampedInterval,
+        reminderTokenThreshold: clampedTokenThreshold,
         subagentModels: this.getSubagentModels(),
+        advisorModel: this.advisorModel,
+        firecrawlApiKey: this.getFirecrawlApiKey(),
       })
       return true
     }
@@ -315,7 +384,8 @@ export class CradleSettingsEditor implements Component, Focusable {
   }
 
   private moveDown(): boolean {
-    if (this.selectedRow < this.rows.length + 4) {
+    const maxRow = this.rows.length + TOTAL_EXTRA_ROWS
+    if (this.selectedRow < maxRow) {
       this.selectedRow++
       const isNowOnDataRow = this.selectedRow < this.rows.length
       const isNowOnDirectoryInput = this.selectedRow === this.rows.length
@@ -372,11 +442,18 @@ export class CradleSettingsEditor implements Component, Focusable {
       this.tuiRequestRender?.()
       return true
     }
-    if (
-      this.selectedRow >= this.rows.length + 2 &&
-      this.selectedRow <= this.rows.length + 4
-    ) {
+    return this.tryHandleModelToggle()
+  }
+
+  private tryHandleModelToggle(): boolean {
+    const relativeRow = this.selectedRow - (this.rows.length + 2)
+    if (relativeRow >= 0 && relativeRow <= 2) {
       this.openModelSelect(this.getTierFromRow(this.selectedRow))
+      this.tuiRequestRender?.()
+      return true
+    }
+    if (relativeRow === 3) {
+      this.openAdvisorModelSelect()
       this.tuiRequestRender?.()
       return true
     }
@@ -391,7 +468,12 @@ export class CradleSettingsEditor implements Component, Focusable {
       return true
     }
     if (this.selectedRow === this.rows.length + 1) {
-      this.intervalInput.handleInput(data)
+      this.tokenThresholdInput.handleInput(data)
+      this.tuiRequestRender?.()
+      return true
+    }
+    if (this.selectedRow === this.rows.length + 6) {
+      this.firecrawlApiKeyInput.handleInput(data)
       this.tuiRequestRender?.()
       return true
     }
@@ -409,13 +491,34 @@ export class CradleSettingsEditor implements Component, Focusable {
   }
 
   private openModelSelect(tier: 'low' | 'medium' | 'high'): void {
+    this.createModelSelectList(
+      () => this.subagentModels[tier],
+      (value) => {
+        this.subagentModels[tier] = value
+      },
+    )
+  }
+
+  private openAdvisorModelSelect(): void {
+    this.createModelSelectList(
+      () => this.advisorModel,
+      (value) => {
+        this.advisorModel = value
+      },
+    )
+  }
+
+  private createModelSelectList(
+    getCurrentValue: () => string | undefined,
+    assignValue: (value: string) => void,
+  ): void {
     const items = this.availableModels.map((id) => ({
       value: id,
       label: this.modelDisplayNames.get(id) ?? id,
     }))
     if (items.length === 0) return
 
-    const currentValue = this.subagentModels[tier]
+    const currentValue = getCurrentValue()
     const currentIndex = currentValue
       ? this.availableModels.indexOf(currentValue)
       : -1
@@ -436,7 +539,7 @@ export class CradleSettingsEditor implements Component, Focusable {
 
     this.selectList.setSelectedIndex(Math.max(currentIndex, 0))
     this.selectList.onSelect = (item) => {
-      this.subagentModels[tier] = item.value
+      assignValue(item.value)
       this.dirty = true
       this.selectList = undefined
       this.tuiRequestRender?.()
@@ -449,6 +552,7 @@ export class CradleSettingsEditor implements Component, Focusable {
 
   invalidate(): void {
     this.dirInput.invalidate()
-    this.intervalInput.invalidate()
+    this.tokenThresholdInput.invalidate()
+    this.firecrawlApiKeyInput.invalidate()
   }
 }

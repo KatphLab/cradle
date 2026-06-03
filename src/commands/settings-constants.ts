@@ -12,8 +12,10 @@ export interface EditorState {
   readonly cwd: string
   readonly theme: EditorTheme
   readonly dirInput: Input
-  readonly intervalInput: Input
+  readonly tokenThresholdInput: Input
+  readonly firecrawlApiKeyInput: Input
   readonly subagentModels: SubagentModels
+  readonly advisorModel: string | undefined
   readonly modelDisplayNames: Map<string, string>
   readonly selectedRow: number
   readonly selectedCol: number
@@ -33,10 +35,11 @@ export const PERMISSION_LABELS: Record<PermissionColumn, string> = {
 }
 export const TOGGLE_WIDTH = 5
 export const GAP = 2
-export const INTERVAL_LABEL = 'System Reminder Interval (turns)'
-export const DEFAULT_INTERVAL = 3
+export const TOKEN_THRESHOLD_LABEL = 'System Reminder Token Threshold'
 export const TIER_LABELS: Record<'low' | 'medium' | 'high', string> = {
   low: 'Low Model',
   medium: 'Medium Model',
   high: 'High Model',
 }
+export const ADVISOR_MODEL_LABEL = 'Advisor Model'
+export const FIRECRAWL_API_KEY_LABEL = 'Firecrawl API Key'

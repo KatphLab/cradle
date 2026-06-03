@@ -6,7 +6,7 @@ import {
 import { glob, stat } from 'node:fs/promises'
 import path from 'node:path'
 
-import { resolveSearchPath } from '../utils/search-path.js'
+import { resolveSearchPath } from '../utils/helpers.js'
 import { optionalNumber, optionalString } from '../utils/typebox.js'
 
 /** @public */

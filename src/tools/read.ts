@@ -6,7 +6,7 @@ import {
 import path from 'node:path'
 
 import { assertPermission } from '../config/settings.js'
-import { normalizePath } from '../utils/path.js'
+import { normalizePath } from '../utils/helpers.js'
 import { optionalNumber } from '../utils/typebox.js'
 
 /** @public */

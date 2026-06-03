@@ -220,22 +220,70 @@ const eslintConfig = defineConfig([
         'error',
         {
           allowList: {
-            // TypeScript / runtime conventions
+            // React conventions
+            Props: true,
+            props: true,
+            Ref: true,
+            ref: true,
+            Refs: true,
+            refs: true,
+            params: true,
+            Params: true,
+            prev: true,
+            utils: true,
+            Utils: true,
+
+            // Common React/TS component naming
+            FC: true,
+            JSX: true,
+            CSS: true,
+            HTML: true,
+            SVG: true,
+            DOM: true,
+            UI: true,
+
+            // TypeScript / bundler conventions
             env: true,
             Env: true,
+            DB: true,
+            db: true,
+
+            // Common test/story conventions
             args: true,
             Args: true,
-            err: true,
+
+            // Common backend/API naming when used in React projects
+            req: true,
+            res: true,
+
+            // Common callback/helper naming
             fn: true,
             Fn: true,
+
+            // Error handling convention
+            err: true,
+
+            // Temporary values; allow only exact names
             temp: true,
+
+            // Custom
+            pageNum: true,
           },
 
           ignore: [
-            // Test files
+            // Files
+            /^vite-env\.d$/u,
+            /\.stories$/u,
             /\.test$/u,
             /\.spec$/u,
             /\.e2e$/u,
+
+            // React hook dependency naming patterns
+            /^set[A-Z]/u,
+
+            // Generic component prop type names
+            /Props$/u,
+            /Ref$/u,
           ],
 
           checkProperties: false,
@@ -253,6 +301,7 @@ const eslintConfig = defineConfig([
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/ban-ts-comment': 'off',
       'unicorn/no-null': 'off',
+      '@typescript-eslint/no-unsafe-type-assertion': 'off',
     },
   },
   {

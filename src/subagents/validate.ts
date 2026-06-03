@@ -1,6 +1,6 @@
 import { parseFrontmatter } from '@earendil-works/pi-coding-agent'
 
-import type { AgentConfig } from './types.js'
+import type { AgentConfig, AgentSource } from './types.js'
 
 export interface AgentValidationResult {
   valid: boolean
@@ -143,6 +143,11 @@ function addModelWarnings(model: string | undefined, warnings: string[]): void {
   if (model?.trim() === '') {
     warnings.push('Model is empty')
   }
+  if (model !== undefined) {
+    warnings.push(
+      'Model field in agent frontmatter is ignored; use complexity-based model selection via /cradle-settings',
+    )
+  }
 }
 
 function validateFrontmatter(
@@ -178,12 +183,13 @@ function validateFrontmatter(
 function buildAgentConfig(
   frontmatter: ValidatedFrontmatter,
   body: string,
+  source: AgentSource,
 ): AgentConfig {
   const agent: AgentConfig = {
     name: frontmatter.name,
     description: frontmatter.description,
     systemPrompt: body,
-    source: 'user',
+    source,
     filePath: '',
   }
 
@@ -198,7 +204,10 @@ function buildAgentConfig(
   return agent
 }
 
-export function validateAgent(content: string): AgentValidationResult {
+export function validateAgent(
+  content: string,
+  source: AgentSource,
+): AgentValidationResult {
   const parseResult = parseAgentContent(content)
   if (!parseResult.parsed) {
     return parseResult.result
@@ -210,6 +219,6 @@ export function validateAgent(content: string): AgentValidationResult {
     return { valid: false, errors, warnings }
   }
 
-  const agent = buildAgentConfig(validated, body)
+  const agent = buildAgentConfig(validated, body, source)
   return { valid: true, errors, warnings, agent }
 }

@@ -3,7 +3,7 @@ import {
   createGrepToolDefinition,
   defineTool,
 } from '@earendil-works/pi-coding-agent'
-import { resolveSearchPath } from '../utils/search-path.js'
+import { resolveSearchPath } from '../utils/helpers.js'
 import {
   optionalBoolean,
   optionalNumber,

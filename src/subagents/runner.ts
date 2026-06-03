@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import type { AgentToolResult } from '@earendil-works/pi-agent-core'
 import type { Message, Usage } from '@earendil-works/pi-ai'
 
-import type { CradleSettings } from '../config/settings.js'
+import type { GlobalSettings } from '../config/settings.js'
 import type {
   AgentConfig,
   SingleResult,
@@ -54,7 +54,7 @@ export interface RunSingleAgentOptions {
   onUpdate: OnUpdateCallback | undefined
   makeDetails: DetailsFactory
   complexity: TaskComplexity | undefined
-  settings: CradleSettings | undefined
+  settings: GlobalSettings | undefined
 }
 
 function createEmptyUsage(): UsageStats {
@@ -70,12 +70,11 @@ function createEmptyUsage(): UsageStats {
 }
 
 function resolveModel(
-  agent: AgentConfig,
   complexity: TaskComplexity | undefined,
-  settings: CradleSettings | undefined,
+  settings: GlobalSettings | undefined,
 ): string | undefined {
-  if (complexity === undefined) return agent.model
-  return agent.model ?? settings?.subagentModels?.[complexity]
+  if (complexity === undefined) return undefined
+  return settings?.subagentModels?.[complexity]
 }
 
 function buildPiArgs(
@@ -83,7 +82,13 @@ function buildPiArgs(
   task: string,
   resolvedModel: string | undefined,
 ): string[] {
-  const args: string[] = ['--mode', 'json', '-p', '--no-session']
+  const args: string[] = [
+    '--mode',
+    'json',
+    '-p',
+    '--no-session',
+    '--no-context-files',
+  ]
   if (resolvedModel) args.push('--model', resolvedModel)
   if (agent.tools && agent.tools.length > 0)
     args.push('--tools', agent.tools.join(','))
@@ -435,6 +440,7 @@ function runAgentProcess(options: ProcessRunOptions): Promise<number> {
       cwd: options.cwd,
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, CRADLE_SUBAGENT: '1' },
     })
 
     setupProcessEventHandlers(
@@ -461,11 +467,7 @@ export async function runSingleAgent(
     )
   }
 
-  const resolvedModel = resolveModel(
-    agent,
-    options.complexity,
-    options.settings,
-  )
+  const resolvedModel = resolveModel(options.complexity, options.settings)
   const args = buildPiArgs(agent, options.task, resolvedModel)
   const currentResult = createInitialResult(
     agent,

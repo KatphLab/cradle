@@ -6,7 +6,9 @@ import { registerStatsCommand } from './commands/stats.js'
 import { registerShellHook } from './hooks/shell.js'
 import { registerSpecModeHook } from './hooks/spec-mode.js'
 import { registerSystemReminderHook } from './hooks/system-reminder.js'
+import { advisorTool } from './tools/advisor.js'
 import { bashTool } from './tools/bash.js'
+import { discoverAgentsTool } from './tools/discover-agents.js'
 import { editTool } from './tools/edit.js'
 import { globTool } from './tools/glob.js'
 import { grepTool } from './tools/grep.js'
@@ -14,6 +16,11 @@ import { lsTool } from './tools/ls.js'
 import { readTool } from './tools/read.js'
 import { subagentTool } from './tools/subagent.js'
 import { todoTool } from './tools/todo.js'
+import { webFetchInternalTool, webFetchTool } from './tools/webfetch/index.js'
+import {
+  webSearchInternalTool,
+  webSearchTool,
+} from './tools/websearch/index.js'
 import { writeTool } from './tools/write.js'
 import { createSpecModeState } from './utils/spec-state.js'
 
@@ -38,7 +45,13 @@ export default function configureExtension(
   pi.registerTool(writeTool)
   pi.registerTool(bashTool)
   pi.registerTool(todoTool)
+  pi.registerTool(webFetchInternalTool)
+  pi.registerTool(webFetchTool)
+  pi.registerTool(webSearchInternalTool)
+  pi.registerTool(webSearchTool)
   pi.registerTool(subagentTool)
+  pi.registerTool(discoverAgentsTool)
+  pi.registerTool(advisorTool)
 
   const specModeState = createSpecModeState()
 

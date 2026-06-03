@@ -11,6 +11,7 @@ import {
   restoreSpecModeEnabled,
   type SpecModeState,
 } from '../utils/spec-state.js'
+import { filterMainAgentTools } from '../utils/tool.js'
 
 const MUTATION_TOOLS = new Set(['bash', 'edit', 'write'])
 
@@ -51,7 +52,11 @@ function restoreToolMode(
   context: ExtensionContext,
   state: SpecModeState,
 ): void {
-  pi.setActiveTools(state.isEnabled() ? SPEC_MODE_TOOLS : getAllToolNames(pi))
+  pi.setActiveTools(
+    state.isEnabled()
+      ? SPEC_MODE_TOOLS
+      : filterMainAgentTools(getAllToolNames(pi)),
+  )
   updateSpecStatus(context, state.isEnabled())
 }
 
