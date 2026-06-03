@@ -4,9 +4,10 @@ import { defineTool } from '@earendil-works/pi-coding-agent'
 
 import { loadGlobalSettings } from '../../config/settings.js'
 import { discoverAgents } from '../../subagents/agents.js'
-import { runSingleAgent } from '../../subagents/runner.js'
-import type { SingleResult } from '../../subagents/types.js'
-import { getFinalOutput, isFailedResult } from '../../subagents/utilities.js'
+import {
+  buildSubagentResult,
+  executeToolSubagent,
+} from '../../utils/subagent-tool-helpers.js'
 import { createFirecrawlProvider } from './providers/firecrawl.js'
 import { nativeProvider } from './providers/native.js'
 import { renderWebFetchResult } from './render.js'
@@ -312,27 +313,6 @@ export const webFetchInternalTool = defineTool({
   },
 })
 
-function getSubagentFailureText(result: SingleResult): string {
-  if (result.errorMessage) return result.errorMessage
-  if (result.stderr) return result.stderr
-  const output = getFinalOutput(result.messages)
-  if (output.length > 0) return output
-  return result.stopReason ?? 'error'
-}
-
-function buildSubagentResult(result: SingleResult): {
-  content: [TextContent]
-  details: undefined
-} {
-  const output = isFailedResult(result)
-    ? `Web fetch failed: ${getSubagentFailureText(result)}`
-    : getFinalOutput(result.messages)
-  return {
-    content: [{ type: 'text', text: output }],
-    details: undefined,
-  }
-}
-
 const WebFetchParameters = Type.Object({
   url: UrlParameter,
   question: Type.Optional(
@@ -382,24 +362,15 @@ export const webFetchTool = defineTool({
     const task = taskParts.join('\n')
 
     const settings = await loadGlobalSettings()
-    const result = await runSingleAgent({
-      defaultCwd: context.cwd,
-      agents: discovery.agents,
-      agentName: 'web-fetcher',
+    const result = await executeToolSubagent(
+      context,
+      discovery,
+      'web-fetcher',
       task,
-      cwd: undefined,
-      step: undefined,
-      signal,
-      onUpdate: undefined,
-      makeDetails: () => ({
-        mode: 'single' as const,
-        projectAgentsDir: discovery.projectAgentsDir,
-        results: [],
-      }),
-      complexity: 'low',
       settings,
-    })
+      signal,
+    )
 
-    return buildSubagentResult(result)
+    return buildSubagentResult(result, 'Web fetch')
   },
 })

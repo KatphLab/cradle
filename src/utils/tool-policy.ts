@@ -1,5 +1,8 @@
 const CRADLE_SUBAGENT_ENV = 'CRADLE_SUBAGENT'
-const HIDDEN_TOOLS = new Set<string>(['web_fetch_internal'])
+const HIDDEN_TOOLS = new Set<string>([
+  'web_fetch_internal',
+  'web_search_internal',
+])
 
 /** Check if the current process is running as a cradle subagent. */
 function isCradleSubagentProcess(): boolean {

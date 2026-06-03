@@ -1,12 +1,14 @@
 import type { AgentToolResult } from '@earendil-works/pi-agent-core'
-import { Text } from '@earendil-works/pi-tui'
+import type { Text } from '@earendil-works/pi-tui'
 
 import type { ThemeLike } from '../../utils/theme.js'
+import {
+  renderCollapsedLines,
+  renderExpandedLines,
+  renderToolError,
+} from '../../utils/tool-render.js'
 import type { WebFetchDetails } from './types.js'
 import { formatSize } from './utilities.js'
-
-const COLLAPSED_ITEM_LIMIT = 3
-const COLLAPSED_LINE_LIMIT = 80
 
 function buildItemLine(item: WebFetchDetails['items'][number]): string {
   const cacheLabel = item.cacheStatus === 'hit' ? ' (cached)' : ''
@@ -24,51 +26,6 @@ function buildHeader(itemCount: number, theme: ThemeLike): string {
   return `${headerTitle}${headerCount}`
 }
 
-function renderCollapsedResult(
-  details: WebFetchDetails,
-  theme: ThemeLike,
-): Text {
-  const header = buildHeader(details.items.length, theme)
-
-  const shown = details.items.slice(0, COLLAPSED_ITEM_LIMIT)
-  const lines = shown.map((item) => {
-    const text = buildItemLine(item)
-    const truncated =
-      text.length > COLLAPSED_LINE_LIMIT
-        ? `${text.slice(0, COLLAPSED_LINE_LIMIT)}...`
-        : text
-    return `  ${truncated}`
-  })
-  const remaining = details.items.length - COLLAPSED_ITEM_LIMIT
-  if (remaining > 0) {
-    lines.push(theme.fg('dim', `  ... +${String(remaining)} more`))
-  }
-  return new Text(`${header}\n${lines.join('\n')}`, 0, 0)
-}
-
-function renderExpandedResult(
-  details: WebFetchDetails,
-  theme: ThemeLike,
-): Text {
-  const header = buildHeader(details.items.length, theme)
-  const separator = theme.fg('dim', '─'.repeat(40))
-  const lines = details.items.map((item) => {
-    return `  ${separator}\n  ${buildItemLine(item)}`
-  })
-  return new Text(`${header}${lines.join('\n')}`, 0, 0)
-}
-
-function renderErrorResult(
-  result: AgentToolResult<WebFetchDetails | undefined>,
-): Text {
-  const textContent = result.content.find(
-    (c: { type: string }) => c.type === 'text',
-  )
-  const text =
-    textContent !== undefined && 'text' in textContent ? textContent.text : ''
-  return new Text(text, 0, 0)
-}
-
 /** @public */
 export function renderWebFetchResult(
   result: AgentToolResult<WebFetchDetails | undefined>,
@@ -77,10 +34,12 @@ export function renderWebFetchResult(
 ): Text {
   const details = result.details
   if (details === undefined) {
-    return renderErrorResult(result)
+    return renderToolError(result)
   }
+  const header = buildHeader(details.items.length, theme)
+  const lines = details.items.map((item) => buildItemLine(item))
   if (expanded) {
-    return renderExpandedResult(details, theme)
+    return renderExpandedLines(header, lines, theme)
   }
-  return renderCollapsedResult(details, theme)
+  return renderCollapsedLines(header, lines, theme)
 }
