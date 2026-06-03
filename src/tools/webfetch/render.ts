@@ -1,12 +1,12 @@
 import type { AgentToolResult } from '@earendil-works/pi-agent-core'
 import type { Text } from '@earendil-works/pi-tui'
 
-import type { ThemeLike } from '../../utils/theme.js'
+import type { ThemeLike } from '../../utils/helpers.js'
 import {
   renderCollapsedLines,
   renderExpandedLines,
   renderToolError,
-} from '../../utils/tool-render.js'
+} from '../../utils/tool.js'
 import type { WebFetchDetails } from './types.js'
 import { formatSize } from './utilities.js'
 

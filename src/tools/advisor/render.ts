@@ -1,7 +1,7 @@
 import type { AgentToolResult } from '@earendil-works/pi-agent-core'
 import { Text } from '@earendil-works/pi-tui'
 import { getFinalOutput } from '../../subagents/utilities.js'
-import type { ThemeLike } from '../../utils/theme.js'
+import type { ThemeLike } from '../../utils/helpers.js'
 import {
   isSubagentDetails,
   renderResultFallback,

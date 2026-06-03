@@ -1,4 +1,4 @@
-import { isRecord } from './is-record.js'
+import { isRecord } from './helpers.js'
 
 export function validateFirecrawlSuccess(
   body: unknown,

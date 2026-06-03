@@ -2,7 +2,7 @@ import {
   handleFirecrawlError,
   validateFirecrawlSuccess,
 } from '../../../utils/firecrawl.js'
-import { isRecord } from '../../../utils/is-record.js'
+import { isRecord } from '../../../utils/helpers.js'
 import type { WebSearchProvider, WebSearchResponse } from '../types.js'
 
 const FIRECRAWL_SEARCH_URL = 'https://api.firecrawl.dev/v2/search'

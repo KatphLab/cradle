@@ -11,7 +11,7 @@ import {
   restoreSpecModeEnabled,
   type SpecModeState,
 } from '../utils/spec-state.js'
-import { filterMainAgentTools } from '../utils/tool-policy.js'
+import { filterMainAgentTools } from '../utils/tool.js'
 
 const MUTATION_TOOLS = new Set(['bash', 'edit', 'write'])
 

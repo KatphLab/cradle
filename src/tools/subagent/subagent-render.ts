@@ -9,7 +9,7 @@ import {
   buildSingleResultExpanded,
 } from '../../subagents/render.js'
 import type { SubagentDetails } from '../../subagents/types.js'
-import type { ThemeLike } from '../../utils/theme.js'
+import type { ThemeLike } from '../../utils/helpers.js'
 import type { SubagentParametersType } from './subagent-modes.js'
 
 function renderAgentPreview(task: string, limit: number): string {

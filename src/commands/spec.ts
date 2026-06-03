@@ -8,7 +8,7 @@ import {
   SPEC_MODE_TOOLS,
   type SpecModeState,
 } from '../utils/spec-state.js'
-import { filterMainAgentTools } from '../utils/tool-policy.js'
+import { filterMainAgentTools } from '../utils/tool.js'
 
 function persistSpecModeState(
   pi: Pick<ExtensionAPI, 'appendEntry'>,
