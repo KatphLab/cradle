@@ -154,6 +154,11 @@ function getRunSingleAgentOptions(): RunSingleAgentOptions {
 }
 
 describe('webFetchInternalTool', () => {
+  it('uses a root object parameter schema', () => {
+    expect(webFetchInternalTool.parameters).toMatchObject({ type: 'object' })
+    expect(webFetchInternalTool.parameters).toHaveProperty('anyOf')
+  })
+
   it('fetches a single URL with the native provider and writes to durable cache', async () => {
     mocks.nativeFetch.mockResolvedValue({
       content: 'hello world',

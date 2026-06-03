@@ -122,6 +122,11 @@ describe('subagentTool', () => {
     vi.mocked(handleChainMode).mockResolvedValue(makeToolResult('chain'))
   })
 
+  it('uses a root object parameter schema', () => {
+    expect(subagentTool.parameters).toMatchObject({ type: 'object' })
+    expect(subagentTool.parameters).toHaveProperty('anyOf')
+  })
+
   it('discovers user agents by default and dispatches single mode', async () => {
     const context = makeContext()
     const parameters: SubagentParametersType = {

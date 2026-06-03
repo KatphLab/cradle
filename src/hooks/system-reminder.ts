@@ -24,7 +24,7 @@ export function registerSystemReminderHook(pi: Pick<ExtensionAPI, 'on'>): void {
   let lastInjectedPayload: string | undefined = undefined
   let lastInjectedNonReminderTokens = 0
 
-  pi.on('session_start', async (_event, _context) => {
+  pi.on('session_start', async (_event) => {
     cachedReminder = undefined
     lastInjectedPayload = undefined
     lastInjectedNonReminderTokens = 0
@@ -47,7 +47,7 @@ export function registerSystemReminderHook(pi: Pick<ExtensionAPI, 'on'>): void {
     return { systemPrompt: extracted.systemPrompt }
   })
 
-  pi.on('context', (event, _context) => {
+  pi.on('context', (event) => {
     const messages = event.messages.filter(
       (message) => !isSystemReminder(message),
     )

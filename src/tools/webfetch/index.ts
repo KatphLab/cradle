@@ -187,6 +187,11 @@ function buildChainResults(items: WebFetchDetails['items']): {
   }
 }
 
+const ChainParameter = Type.Array(ChainItem, {
+  description:
+    'Array of {url} for sequential fetching. Use {previous} in the URL to reference the previous result artifact path.',
+})
+
 const SingleMode = Type.Object(
   {
     url: UrlParameter,
@@ -198,17 +203,29 @@ const SingleMode = Type.Object(
 
 const ChainMode = Type.Object(
   {
-    chain: Type.Array(ChainItem, {
-      description:
-        'Array of {url} for sequential fetching. Use {previous} in the URL to reference the previous result artifact path.',
-    }),
+    chain: ChainParameter,
     refresh: RefreshParameter,
     maxAgeSeconds: MaxAgeSecondsParameter,
   },
   { additionalProperties: false },
 )
 
-const WebFetchInternalParameters = Type.Union([SingleMode, ChainMode])
+const WebFetchInternalParameters = Type.Object(
+  {
+    url: Type.Optional(UrlParameter),
+    chain: Type.Optional(ChainParameter),
+    refresh: RefreshParameter,
+    maxAgeSeconds: MaxAgeSecondsParameter,
+  },
+  {
+    additionalProperties: false,
+    anyOf: [SingleMode, ChainMode],
+  },
+)
+
+type WebFetchInternalParametersType =
+  | { url: string; refresh?: boolean; maxAgeSeconds?: number }
+  | { chain: { url: string }[]; refresh?: boolean; maxAgeSeconds?: number }
 
 type ExecuteResult =
   | { content: [TextContent]; details: WebFetchDetails }
@@ -291,7 +308,11 @@ export const webFetchInternalTool = defineTool({
   ].join(' '),
   parameters: WebFetchInternalParameters,
 
-  async execute(_toolCallId, parameters, signal) {
+  async execute(
+    _toolCallId,
+    parameters: WebFetchInternalParametersType,
+    signal,
+  ) {
     const providers = await getProviders()
     const refresh = parameters.refresh ?? false
     const maxAgeSeconds = parameters.maxAgeSeconds ?? DEFAULT_MAX_AGE_SECONDS

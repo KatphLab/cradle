@@ -14,7 +14,7 @@ import type {
   ChainModeParameters,
   ParallelModeParameters,
   SingleModeParameters,
-  SubagentParametersType,
+  SubagentToolParameters,
 } from './subagent-modes.js'
 
 function renderAgentPreview(task: string, limit: number): string {
@@ -91,19 +91,37 @@ function renderCallSingleText(
   return text
 }
 
+function isChainModeParameters(
+  args: SubagentToolParameters,
+): args is ChainModeParameters {
+  return Array.isArray(args.chain)
+}
+
+function isParallelModeParameters(
+  args: SubagentToolParameters,
+): args is ParallelModeParameters {
+  return Array.isArray(args.tasks)
+}
+
+function isSingleModeParameters(
+  args: SubagentToolParameters,
+): args is SingleModeParameters {
+  return typeof args.agent === 'string' && typeof args.task === 'string'
+}
+
 export function buildRenderCall(
-  args: SubagentParametersType,
+  args: SubagentToolParameters,
   theme: ThemeLike,
 ) {
-  if ('chain' in args && args.chain.length > 0) {
+  if (isChainModeParameters(args) && args.chain.length > 0) {
     return new Text(renderCallChainText(args, theme), 0, 0)
   }
 
-  if ('tasks' in args && args.tasks.length > 0) {
+  if (isParallelModeParameters(args) && args.tasks.length > 0) {
     return new Text(renderCallParallelText(args, theme), 0, 0)
   }
 
-  if ('agent' in args) {
+  if (isSingleModeParameters(args)) {
     return new Text(renderCallSingleText(args, theme), 0, 0)
   }
 

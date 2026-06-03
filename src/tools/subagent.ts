@@ -66,7 +66,13 @@ export const subagentTool = defineTool({
   ].join(' '),
   parameters: SubagentParameters,
 
-  async execute(_toolCallId, parameters, signal, onUpdate, context) {
+  async execute(
+    _toolCallId,
+    parameters: SubagentParametersType,
+    signal,
+    onUpdate,
+    context,
+  ) {
     const discovery = discoverAgents(context.cwd)
     const agents = discovery.agents
 
@@ -82,11 +88,11 @@ export const subagentTool = defineTool({
     )
   },
 
-  renderCall(args, theme, _context) {
+  renderCall(args, theme) {
     return buildRenderCall(args, theme)
   },
 
-  renderResult(result, { expanded }, theme, _context) {
+  renderResult(result, { expanded }, theme) {
     return buildRenderResult(result, expanded, theme)
   },
 })

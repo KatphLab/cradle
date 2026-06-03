@@ -25,42 +25,45 @@ const ComplexitySchema = StringEnum(['low', 'medium', 'high'] as const, {
   description: 'Task complexity for model selection',
 })
 
+const AgentParameter = Type.String({
+  description: 'Name of the agent to invoke',
+})
+const TaskParameter = Type.String({
+  description: 'Task to delegate to the agent',
+})
+const ChainTaskParameter = Type.String({
+  description: 'Task with optional {previous} placeholder for prior output',
+})
+const CwdParameter = Type.String({
+  description: 'Working directory for the agent process',
+})
+
 const TaskItem = Type.Object(
   {
-    agent: Type.String({ description: 'Name of the agent to invoke' }),
-    task: Type.String({ description: 'Task to delegate to the agent' }),
+    agent: AgentParameter,
+    task: TaskParameter,
     complexity: ComplexitySchema,
-    cwd: Type.Optional(
-      Type.String({ description: 'Working directory for the agent process' }),
-    ),
+    cwd: Type.Optional(CwdParameter),
   },
   { additionalProperties: false },
 )
 
 const ChainItem = Type.Object(
   {
-    agent: Type.String({ description: 'Name of the agent to invoke' }),
-    task: Type.String({
-      description: 'Task with optional {previous} placeholder for prior output',
-    }),
+    agent: AgentParameter,
+    task: ChainTaskParameter,
     complexity: ComplexitySchema,
-    cwd: Type.Optional(
-      Type.String({ description: 'Working directory for the agent process' }),
-    ),
+    cwd: Type.Optional(CwdParameter),
   },
   { additionalProperties: false },
 )
 
 const SingleMode = Type.Object(
   {
-    agent: Type.String({
-      description: 'Name of the agent to invoke (single mode)',
-    }),
-    task: Type.String({ description: 'Task to delegate (single mode)' }),
+    agent: AgentParameter,
+    task: TaskParameter,
     complexity: ComplexitySchema,
-    cwd: Type.Optional(
-      Type.String({ description: 'Working directory for the agent process' }),
-    ),
+    cwd: Type.Optional(CwdParameter),
   },
   { additionalProperties: false },
 )
@@ -84,11 +87,30 @@ const ChainMode = Type.Object(
   { additionalProperties: false },
 )
 
-export const SubagentParameters = Type.Union([
-  SingleMode,
-  ParallelMode,
-  ChainMode,
-])
+export const SubagentParameters = Type.Object(
+  {
+    agent: Type.Optional(AgentParameter),
+    task: Type.Optional(TaskParameter),
+    complexity: Type.Optional(ComplexitySchema),
+    cwd: Type.Optional(CwdParameter),
+    tasks: Type.Optional(
+      Type.Array(TaskItem, {
+        description:
+          'Array of {agent, task, complexity} for parallel execution',
+      }),
+    ),
+    chain: Type.Optional(
+      Type.Array(ChainItem, {
+        description:
+          'Array of {agent, task, complexity} for sequential execution',
+      }),
+    ),
+  },
+  {
+    additionalProperties: false,
+    anyOf: [SingleMode, ParallelMode, ChainMode],
+  },
+)
 
 export type SingleModeParameters = Static<typeof SingleMode>
 export type ParallelModeParameters = Static<typeof ParallelMode>
@@ -97,6 +119,7 @@ export type SubagentParametersType =
   | SingleModeParameters
   | ParallelModeParameters
   | ChainModeParameters
+export type SubagentToolParameters = Static<typeof SubagentParameters>
 
 export interface ToolContext {
   cwd: string
