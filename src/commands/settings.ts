@@ -14,7 +14,7 @@ import {
   type GlobalSettings,
   type ProjectSettings,
 } from '../config/settings.js'
-import { CradleSettingsEditor } from './settings-editor.js'
+import { CradleSettingsEditor } from './settings/editor.js'
 
 interface SettingsSaveResult {
   permissions: { path: string; read: boolean; write: boolean; bash: boolean }[]
@@ -22,6 +22,7 @@ interface SettingsSaveResult {
   subagentModels: { low?: string; medium?: string; high?: string }
   advisorModel: string | undefined
   firecrawlApiKey: string | undefined
+  tavilyApiKey: string | undefined
 }
 
 function buildSaveNotification(result: SettingsSaveResult): string {
@@ -32,8 +33,9 @@ function buildSaveNotification(result: SettingsSaveResult): string {
       result.subagentModels.medium,
       result.subagentModels.high,
     ].filter(Boolean).length + (result.advisorModel ? 1 : 0)
-  const apiKeyStatus = result.firecrawlApiKey ? ' configured' : ''
-  return `Cradle settings saved: ${String(permissionCount)} permissions, ${String(modelCount)} models, reminder token threshold ${String(result.reminderTokenThreshold)}${apiKeyStatus}`
+  const firecrawlStatus = result.firecrawlApiKey ? ' firecrawl' : ''
+  const tavilyStatus = result.tavilyApiKey ? ' tavily' : ''
+  return `Cradle settings saved: ${String(permissionCount)} permissions, ${String(modelCount)} models, reminder token threshold ${String(result.reminderTokenThreshold)}${firecrawlStatus}${tavilyStatus}`
 }
 
 /** @public */
@@ -104,6 +106,9 @@ export function registerSettingsCommand(
       }
       if (result.firecrawlApiKey !== undefined) {
         globalToSave.firecrawlApiKey = result.firecrawlApiKey
+      }
+      if (result.tavilyApiKey !== undefined) {
+        globalToSave.tavilyApiKey = result.tavilyApiKey
       }
 
       await Promise.all([

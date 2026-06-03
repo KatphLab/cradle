@@ -1,6 +1,9 @@
 import type { ThemeColor } from '@earendil-works/pi-coding-agent'
 import type { Input, SelectList } from '@earendil-works/pi-tui'
-import type { DirectoryPermission, SubagentModels } from '../config/settings.js'
+import type {
+  DirectoryPermission,
+  SubagentModels,
+} from '../../config/settings.js'
 
 export interface EditorTheme {
   fg: (color: ThemeColor, text: string) => string
@@ -14,6 +17,7 @@ export interface EditorState {
   readonly dirInput: Input
   readonly tokenThresholdInput: Input
   readonly firecrawlApiKeyInput: Input
+  readonly tavilyApiKeyInput: Input
   readonly subagentModels: SubagentModels
   readonly advisorModel: string | undefined
   readonly modelDisplayNames: Map<string, string>
@@ -42,4 +46,3 @@ export const TIER_LABELS: Record<'low' | 'medium' | 'high', string> = {
   high: 'High Model',
 }
 export const ADVISOR_MODEL_LABEL = 'Advisor Model'
-export const FIRECRAWL_API_KEY_LABEL = 'Firecrawl API Key'

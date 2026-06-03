@@ -18,11 +18,11 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import { registerSettingsCommand } from '../settings.js'
 import {
   formatDirectoryPath,
   scanDirectorySuggestions,
-} from '../settings-utilities.js'
-import { registerSettingsCommand } from '../settings.js'
+} from '../settings/utilities.js'
 
 let tempRoot: string
 // The vi.mock above replaced homedir() with one pointing to this directory.
@@ -60,6 +60,7 @@ interface SR {
   subagentModels: { low?: string; medium?: string; high?: string }
   advisorModel?: string
   firecrawlApiKey?: string
+  tavilyApiKey?: string
 }
 
 async function invokeRegisteredHandler(
@@ -207,7 +208,31 @@ describe('registerSettingsCommand', () => {
     const globalSaved = await readSettings(globalSettingsPath)
     expect(globalSaved['firecrawlApiKey']).toBe('test-fc-key')
     expect(notifySpy).toHaveBeenCalledWith(
-      'Cradle settings saved: 0 permissions, 0 models, reminder token threshold 6000 configured',
+      'Cradle settings saved: 0 permissions, 0 models, reminder token threshold 6000 firecrawl',
+      'info',
+    )
+  })
+
+  it('saves tavily API key to global settings', async () => {
+    const { notifySpy } = await invokeRegisteredHandler((editor) => {
+      editor.onSave?.({
+        permissions: [],
+        reminderTokenThreshold: 6000,
+        subagentModels: {},
+        tavilyApiKey: 'test-tvly-key',
+      })
+      return {
+        permissions: [],
+        reminderTokenThreshold: 6000,
+        subagentModels: {},
+        tavilyApiKey: 'test-tvly-key',
+      }
+    })
+
+    const globalSaved = await readSettings(globalSettingsPath)
+    expect(globalSaved['tavilyApiKey']).toBe('test-tvly-key')
+    expect(notifySpy).toHaveBeenCalledWith(
+      'Cradle settings saved: 0 permissions, 0 models, reminder token threshold 6000 tavily',
       'info',
     )
   })

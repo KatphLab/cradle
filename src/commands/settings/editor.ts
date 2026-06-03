@@ -1,11 +1,5 @@
 import type { Component, Focusable } from '@earendil-works/pi-tui'
-import {
-  Input,
-  Key,
-  matchesKey,
-  SelectList,
-  type SelectListTheme,
-} from '@earendil-works/pi-tui'
+import { Input, Key, matchesKey, type SelectList } from '@earendil-works/pi-tui'
 import path from 'node:path'
 
 import {
@@ -16,19 +10,19 @@ import {
   type GlobalSettings,
   type ProjectSettings,
   type SubagentModels,
-} from '../config/settings.js'
-import { PERMISSION_COLUMNS, type EditorTheme } from './settings-constants.js'
-import { SettingsRenderer } from './settings-renderer.js'
+} from '../../config/settings.js'
 import {
-  formatDirectoryPath,
-  scanDirectorySuggestions,
-} from './settings-utilities.js'
-
-interface ModelOption {
-  id: string
-  name: string
-  provider: string
-}
+  API_KEY_EXTRA_ROW_COUNT,
+  API_KEY_FIELDS,
+  createApiKeyInput,
+  getApiKeyValue,
+  getInitialApiKey,
+  isApiKeyChanged,
+} from './api-keys.js'
+import { PERMISSION_COLUMNS, type EditorTheme } from './constants.js'
+import { createModelSelectList, type ModelOption } from './model-select.js'
+import { SettingsRenderer } from './renderer.js'
+import { formatDirectoryPath, scanDirectorySuggestions } from './utilities.js'
 
 interface CradleSettingsResult {
   permissions: DirectoryPermission[]
@@ -36,9 +30,10 @@ interface CradleSettingsResult {
   subagentModels: SubagentModels
   advisorModel: string | undefined
   firecrawlApiKey: string | undefined
+  tavilyApiKey: string | undefined
 }
 
-const TOTAL_EXTRA_ROWS = 6 // token, 3x subagent, advisor, firecrawl key
+const TOTAL_EXTRA_ROWS = 5 + API_KEY_EXTRA_ROW_COUNT
 
 export class CradleSettingsEditor implements Component, Focusable {
   readonly rows: DirectoryPermission[]
@@ -50,6 +45,8 @@ export class CradleSettingsEditor implements Component, Focusable {
   advisorModel: string | undefined
   firecrawlApiKey: string | undefined
   readonly firecrawlApiKeyInput: Input
+  tavilyApiKey: string | undefined
+  readonly tavilyApiKeyInput: Input
   readonly modelDisplayNames: Map<string, string>
   selectedRow: number
   selectedCol: number
@@ -61,6 +58,7 @@ export class CradleSettingsEditor implements Component, Focusable {
   private readonly initialSubagentModels: SubagentModels
   private readonly initialAdvisorModel: string | undefined
   private readonly initialFirecrawlApiKey: string | undefined
+  private readonly initialTavilyApiKey: string | undefined
   private readonly renderer: SettingsRenderer
   private dirty = false
   private lastInputValue = ''
@@ -97,6 +95,8 @@ export class CradleSettingsEditor implements Component, Focusable {
       initialAdvisorModel: this.initialAdvisorModel,
       firecrawlApiKey: this.firecrawlApiKey,
       initialFirecrawlApiKey: this.initialFirecrawlApiKey,
+      tavilyApiKey: this.tavilyApiKey,
+      initialTavilyApiKey: this.initialTavilyApiKey,
     } = this.initFromGlobal(globalSettings))
 
     this.dirInput = new Input()
@@ -108,10 +108,8 @@ export class CradleSettingsEditor implements Component, Focusable {
     this.tokenThresholdInput = new Input()
     this.tokenThresholdInput.setValue(String(this.initialTokenThreshold))
 
-    this.firecrawlApiKeyInput = new Input()
-    if (this.firecrawlApiKey) {
-      this.firecrawlApiKeyInput.setValue(this.firecrawlApiKey)
-    }
+    this.firecrawlApiKeyInput = createApiKeyInput(this.firecrawlApiKey)
+    this.tavilyApiKeyInput = createApiKeyInput(this.tavilyApiKey)
 
     this.selectedRow = this.rows.length
     this.selectedCol = 0
@@ -127,6 +125,8 @@ export class CradleSettingsEditor implements Component, Focusable {
     initialAdvisorModel: string | undefined
     firecrawlApiKey: string | undefined
     initialFirecrawlApiKey: string | undefined
+    tavilyApiKey: string | undefined
+    initialTavilyApiKey: string | undefined
   } {
     const tokenThreshold =
       globalSettings.reminderTokenThreshold ?? DEFAULT_REMINDER_TOKEN_THRESHOLD
@@ -148,49 +148,44 @@ export class CradleSettingsEditor implements Component, Focusable {
       initialSubagentModels: { ...subagentModels },
       advisorModel: globalSettings.advisorModel,
       initialAdvisorModel: globalSettings.advisorModel,
-      firecrawlApiKey: globalSettings.firecrawlApiKey,
-      initialFirecrawlApiKey: globalSettings.firecrawlApiKey,
+      firecrawlApiKey: getInitialApiKey(globalSettings, 'firecrawlApiKey'),
+      initialFirecrawlApiKey: getInitialApiKey(
+        globalSettings,
+        'firecrawlApiKey',
+      ),
+      tavilyApiKey: getInitialApiKey(globalSettings, 'tavilyApiKey'),
+      initialTavilyApiKey: getInitialApiKey(globalSettings, 'tavilyApiKey'),
     }
   }
 
   getRows(): DirectoryPermission[] {
     return this.rows.map((row) => ({ ...row }))
   }
-
   getReminderTokenThreshold(): number {
     const value = Number.parseInt(this.tokenThresholdInput.getValue())
     return Number.isNaN(value) ? this.initialTokenThreshold : value
   }
-
   getSubagentModels(): SubagentModels {
     return { ...this.subagentModels }
   }
-
   getFirecrawlApiKey(): string | undefined {
-    const value = this.firecrawlApiKeyInput.getValue().trim()
-    return value.length > 0 ? value : undefined
+    return getApiKeyValue(this.firecrawlApiKeyInput)
   }
-
+  getTavilyApiKey(): string | undefined {
+    return getApiKeyValue(this.tavilyApiKeyInput)
+  }
   getSuggestions(): string[] {
     return [...this.suggestions]
   }
-
   getSelectedRow(): number {
     return this.selectedRow
   }
-
   getSelectedCol(): number {
     return this.selectedCol
   }
-
   getDirInput(): Input {
     return this.dirInput
   }
-
-  getFirecrawlApiKeyInput(): Input {
-    return this.firecrawlApiKeyInput
-  }
-
   getSelectList(): SelectList | undefined {
     return this.selectList
   }
@@ -203,15 +198,21 @@ export class CradleSettingsEditor implements Component, Focusable {
       this.subagentModels.medium !== this.initialSubagentModels.medium ||
       this.subagentModels.high !== this.initialSubagentModels.high
     const advisorChanged = this.advisorModel !== this.initialAdvisorModel
-    const firecrawlKeyChanged =
-      this.firecrawlApiKeyInput.getValue().trim() !==
-      (this.initialFirecrawlApiKey ?? '')
+    const firecrawlKeyChanged = isApiKeyChanged(
+      this.firecrawlApiKeyInput,
+      this.initialFirecrawlApiKey,
+    )
+    const tavilyKeyChanged = isApiKeyChanged(
+      this.tavilyApiKeyInput,
+      this.initialTavilyApiKey,
+    )
     return (
       this.dirty ||
       tokenThresholdChanged ||
       modelsChanged ||
       advisorChanged ||
-      firecrawlKeyChanged
+      firecrawlKeyChanged ||
+      tavilyKeyChanged
     )
   }
 
@@ -296,12 +297,12 @@ export class CradleSettingsEditor implements Component, Focusable {
         subagentModels: this.getSubagentModels(),
         advisorModel: this.advisorModel,
         firecrawlApiKey: this.getFirecrawlApiKey(),
+        tavilyApiKey: this.getTavilyApiKey(),
       })
       return true
     }
     return false
   }
-
   private tryHandleSuggestions(data: string): boolean {
     if (this.suggestions.length === 0) return false
     return (
@@ -310,7 +311,6 @@ export class CradleSettingsEditor implements Component, Focusable {
       this.tryHandleSuggestionDismiss(data)
     )
   }
-
   private tryHandleSuggestionNavigation(data: string): boolean {
     if (matchesKey(data, Key.down)) {
       this.suggestionIndex = Math.min(
@@ -327,7 +327,6 @@ export class CradleSettingsEditor implements Component, Focusable {
     }
     return false
   }
-
   private tryHandleSuggestionAccept(data: string): boolean {
     if (
       !(
@@ -337,7 +336,6 @@ export class CradleSettingsEditor implements Component, Focusable {
     ) {
       return false
     }
-
     const suggestion = this.suggestions[this.suggestionIndex]
     if (suggestion !== undefined) {
       this.dirInput.setValue(formatDirectoryPath(suggestion, this.cwd))
@@ -351,7 +349,6 @@ export class CradleSettingsEditor implements Component, Focusable {
     }
     return true
   }
-
   private tryHandleSuggestionDismiss(data: string): boolean {
     if (matchesKey(data, Key.escape)) {
       this.suggestions = []
@@ -360,7 +357,6 @@ export class CradleSettingsEditor implements Component, Focusable {
     }
     return false
   }
-
   private tryHandleDelete(data: string): boolean {
     if (matchesKey(data, Key.delete) && this.selectedRow < this.rows.length) {
       this.deleteRow(this.selectedRow)
@@ -369,7 +365,6 @@ export class CradleSettingsEditor implements Component, Focusable {
     }
     return false
   }
-
   private tryHandleNavigation(data: string): boolean {
     if (matchesKey(data, Key.down)) {
       return this.moveDown()
@@ -382,7 +377,6 @@ export class CradleSettingsEditor implements Component, Focusable {
     }
     return false
   }
-
   private moveDown(): boolean {
     const maxRow = this.rows.length + TOTAL_EXTRA_ROWS
     if (this.selectedRow < maxRow) {
@@ -398,7 +392,6 @@ export class CradleSettingsEditor implements Component, Focusable {
     this.tuiRequestRender?.()
     return true
   }
-
   private moveUp(): boolean {
     if (this.selectedRow > 0) {
       this.selectedRow--
@@ -406,7 +399,6 @@ export class CradleSettingsEditor implements Component, Focusable {
     this.tuiRequestRender?.()
     return true
   }
-
   private moveHorizontal(data: string): boolean {
     if (matchesKey(data, Key.right)) {
       this.selectedCol = Math.min(this.selectedCol + 1, 3)
@@ -420,7 +412,6 @@ export class CradleSettingsEditor implements Component, Focusable {
     }
     return false
   }
-
   private tryHandleCancel(data: string): boolean {
     if (matchesKey(data, Key.escape)) {
       this.onCancel?.()
@@ -428,7 +419,6 @@ export class CradleSettingsEditor implements Component, Focusable {
     }
     return false
   }
-
   private tryHandleToggle(data: string): boolean {
     if (!matchesKey(data, Key.space) && !matchesKey(data, Key.enter)) {
       return false
@@ -444,7 +434,6 @@ export class CradleSettingsEditor implements Component, Focusable {
     }
     return this.tryHandleModelToggle()
   }
-
   private tryHandleModelToggle(): boolean {
     const relativeRow = this.selectedRow - (this.rows.length + 2)
     if (relativeRow >= 0 && relativeRow <= 2) {
@@ -459,7 +448,6 @@ export class CradleSettingsEditor implements Component, Focusable {
     }
     return false
   }
-
   private tryHandleToInput(data: string): boolean {
     if (this.selectedRow === this.rows.length) {
       this.dirInput.handleInput(data)
@@ -472,87 +460,64 @@ export class CradleSettingsEditor implements Component, Focusable {
       this.tuiRequestRender?.()
       return true
     }
-    if (this.selectedRow === this.rows.length + 6) {
-      this.firecrawlApiKeyInput.handleInput(data)
+    for (const field of API_KEY_FIELDS) {
+      if (this.selectedRow !== this.rows.length + field.rowOffset) continue
+      this[field.inputKey].handleInput(data)
       this.tuiRequestRender?.()
       return true
     }
     return false
   }
-
   render(width: number): string[] {
     return this.renderer.render(width)
   }
-
   private getTierFromRow(rowIndex: number): 'low' | 'medium' | 'high' {
     const offset = rowIndex - (this.rows.length + 2)
     const tiers = ['low', 'medium', 'high'] as const
     return tiers[offset] ?? 'low'
   }
-
   private openModelSelect(tier: 'low' | 'medium' | 'high'): void {
-    this.createModelSelectList(
+    this.openSelectList(
       () => this.subagentModels[tier],
       (value) => {
         this.subagentModels[tier] = value
       },
     )
   }
-
   private openAdvisorModelSelect(): void {
-    this.createModelSelectList(
+    this.openSelectList(
       () => this.advisorModel,
       (value) => {
         this.advisorModel = value
       },
     )
   }
-
-  private createModelSelectList(
+  private openSelectList(
     getCurrentValue: () => string | undefined,
     assignValue: (value: string) => void,
   ): void {
-    const items = this.availableModels.map((id) => ({
-      value: id,
-      label: this.modelDisplayNames.get(id) ?? id,
-    }))
-    if (items.length === 0) return
-
-    const currentValue = getCurrentValue()
-    const currentIndex = currentValue
-      ? this.availableModels.indexOf(currentValue)
-      : -1
-
-    const selectListTheme: SelectListTheme = {
-      selectedPrefix: (text) => this.theme.fg('accent', text),
-      selectedText: (text) => this.theme.fg('accent', this.theme.bold(text)),
-      description: (text) => this.theme.fg('dim', text),
-      scrollInfo: (text) => this.theme.fg('dim', text),
-      noMatch: (text) => this.theme.fg('warning', text),
-    }
-
-    this.selectList = new SelectList(
-      items,
-      Math.min(items.length, 8),
-      selectListTheme,
-    )
-
-    this.selectList.setSelectedIndex(Math.max(currentIndex, 0))
-    this.selectList.onSelect = (item) => {
-      assignValue(item.value)
-      this.dirty = true
-      this.selectList = undefined
-      this.tuiRequestRender?.()
-    }
-    this.selectList.onCancel = () => {
-      this.selectList = undefined
-      this.tuiRequestRender?.()
-    }
+    this.selectList = createModelSelectList({
+      assignValue,
+      availableModels: this.availableModels,
+      getCurrentValue,
+      modelDisplayNames: this.modelDisplayNames,
+      onCancel: () => {
+        this.selectList = undefined
+        this.tuiRequestRender?.()
+      },
+      onSelect: () => {
+        this.dirty = true
+        this.selectList = undefined
+        this.tuiRequestRender?.()
+      },
+      theme: this.theme,
+    })
   }
 
   invalidate(): void {
     this.dirInput.invalidate()
     this.tokenThresholdInput.invalidate()
     this.firecrawlApiKeyInput.invalidate()
+    this.tavilyApiKeyInput.invalidate()
   }
 }
