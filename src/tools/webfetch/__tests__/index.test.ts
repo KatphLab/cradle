@@ -69,12 +69,9 @@ vi.mock('../../../subagents/utilities.js', async (importOriginal) => {
 
 const { webFetchInternalTool, webFetchTool } = await import('../index.js')
 
-interface InternalExecuteParameters {
-  url?: string
-  chain?: { url: string }[]
-  refresh?: boolean
-  maxAgeSeconds?: number
-}
+type InternalExecuteParameters =
+  | { url: string; refresh?: boolean; maxAgeSeconds?: number }
+  | { chain: { url: string }[]; refresh?: boolean; maxAgeSeconds?: number }
 
 interface FacadeExecuteParameters {
   url: string

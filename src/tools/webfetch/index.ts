@@ -187,17 +187,28 @@ function buildChainResults(items: WebFetchDetails['items']): {
   }
 }
 
-const WebFetchInternalParameters = Type.Object({
-  url: Type.Optional(UrlParameter),
-  chain: Type.Optional(
-    Type.Array(ChainItem, {
+const SingleMode = Type.Object(
+  {
+    url: UrlParameter,
+    refresh: RefreshParameter,
+    maxAgeSeconds: MaxAgeSecondsParameter,
+  },
+  { additionalProperties: false },
+)
+
+const ChainMode = Type.Object(
+  {
+    chain: Type.Array(ChainItem, {
       description:
         'Array of {url} for sequential fetching. Use {previous} in the URL to reference the previous result artifact path.',
     }),
-  ),
-  refresh: RefreshParameter,
-  maxAgeSeconds: MaxAgeSecondsParameter,
-})
+    refresh: RefreshParameter,
+    maxAgeSeconds: MaxAgeSecondsParameter,
+  },
+  { additionalProperties: false },
+)
+
+const WebFetchInternalParameters = Type.Union([SingleMode, ChainMode])
 
 type ExecuteResult =
   | { content: [TextContent]; details: WebFetchDetails }
@@ -285,7 +296,7 @@ export const webFetchInternalTool = defineTool({
     const refresh = parameters.refresh ?? false
     const maxAgeSeconds = parameters.maxAgeSeconds ?? DEFAULT_MAX_AGE_SECONDS
 
-    if (parameters.chain && parameters.chain.length > 0) {
+    if ('chain' in parameters) {
       return executeChain(
         parameters.chain,
         providers,
@@ -295,17 +306,14 @@ export const webFetchInternalTool = defineTool({
       )
     }
 
-    if (parameters.url) {
-      return executeSingle(
-        parameters.url,
-        providers,
-        signal,
-        refresh,
-        maxAgeSeconds,
-      )
-    }
-
-    return toolError('Provide either url or chain parameters.')
+    // 'url' in parameters — SingleMode guaranteed by Type.Union
+    return executeSingle(
+      parameters.url,
+      providers,
+      signal,
+      refresh,
+      maxAgeSeconds,
+    )
   },
 
   renderResult(result, { expanded }, theme) {
