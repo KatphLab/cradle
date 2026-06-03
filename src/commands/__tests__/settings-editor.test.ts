@@ -5,7 +5,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { GlobalSettings, ProjectSettings } from '../../config/settings.js'
-import { CradleSettingsEditor } from '../settings-editor.js'
+import { CradleSettingsEditor } from '../settings/editor.js'
 
 let tempRoot: string
 
@@ -83,8 +83,11 @@ describe('CradleSettingsEditor — input', () => {
     down()
     expect(editor.getSelectedRow()).toBe(8) // firecrawl API key
     down()
-    expect(editor.getSelectedRow()).toBe(8) // stops at bottom
+    expect(editor.getSelectedRow()).toBe(9) // tavily API key
+    down()
+    expect(editor.getSelectedRow()).toBe(9) // stops at bottom
 
+    up()
     up()
     up()
     up()
@@ -439,6 +442,7 @@ describe('CradleSettingsEditor — reminder token threshold', () => {
       subagentModels: {},
       advisorModel: undefined,
       firecrawlApiKey: undefined,
+      tavilyApiKey: undefined,
     })
   })
 })
@@ -483,6 +487,52 @@ describe('CradleSettingsEditor — firecrawl API key', () => {
 
     expect(saveSpy).toHaveBeenCalledWith(
       expect.objectContaining({ firecrawlApiKey: 'fc-key' }),
+    )
+  })
+})
+
+describe('CradleSettingsEditor — tavily API key', () => {
+  it('reads initial value from global settings', () => {
+    const editor = makeEditor({}, { tavilyApiKey: 'test-key' })
+    expect(editor.getTavilyApiKey()).toBe('test-key')
+  })
+
+  it('returns undefined when empty', () => {
+    const editor = makeEditor()
+    expect(editor.getTavilyApiKey()).toBeUndefined()
+  })
+
+  it('detects dirty on key change', () => {
+    const editor = makeEditor({}, { tavilyApiKey: 'old-key' })
+    expect(editor.isDirty()).toBe(false)
+    // Navigate to tavily API key row (rows.length + 7 = 7)
+    for (let index = 0; index < 7; index++) {
+      editor.handleInput('\u001B[B')
+    }
+    editor.handleInput('n')
+    expect(editor.isDirty()).toBe(true)
+  })
+
+  it('includes key in save result', () => {
+    const saveSpy = vi.fn()
+    const editor = makeEditor()
+    editor.onSave = saveSpy
+    // Navigate to tavily API key row and type
+    for (let index = 0; index < 7; index++) {
+      editor.handleInput('\u001B[B')
+    }
+    editor.handleInput('t')
+    editor.handleInput('v')
+    editor.handleInput('l')
+    editor.handleInput('y')
+    editor.handleInput('-')
+    editor.handleInput('k')
+    editor.handleInput('e')
+    editor.handleInput('y')
+    editor.handleInput('\u0013')
+
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ tavilyApiKey: 'tvly-key' }),
     )
   })
 })

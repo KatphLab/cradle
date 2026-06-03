@@ -34,6 +34,7 @@ export interface GlobalSettings {
   subagentModels?: SubagentModels
   advisorModel?: string
   firecrawlApiKey?: string
+  tavilyApiKey?: string
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -76,6 +77,11 @@ function normalizeAdvisorModel(raw: unknown): string | undefined {
 }
 
 function normalizeFirecrawlApiKey(raw: unknown): string | undefined {
+  if (typeof raw === 'string' && raw.length > 0) return raw
+  return undefined
+}
+
+function normalizeTavilyApiKey(raw: unknown): string | undefined {
   if (typeof raw === 'string' && raw.length > 0) return raw
   return undefined
 }
@@ -150,12 +156,14 @@ function normalizeGlobalSettings(value: unknown): GlobalSettings {
   const advisorModel = normalizeAdvisorModel(value['advisorModel'])
 
   const firecrawlApiKey = normalizeFirecrawlApiKey(value['firecrawlApiKey'])
+  const tavilyApiKey = normalizeTavilyApiKey(value['tavilyApiKey'])
 
   return {
     ...(reminderTokenThreshold !== undefined && { reminderTokenThreshold }),
     ...(subagentModels !== undefined && { subagentModels }),
     ...(advisorModel !== undefined && { advisorModel }),
     ...(firecrawlApiKey !== undefined && { firecrawlApiKey }),
+    ...(tavilyApiKey !== undefined && { tavilyApiKey }),
   }
 }
 

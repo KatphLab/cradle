@@ -4,6 +4,7 @@ import {
 } from '../../../utils/firecrawl.js'
 import { isRecord } from '../../../utils/helpers.js'
 import type { WebSearchProvider, WebSearchResponse } from '../types.js'
+import { fetchPostJson } from './helpers.js'
 
 const FIRECRAWL_SEARCH_URL = 'https://api.firecrawl.dev/v2/search'
 
@@ -34,21 +35,13 @@ export function createFirecrawlSearchProvider(
       if (parameters.tbs !== undefined) body['tbs'] = parameters.tbs
       if (parameters.country !== undefined) body['country'] = parameters.country
 
-      const response = await fetch(FIRECRAWL_SEARCH_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        ...(signal !== undefined && { signal }),
-      })
-
-      if (!response.ok) {
-        await handleFirecrawlError(response)
-      }
-
-      const json = await response.json()
+      const json = await fetchPostJson(
+        FIRECRAWL_SEARCH_URL,
+        apiKey,
+        body,
+        handleFirecrawlError,
+        signal,
+      )
       const webResults = extractWebResults(json)
 
       return {

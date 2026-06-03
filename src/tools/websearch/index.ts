@@ -8,6 +8,7 @@ import {
   executeToolSubagent,
 } from '../../utils/subagent-tool-helpers.js'
 import { createFirecrawlSearchProvider } from './providers/firecrawl.js'
+import { createTavilySearchProvider } from './providers/tavily.js'
 import { renderWebSearchResult } from './render.js'
 import {
   searchToolError,
@@ -22,6 +23,10 @@ import {
 async function getProviders(): Promise<WebSearchProvider[]> {
   const globalSettings = await loadGlobalSettings()
   const providers: WebSearchProvider[] = []
+
+  if (globalSettings.tavilyApiKey) {
+    providers.push(createTavilySearchProvider(globalSettings.tavilyApiKey))
+  }
 
   if (globalSettings.firecrawlApiKey) {
     providers.push(
@@ -108,7 +113,7 @@ export const webSearchInternalTool = defineTool({
     const providers = await getProviders()
     if (providers.length === 0) {
       return searchToolError(
-        'No web search provider configured. Set firecrawlApiKey in global settings.',
+        'No web search provider configured. Set tavilyApiKey or firecrawlApiKey in global settings.',
       )
     }
 

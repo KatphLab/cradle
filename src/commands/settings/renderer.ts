@@ -1,15 +1,15 @@
 import { truncateToWidth } from '@earendil-works/pi-tui'
+import { API_KEY_FIELDS } from './api-keys.js'
 import {
   ADVISOR_MODEL_LABEL,
-  FIRECRAWL_API_KEY_LABEL,
   GAP,
   PERMISSION_LABELS,
   TIER_LABELS,
   TOGGLE_WIDTH,
   TOKEN_THRESHOLD_LABEL,
   type EditorState,
-} from './settings-constants.js'
-import { formatDirectoryPath } from './settings-utilities.js'
+} from './constants.js'
+import { formatDirectoryPath } from './utilities.js'
 
 export class SettingsRenderer {
   constructor(private readonly editor: EditorState) {}
@@ -26,7 +26,7 @@ export class SettingsRenderer {
       ...this.renderTokenThresholdSection(width),
       ...this.renderModelSection(width),
       ...this.renderAdvisorModelSection(width),
-      ...this.renderFirecrawlApiKeySection(width),
+      ...this.renderApiKeySections(width),
       ...this.renderHelp(width),
     ]
   }
@@ -211,17 +211,14 @@ export class SettingsRenderer {
     return [truncateToWidth(this.editor.theme.fg('dim', helpText), width)]
   }
 
-  private renderFirecrawlApiKeySection(width: number): string[] {
-    const rowIndex = this.editor.rows.length + 6
-    const isFocused = this.editor.selectedRow === rowIndex
-    const prefix = isFocused ? '> ' : '  '
-    const inputWidth = Math.max(0, width - prefix.length)
-    const inputLines = this.editor.firecrawlApiKeyInput.render(inputWidth)
-    const [firstLine = ''] = inputLines
-    return [
-      '',
-      this.editor.theme.bold(FIRECRAWL_API_KEY_LABEL),
-      `${prefix}${firstLine}`,
-    ]
+  private renderApiKeySections(width: number): string[] {
+    return API_KEY_FIELDS.flatMap((field) => {
+      const isFocused =
+        this.editor.selectedRow === this.editor.rows.length + field.rowOffset
+      const prefix = isFocused ? '> ' : '  '
+      const inputWidth = Math.max(0, width - prefix.length)
+      const [firstLine = ''] = this.editor[field.inputKey].render(inputWidth)
+      return ['', this.editor.theme.bold(field.label), `${prefix}${firstLine}`]
+    })
   }
 }
