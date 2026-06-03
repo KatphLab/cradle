@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   runSingleAgent: vi.fn(),
 }))
 
-vi.mock('../../config/settings.js', () => ({
+vi.mock('../../../config/settings.js', () => ({
   loadGlobalSettings: mocks.loadGlobalSettings,
 }))
 

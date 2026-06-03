@@ -306,7 +306,6 @@ export const webFetchInternalTool = defineTool({
       )
     }
 
-    // 'url' in parameters — SingleMode guaranteed by Type.Union
     return executeSingle(
       parameters.url,
       providers,
