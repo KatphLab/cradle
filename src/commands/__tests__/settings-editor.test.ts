@@ -303,7 +303,7 @@ describe('CradleSettingsEditor — model select list', () => {
   })
 
   it('selects model from list', () => {
-    const editor = makeEditor({}, { subagentModels: { low: 'a' } }, [
+    const editor = makeEditor({}, { subagentModels: { low: 'test/a' } }, [
       { id: 'a', name: 'A', provider: 'test' },
       { id: 'b', name: 'B', provider: 'test' },
     ])
@@ -313,24 +313,30 @@ describe('CradleSettingsEditor — model select list', () => {
     editor.handleInput('\r')
     editor.handleInput('\u001B[B')
     editor.handleInput('\r')
-    expect(editor.getSubagentModels().low).toBe('b')
+    expect(editor.getSubagentModels().low).toBe('test/b')
     expect(editor.isDirty()).toBe(true)
   })
 
   it('initializes all three subagent model tiers', () => {
     const editor = makeEditor(
       {},
-      { subagentModels: { low: 'a', medium: 'b', high: 'c' } },
+      {
+        subagentModels: {
+          low: 'test/a',
+          medium: 'test/b',
+          high: 'test/c',
+        },
+      },
     )
     expect(editor.getSubagentModels()).toEqual({
-      low: 'a',
-      medium: 'b',
-      high: 'c',
+      low: 'test/a',
+      medium: 'test/b',
+      high: 'test/c',
     })
   })
 
   it('opens advisor model select list', () => {
-    const editor = makeEditor({}, { advisorModel: 'a' }, [
+    const editor = makeEditor({}, { advisorModel: 'test/a' }, [
       { id: 'a', name: 'A', provider: 'test' },
       { id: 'b', name: 'B', provider: 'test' },
     ])
@@ -346,7 +352,7 @@ describe('CradleSettingsEditor — model select list', () => {
   })
 
   it('selects advisor model from list', () => {
-    const editor = makeEditor({}, { advisorModel: 'a' }, [
+    const editor = makeEditor({}, { advisorModel: 'test/a' }, [
       { id: 'a', name: 'A', provider: 'test' },
       { id: 'b', name: 'B', provider: 'test' },
     ])
@@ -360,12 +366,12 @@ describe('CradleSettingsEditor — model select list', () => {
     editor.handleInput('\r')
     editor.handleInput('\u001B[B')
     editor.handleInput('\r')
-    expect(editor.advisorModel).toBe('b')
+    expect(editor.advisorModel).toBe('test/b')
     expect(editor.isDirty()).toBe(true)
   })
 
   it('cancels model select', () => {
-    const editor = makeEditor({}, { subagentModels: { low: 'a' } }, [
+    const editor = makeEditor({}, { subagentModels: { low: 'test/a' } }, [
       { id: 'a', name: 'A', provider: 'test' },
       { id: 'b', name: 'B', provider: 'test' },
     ])
@@ -376,11 +382,11 @@ describe('CradleSettingsEditor — model select list', () => {
     expect(editor.getSelectList()).toBeDefined()
     editor.handleInput('\u001B')
     expect(editor.getSelectList()).toBeUndefined()
-    expect(editor.getSubagentModels().low).toBe('a')
+    expect(editor.getSubagentModels().low).toBe('test/a')
   })
 
   it('cancels advisor model select', () => {
-    const editor = makeEditor({}, { advisorModel: 'a' }, [
+    const editor = makeEditor({}, { advisorModel: 'test/a' }, [
       { id: 'a', name: 'A', provider: 'test' },
       { id: 'b', name: 'B', provider: 'test' },
     ])
@@ -394,11 +400,11 @@ describe('CradleSettingsEditor — model select list', () => {
     expect(editor.getSelectList()).toBeDefined()
     editor.handleInput('\u001B')
     expect(editor.getSelectList()).toBeUndefined()
-    expect(editor.advisorModel).toBe('a')
+    expect(editor.advisorModel).toBe('test/a')
   })
 
   it('renders with subagent model select open', () => {
-    const editor = makeEditor({}, { subagentModels: { low: 'a' } }, [
+    const editor = makeEditor({}, { subagentModels: { low: 'test/a' } }, [
       { id: 'a', name: 'A', provider: 'test' },
       { id: 'b', name: 'B', provider: 'test' },
     ])
@@ -414,7 +420,7 @@ describe('CradleSettingsEditor — model select list', () => {
   })
 
   it('renders with advisor model select open', () => {
-    const editor = makeEditor({}, { advisorModel: 'a' }, [
+    const editor = makeEditor({}, { advisorModel: 'test/a' }, [
       { id: 'a', name: 'A', provider: 'test' },
       { id: 'b', name: 'B', provider: 'test' },
     ])
