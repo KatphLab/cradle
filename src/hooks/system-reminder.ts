@@ -6,8 +6,8 @@ import {
 
 import {
   DEFAULT_REMINDER_TOKEN_THRESHOLD,
-  loadCradleSettings,
-  type CradleSettings,
+  loadGlobalSettings,
+  type GlobalSettings,
 } from '../config/settings.js'
 import { formatTodoReminder, reconstructTodos } from '../utils/todo-state.js'
 
@@ -19,7 +19,7 @@ const SYSTEM_REMINDER_TAG_PATTERN =
 
 /** @public */
 export function registerSystemReminderHook(pi: Pick<ExtensionAPI, 'on'>): void {
-  let cachedSettings: CradleSettings = {}
+  let cachedSettings: GlobalSettings = {}
   let cachedReminder: string | undefined = undefined
   let lastInjectedPayload: string | undefined = undefined
   let lastInjectedNonReminderTokens = 0
@@ -28,7 +28,7 @@ export function registerSystemReminderHook(pi: Pick<ExtensionAPI, 'on'>): void {
     cachedReminder = undefined
     lastInjectedPayload = undefined
     lastInjectedNonReminderTokens = 0
-    cachedSettings = await loadCradleSettings(_context.cwd)
+    cachedSettings = await loadGlobalSettings()
   })
 
   pi.on('before_agent_start', (event, context) => {

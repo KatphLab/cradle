@@ -12,8 +12,9 @@ import {
   DEFAULT_REMINDER_TOKEN_THRESHOLD,
   MAX_REMINDER_TOKEN_THRESHOLD,
   MIN_REMINDER_TOKEN_THRESHOLD,
-  type CradleSettings,
   type DirectoryPermission,
+  type GlobalSettings,
+  type ProjectSettings,
   type SubagentModels,
 } from '../config/settings.js'
 import { PERMISSION_COLUMNS, type EditorTheme } from './settings-constants.js'
@@ -34,7 +35,10 @@ interface CradleSettingsResult {
   reminderTokenThreshold: number
   subagentModels: SubagentModels
   advisorModel: string | undefined
+  firecrawlApiKey: string | undefined
 }
+
+const TOTAL_EXTRA_ROWS = 6 // token, 3x subagent, advisor, firecrawl key
 
 export class CradleSettingsEditor implements Component, Focusable {
   readonly rows: DirectoryPermission[]
@@ -44,6 +48,8 @@ export class CradleSettingsEditor implements Component, Focusable {
   readonly tokenThresholdInput: Input
   readonly subagentModels: SubagentModels
   advisorModel: string | undefined
+  firecrawlApiKey: string | undefined
+  readonly firecrawlApiKeyInput: Input
   readonly modelDisplayNames: Map<string, string>
   selectedRow: number
   selectedCol: number
@@ -54,6 +60,7 @@ export class CradleSettingsEditor implements Component, Focusable {
   private readonly availableModels: string[]
   private readonly initialSubagentModels: SubagentModels
   private readonly initialAdvisorModel: string | undefined
+  private readonly initialFirecrawlApiKey: string | undefined
   private readonly renderer: SettingsRenderer
   private dirty = false
   private lastInputValue = ''
@@ -66,16 +73,14 @@ export class CradleSettingsEditor implements Component, Focusable {
   focused = false
 
   constructor(
-    initialSettings: CradleSettings,
+    projectSettings: ProjectSettings,
+    globalSettings: GlobalSettings,
     cwd: string,
     theme: EditorTheme,
     availableModels?: ModelOption[],
   ) {
-    this.rows = (initialSettings.permissions ?? []).map((row) => ({ ...row }))
     this.cwd = cwd
     this.theme = theme
-    this.initialTokenThreshold =
-      initialSettings.reminderTokenThreshold ?? DEFAULT_REMINDER_TOKEN_THRESHOLD
 
     const models = availableModels ?? []
     this.availableModels = models.map((m) => m.id)
@@ -83,21 +88,16 @@ export class CradleSettingsEditor implements Component, Focusable {
       models.map((m) => [m.id, `${m.provider}/${m.id}`]),
     )
 
-    const subagentModels: SubagentModels = {}
-    if (initialSettings.subagentModels?.low !== undefined) {
-      subagentModels.low = initialSettings.subagentModels.low
-    }
-    if (initialSettings.subagentModels?.medium !== undefined) {
-      subagentModels.medium = initialSettings.subagentModels.medium
-    }
-    if (initialSettings.subagentModels?.high !== undefined) {
-      subagentModels.high = initialSettings.subagentModels.high
-    }
-    this.subagentModels = subagentModels
-    this.initialSubagentModels = { ...this.subagentModels }
-
-    this.advisorModel = initialSettings.advisorModel
-    this.initialAdvisorModel = initialSettings.advisorModel
+    this.rows = (projectSettings.permissions ?? []).map((row) => ({ ...row }))
+    ;({
+      tokenThreshold: this.initialTokenThreshold,
+      subagentModels: this.subagentModels,
+      initialSubagentModels: this.initialSubagentModels,
+      advisorModel: this.advisorModel,
+      initialAdvisorModel: this.initialAdvisorModel,
+      firecrawlApiKey: this.firecrawlApiKey,
+      initialFirecrawlApiKey: this.initialFirecrawlApiKey,
+    } = this.initFromGlobal(globalSettings))
 
     this.dirInput = new Input()
     this.dirInput.onSubmit = () => {
@@ -108,10 +108,49 @@ export class CradleSettingsEditor implements Component, Focusable {
     this.tokenThresholdInput = new Input()
     this.tokenThresholdInput.setValue(String(this.initialTokenThreshold))
 
+    this.firecrawlApiKeyInput = new Input()
+    if (this.firecrawlApiKey) {
+      this.firecrawlApiKeyInput.setValue(this.firecrawlApiKey)
+    }
+
     this.selectedRow = this.rows.length
     this.selectedCol = 0
 
     this.renderer = new SettingsRenderer(this)
+  }
+
+  private initFromGlobal(globalSettings: GlobalSettings): {
+    tokenThreshold: number
+    subagentModels: SubagentModels
+    initialSubagentModels: SubagentModels
+    advisorModel: string | undefined
+    initialAdvisorModel: string | undefined
+    firecrawlApiKey: string | undefined
+    initialFirecrawlApiKey: string | undefined
+  } {
+    const tokenThreshold =
+      globalSettings.reminderTokenThreshold ?? DEFAULT_REMINDER_TOKEN_THRESHOLD
+
+    const subagentModels: SubagentModels = {}
+    if (globalSettings.subagentModels?.low !== undefined) {
+      subagentModels.low = globalSettings.subagentModels.low
+    }
+    if (globalSettings.subagentModels?.medium !== undefined) {
+      subagentModels.medium = globalSettings.subagentModels.medium
+    }
+    if (globalSettings.subagentModels?.high !== undefined) {
+      subagentModels.high = globalSettings.subagentModels.high
+    }
+
+    return {
+      tokenThreshold,
+      subagentModels,
+      initialSubagentModels: { ...subagentModels },
+      advisorModel: globalSettings.advisorModel,
+      initialAdvisorModel: globalSettings.advisorModel,
+      firecrawlApiKey: globalSettings.firecrawlApiKey,
+      initialFirecrawlApiKey: globalSettings.firecrawlApiKey,
+    }
   }
 
   getRows(): DirectoryPermission[] {
@@ -125,6 +164,11 @@ export class CradleSettingsEditor implements Component, Focusable {
 
   getSubagentModels(): SubagentModels {
     return { ...this.subagentModels }
+  }
+
+  getFirecrawlApiKey(): string | undefined {
+    const value = this.firecrawlApiKeyInput.getValue().trim()
+    return value.length > 0 ? value : undefined
   }
 
   getSuggestions(): string[] {
@@ -143,6 +187,10 @@ export class CradleSettingsEditor implements Component, Focusable {
     return this.dirInput
   }
 
+  getFirecrawlApiKeyInput(): Input {
+    return this.firecrawlApiKeyInput
+  }
+
   getSelectList(): SelectList | undefined {
     return this.selectList
   }
@@ -155,8 +203,15 @@ export class CradleSettingsEditor implements Component, Focusable {
       this.subagentModels.medium !== this.initialSubagentModels.medium ||
       this.subagentModels.high !== this.initialSubagentModels.high
     const advisorChanged = this.advisorModel !== this.initialAdvisorModel
+    const firecrawlKeyChanged =
+      this.firecrawlApiKeyInput.getValue().trim() !==
+      (this.initialFirecrawlApiKey ?? '')
     return (
-      this.dirty || tokenThresholdChanged || modelsChanged || advisorChanged
+      this.dirty ||
+      tokenThresholdChanged ||
+      modelsChanged ||
+      advisorChanged ||
+      firecrawlKeyChanged
     )
   }
 
@@ -240,6 +295,7 @@ export class CradleSettingsEditor implements Component, Focusable {
         reminderTokenThreshold: clampedTokenThreshold,
         subagentModels: this.getSubagentModels(),
         advisorModel: this.advisorModel,
+        firecrawlApiKey: this.getFirecrawlApiKey(),
       })
       return true
     }
@@ -328,7 +384,8 @@ export class CradleSettingsEditor implements Component, Focusable {
   }
 
   private moveDown(): boolean {
-    if (this.selectedRow < this.rows.length + 5) {
+    const maxRow = this.rows.length + TOTAL_EXTRA_ROWS
+    if (this.selectedRow < maxRow) {
       this.selectedRow++
       const isNowOnDataRow = this.selectedRow < this.rows.length
       const isNowOnDirectoryInput = this.selectedRow === this.rows.length
@@ -389,15 +446,13 @@ export class CradleSettingsEditor implements Component, Focusable {
   }
 
   private tryHandleModelToggle(): boolean {
-    if (
-      this.selectedRow >= this.rows.length + 2 &&
-      this.selectedRow <= this.rows.length + 4
-    ) {
+    const relativeRow = this.selectedRow - (this.rows.length + 2)
+    if (relativeRow >= 0 && relativeRow <= 2) {
       this.openModelSelect(this.getTierFromRow(this.selectedRow))
       this.tuiRequestRender?.()
       return true
     }
-    if (this.selectedRow === this.rows.length + 5) {
+    if (relativeRow === 3) {
       this.openAdvisorModelSelect()
       this.tuiRequestRender?.()
       return true
@@ -414,6 +469,11 @@ export class CradleSettingsEditor implements Component, Focusable {
     }
     if (this.selectedRow === this.rows.length + 1) {
       this.tokenThresholdInput.handleInput(data)
+      this.tuiRequestRender?.()
+      return true
+    }
+    if (this.selectedRow === this.rows.length + 6) {
+      this.firecrawlApiKeyInput.handleInput(data)
       this.tuiRequestRender?.()
       return true
     }
@@ -493,5 +553,6 @@ export class CradleSettingsEditor implements Component, Focusable {
   invalidate(): void {
     this.dirInput.invalidate()
     this.tokenThresholdInput.invalidate()
+    this.firecrawlApiKeyInput.invalidate()
   }
 }

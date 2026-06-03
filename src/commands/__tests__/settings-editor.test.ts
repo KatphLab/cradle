@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { GlobalSettings, ProjectSettings } from '../../config/settings.js'
 import { CradleSettingsEditor } from '../settings-editor.js'
 
 let tempRoot: string
@@ -21,28 +22,32 @@ const mockTheme = {
   bold: (text: string) => text,
 }
 
+function makeEditor(
+  project: ProjectSettings = {},
+  global: GlobalSettings = {},
+  models?: { id: string; name: string; provider: string }[],
+): CradleSettingsEditor {
+  return new CradleSettingsEditor(project, global, tempRoot, mockTheme, models)
+}
+
 describe('CradleSettingsEditor — input', () => {
   it('navigates and deletes rows via keyboard', () => {
-    const editor = new CradleSettingsEditor(
-      {
-        permissions: [
-          {
-            path: path.join(tempRoot, 'a'),
-            read: true,
-            write: false,
-            bash: false,
-          },
-          {
-            path: path.join(tempRoot, 'b'),
-            read: true,
-            write: false,
-            bash: false,
-          },
-        ],
-      },
-      tempRoot,
-      mockTheme,
-    )
+    const editor = makeEditor({
+      permissions: [
+        {
+          path: path.join(tempRoot, 'a'),
+          read: true,
+          write: false,
+          bash: false,
+        },
+        {
+          path: path.join(tempRoot, 'b'),
+          read: true,
+          write: false,
+          bash: false,
+        },
+      ],
+    })
     const down = () => {
       editor.handleInput('\u001B[B')
     }
@@ -76,8 +81,11 @@ describe('CradleSettingsEditor — input', () => {
     down()
     expect(editor.getSelectedRow()).toBe(7) // advisor
     down()
-    expect(editor.getSelectedRow()).toBe(7) // stops at bottom
+    expect(editor.getSelectedRow()).toBe(8) // firecrawl API key
+    down()
+    expect(editor.getSelectedRow()).toBe(8) // stops at bottom
 
+    up()
     up()
     up()
     up()
@@ -95,20 +103,16 @@ describe('CradleSettingsEditor — input', () => {
 
 describe('CradleSettingsEditor — permissions', () => {
   it('navigates permission columns and toggles values', () => {
-    const editor = new CradleSettingsEditor(
-      {
-        permissions: [
-          {
-            path: path.join(tempRoot, 'a'),
-            read: true,
-            write: false,
-            bash: false,
-          },
-        ],
-      },
-      tempRoot,
-      mockTheme,
-    )
+    const editor = makeEditor({
+      permissions: [
+        {
+          path: path.join(tempRoot, 'a'),
+          read: true,
+          write: false,
+          bash: false,
+        },
+      ],
+    })
 
     // Move up to first data row
     editor.handleInput('\u001B[A')
@@ -141,11 +145,7 @@ describe('CradleSettingsEditor — suggestions', () => {
   it('accepts and dismisses suggestions', async () => {
     await mkdir(path.join(tempRoot, 'testdir'))
 
-    const editor = new CradleSettingsEditor(
-      { permissions: [] },
-      tempRoot,
-      mockTheme,
-    )
+    const editor = makeEditor()
     editor.tuiRequestRender = vi.fn()
 
     // Set up suggestions
@@ -189,11 +189,7 @@ describe('CradleSettingsEditor — keys', () => {
   it('handles save, cancel, and ignores printable keys when list focused', () => {
     const saveSpy = vi.fn()
     const cancelSpy = vi.fn()
-    const editor = new CradleSettingsEditor(
-      { permissions: [] },
-      tempRoot,
-      mockTheme,
-    )
+    const editor = makeEditor()
     editor.onSave = saveSpy
     editor.onCancel = cancelSpy
 
@@ -202,26 +198,24 @@ describe('CradleSettingsEditor — keys', () => {
       permissions: [],
       reminderTokenThreshold: 6000,
       subagentModels: {},
+      advisorModel: undefined,
+      firecrawlApiKey: undefined,
     })
 
     editor.handleInput('\u001B') // escape
     expect(cancelSpy).toHaveBeenCalled()
 
     // Printable char ignored when on a data row
-    const editorWithItems = new CradleSettingsEditor(
-      {
-        permissions: [
-          {
-            path: path.join(tempRoot, 'a'),
-            read: true,
-            write: false,
-            bash: false,
-          },
-        ],
-      },
-      tempRoot,
-      mockTheme,
-    )
+    const editorWithItems = makeEditor({
+      permissions: [
+        {
+          path: path.join(tempRoot, 'a'),
+          read: true,
+          write: false,
+          bash: false,
+        },
+      ],
+    })
     editorWithItems.handleInput('\u001B[A') // move up to data row
     expect(editorWithItems.getSelectedRow()).toBe(0)
     editorWithItems.handleInput('x')
@@ -232,20 +226,16 @@ describe('CradleSettingsEditor — keys', () => {
 describe('CradleSettingsEditor — rendering', () => {
   it('renders in various states and edge cases', () => {
     // With items
-    const editor = new CradleSettingsEditor(
-      {
-        permissions: [
-          {
-            path: path.join(tempRoot, 'a'),
-            read: true,
-            write: false,
-            bash: false,
-          },
-        ],
-      },
-      tempRoot,
-      mockTheme,
-    )
+    const editor = makeEditor({
+      permissions: [
+        {
+          path: path.join(tempRoot, 'a'),
+          read: true,
+          write: false,
+          bash: false,
+        },
+      ],
+    })
     editor.focused = true
     const lines = editor.render(80)
     expect(lines.length).toBeGreaterThan(0)
@@ -253,11 +243,7 @@ describe('CradleSettingsEditor — rendering', () => {
     expect(lines.some((line) => line.includes('a'))).toBe(true)
 
     // Empty state
-    const emptyEditor = new CradleSettingsEditor(
-      { permissions: [] },
-      tempRoot,
-      mockTheme,
-    )
+    const emptyEditor = makeEditor()
     emptyEditor.focused = true
     const emptyLines = emptyEditor.render(80)
     expect(
@@ -265,11 +251,7 @@ describe('CradleSettingsEditor — rendering', () => {
     ).toBe(true)
 
     // Dirty state from permission change
-    const dirtyEditor = new CradleSettingsEditor(
-      { permissions: [] },
-      tempRoot,
-      mockTheme,
-    )
+    const dirtyEditor = makeEditor()
     dirtyEditor.getDirInput().setValue('x')
     dirtyEditor.addCurrentInput()
     dirtyEditor.focused = true
@@ -279,10 +261,9 @@ describe('CradleSettingsEditor — rendering', () => {
     )
 
     // Dirty state from token threshold change
-    const tokenThresholdDirtyEditor = new CradleSettingsEditor(
-      { permissions: [], reminderTokenThreshold: 6000 },
-      tempRoot,
-      mockTheme,
+    const tokenThresholdDirtyEditor = makeEditor(
+      {},
+      { reminderTokenThreshold: 6000 },
     )
     tokenThresholdDirtyEditor.handleInput('\u001B[B') // move to threshold row
     tokenThresholdDirtyEditor.handleInput('5')
@@ -304,15 +285,10 @@ describe('CradleSettingsEditor — rendering', () => {
 
 describe('CradleSettingsEditor — model select list', () => {
   it('opens select list when Enter is pressed', () => {
-    const editor = new CradleSettingsEditor(
-      { permissions: [] },
-      tempRoot,
-      mockTheme,
-      [
-        { id: 'a', name: 'A', provider: 'test' },
-        { id: 'b', name: 'B', provider: 'test' },
-      ],
-    )
+    const editor = makeEditor({}, {}, [
+      { id: 'a', name: 'A', provider: 'test' },
+      { id: 'b', name: 'B', provider: 'test' },
+    ])
     editor.tuiRequestRender = vi.fn()
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
@@ -321,15 +297,10 @@ describe('CradleSettingsEditor — model select list', () => {
   })
 
   it('selects model from list', () => {
-    const editor = new CradleSettingsEditor(
-      { permissions: [], subagentModels: { low: 'a' } },
-      tempRoot,
-      mockTheme,
-      [
-        { id: 'a', name: 'A', provider: 'test' },
-        { id: 'b', name: 'B', provider: 'test' },
-      ],
-    )
+    const editor = makeEditor({}, { subagentModels: { low: 'a' } }, [
+      { id: 'a', name: 'A', provider: 'test' },
+      { id: 'b', name: 'B', provider: 'test' },
+    ])
     editor.tuiRequestRender = vi.fn()
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
@@ -341,15 +312,10 @@ describe('CradleSettingsEditor — model select list', () => {
   })
 
   it('opens advisor model select list', () => {
-    const editor = new CradleSettingsEditor(
-      { permissions: [], advisorModel: 'a' },
-      tempRoot,
-      mockTheme,
-      [
-        { id: 'a', name: 'A', provider: 'test' },
-        { id: 'b', name: 'B', provider: 'test' },
-      ],
-    )
+    const editor = makeEditor({}, { advisorModel: 'a' }, [
+      { id: 'a', name: 'A', provider: 'test' },
+      { id: 'b', name: 'B', provider: 'test' },
+    ])
     editor.tuiRequestRender = vi.fn()
     // Navigate down to advisor model row (row 5 with empty permissions)
     editor.handleInput('\u001B[B')
@@ -362,15 +328,10 @@ describe('CradleSettingsEditor — model select list', () => {
   })
 
   it('selects advisor model from list', () => {
-    const editor = new CradleSettingsEditor(
-      { permissions: [], advisorModel: 'a' },
-      tempRoot,
-      mockTheme,
-      [
-        { id: 'a', name: 'A', provider: 'test' },
-        { id: 'b', name: 'B', provider: 'test' },
-      ],
-    )
+    const editor = makeEditor({}, { advisorModel: 'a' }, [
+      { id: 'a', name: 'A', provider: 'test' },
+      { id: 'b', name: 'B', provider: 'test' },
+    ])
     editor.tuiRequestRender = vi.fn()
     // Navigate down to advisor model row (row 5 with empty permissions)
     editor.handleInput('\u001B[B')
@@ -386,15 +347,10 @@ describe('CradleSettingsEditor — model select list', () => {
   })
 
   it('cancels model select', () => {
-    const editor = new CradleSettingsEditor(
-      { permissions: [], subagentModels: { low: 'a' } },
-      tempRoot,
-      mockTheme,
-      [
-        { id: 'a', name: 'A', provider: 'test' },
-        { id: 'b', name: 'B', provider: 'test' },
-      ],
-    )
+    const editor = makeEditor({}, { subagentModels: { low: 'a' } }, [
+      { id: 'a', name: 'A', provider: 'test' },
+      { id: 'b', name: 'B', provider: 'test' },
+    ])
     editor.tuiRequestRender = vi.fn()
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
@@ -406,15 +362,10 @@ describe('CradleSettingsEditor — model select list', () => {
   })
 
   it('cancels advisor model select', () => {
-    const editor = new CradleSettingsEditor(
-      { permissions: [], advisorModel: 'a' },
-      tempRoot,
-      mockTheme,
-      [
-        { id: 'a', name: 'A', provider: 'test' },
-        { id: 'b', name: 'B', provider: 'test' },
-      ],
-    )
+    const editor = makeEditor({}, { advisorModel: 'a' }, [
+      { id: 'a', name: 'A', provider: 'test' },
+      { id: 'b', name: 'B', provider: 'test' },
+    ])
     editor.tuiRequestRender = vi.fn()
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
@@ -429,15 +380,10 @@ describe('CradleSettingsEditor — model select list', () => {
   })
 
   it('renders with subagent model select open', () => {
-    const editor = new CradleSettingsEditor(
-      { permissions: [], subagentModels: { low: 'a' } },
-      tempRoot,
-      mockTheme,
-      [
-        { id: 'a', name: 'A', provider: 'test' },
-        { id: 'b', name: 'B', provider: 'test' },
-      ],
-    )
+    const editor = makeEditor({}, { subagentModels: { low: 'a' } }, [
+      { id: 'a', name: 'A', provider: 'test' },
+      { id: 'b', name: 'B', provider: 'test' },
+    ])
     editor.tuiRequestRender = vi.fn()
     editor.focused = true
     editor.handleInput('\u001B[B')
@@ -450,15 +396,10 @@ describe('CradleSettingsEditor — model select list', () => {
   })
 
   it('renders with advisor model select open', () => {
-    const editor = new CradleSettingsEditor(
-      { permissions: [], advisorModel: 'a' },
-      tempRoot,
-      mockTheme,
-      [
-        { id: 'a', name: 'A', provider: 'test' },
-        { id: 'b', name: 'B', provider: 'test' },
-      ],
-    )
+    const editor = makeEditor({}, { advisorModel: 'a' }, [
+      { id: 'a', name: 'A', provider: 'test' },
+      { id: 'b', name: 'B', provider: 'test' },
+    ])
     editor.tuiRequestRender = vi.fn()
     editor.focused = true
     editor.handleInput('\u001B[B')
@@ -476,18 +417,10 @@ describe('CradleSettingsEditor — model select list', () => {
 
 describe('CradleSettingsEditor — reminder token threshold', () => {
   it('defaults to 6000, reads initial value, and clamps on save', () => {
-    const editor = new CradleSettingsEditor(
-      { permissions: [] },
-      tempRoot,
-      mockTheme,
-    )
+    const editor = makeEditor()
     expect(editor.getReminderTokenThreshold()).toBe(6000)
 
-    const customEditor = new CradleSettingsEditor(
-      { permissions: [], reminderTokenThreshold: 7000 },
-      tempRoot,
-      mockTheme,
-    )
+    const customEditor = makeEditor({}, { reminderTokenThreshold: 7000 })
     expect(customEditor.getReminderTokenThreshold()).toBe(7000)
 
     const saveSpy = vi.fn()
@@ -504,6 +437,52 @@ describe('CradleSettingsEditor — reminder token threshold', () => {
       permissions: [],
       reminderTokenThreshold: 50_000,
       subagentModels: {},
+      advisorModel: undefined,
+      firecrawlApiKey: undefined,
     })
+  })
+})
+
+describe('CradleSettingsEditor — firecrawl API key', () => {
+  it('reads initial value from global settings', () => {
+    const editor = makeEditor({}, { firecrawlApiKey: 'test-key' })
+    expect(editor.getFirecrawlApiKey()).toBe('test-key')
+  })
+
+  it('returns undefined when empty', () => {
+    const editor = makeEditor()
+    expect(editor.getFirecrawlApiKey()).toBeUndefined()
+  })
+
+  it('detects dirty on key change', () => {
+    const editor = makeEditor({}, { firecrawlApiKey: 'old-key' })
+    expect(editor.isDirty()).toBe(false)
+    // Navigate to API key row (rows.length + 6 = 6)
+    for (let index = 0; index < 6; index++) {
+      editor.handleInput('\u001B[B')
+    }
+    editor.handleInput('n')
+    expect(editor.isDirty()).toBe(true)
+  })
+
+  it('includes key in save result', () => {
+    const saveSpy = vi.fn()
+    const editor = makeEditor()
+    editor.onSave = saveSpy
+    // Navigate to API key row and type
+    for (let index = 0; index < 6; index++) {
+      editor.handleInput('\u001B[B')
+    }
+    editor.handleInput('f')
+    editor.handleInput('c')
+    editor.handleInput('-')
+    editor.handleInput('k')
+    editor.handleInput('e')
+    editor.handleInput('y')
+    editor.handleInput('\u0013')
+
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ firecrawlApiKey: 'fc-key' }),
+    )
   })
 })

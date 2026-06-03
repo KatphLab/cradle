@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import type { AgentToolResult } from '@earendil-works/pi-agent-core'
 import type { Message, Usage } from '@earendil-works/pi-ai'
 
-import type { CradleSettings } from '../config/settings.js'
+import type { GlobalSettings } from '../config/settings.js'
 import type {
   AgentConfig,
   SingleResult,
@@ -54,7 +54,7 @@ export interface RunSingleAgentOptions {
   onUpdate: OnUpdateCallback | undefined
   makeDetails: DetailsFactory
   complexity: TaskComplexity | undefined
-  settings: CradleSettings | undefined
+  settings: GlobalSettings | undefined
 }
 
 function createEmptyUsage(): UsageStats {
@@ -71,7 +71,7 @@ function createEmptyUsage(): UsageStats {
 
 function resolveModel(
   complexity: TaskComplexity | undefined,
-  settings: CradleSettings | undefined,
+  settings: GlobalSettings | undefined,
 ): string | undefined {
   if (complexity === undefined) return undefined
   return settings?.subagentModels?.[complexity]

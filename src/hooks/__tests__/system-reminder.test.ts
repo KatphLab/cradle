@@ -1,10 +1,22 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import os from 'node:os'
+// Isolate global settings to a temp directory to avoid cross-file pollution.
 import path from 'node:path'
+import { vi } from 'vitest'
+
+vi.mock('node:os', async () => {
+  const actual = await vi.importActual('node:os')
+  const home = path.join(
+    ((actual as Record<string, unknown>)['tmpdir'] as () => string)(),
+    'pi-system-reminder-global-test-home',
+  )
+  return { ...actual, homedir: () => home }
+})
+
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { homedir, tmpdir } from 'node:os'
 
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { registerSystemReminderHook } from '../system-reminder.js'
 
@@ -133,10 +145,10 @@ function createTodoToolResult(text: string): AgentMessage {
 }
 
 async function writeCradleSettings(
-  cwd: string,
+  _cwd: string,
   settings: Record<string, unknown>,
 ): Promise<void> {
-  const configDirectory = path.join(cwd, '.pi', 'cradle')
+  const configDirectory = path.join(homedir(), '.pi', 'cradle')
   await mkdir(configDirectory, { recursive: true })
   await writeFile(
     path.join(configDirectory, 'settings.json'),
@@ -148,13 +160,21 @@ describe('registerSystemReminderHook', () => {
   beforeEach(async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-05-24T00:00:00.000Z'))
-    tempRoot = await mkdtemp(path.join(os.tmpdir(), 'cradle-reminder-'))
+    tempRoot = await mkdtemp(path.join(tmpdir(), 'cradle-reminder-'))
     await writeCradleSettings(tempRoot, { reminderTokenThreshold: 500 })
   })
 
   afterEach(async () => {
     vi.useRealTimers()
     await rm(tempRoot, { recursive: true, force: true })
+    // Clean up global settings file
+    try {
+      await rm(path.join(homedir(), '.pi', 'cradle', 'settings.json'), {
+        force: true,
+      })
+    } catch {
+      // ignore
+    }
   })
 
   it('warns on before_agent_start when the system reminder exceeds 500 tokens', async () => {

@@ -13,6 +13,7 @@ export interface EditorState {
   readonly theme: EditorTheme
   readonly dirInput: Input
   readonly tokenThresholdInput: Input
+  readonly firecrawlApiKeyInput: Input
   readonly subagentModels: SubagentModels
   readonly advisorModel: string | undefined
   readonly modelDisplayNames: Map<string, string>
@@ -41,3 +42,4 @@ export const TIER_LABELS: Record<'low' | 'medium' | 'high', string> = {
   high: 'High Model',
 }
 export const ADVISOR_MODEL_LABEL = 'Advisor Model'
+export const FIRECRAWL_API_KEY_LABEL = 'Firecrawl API Key'

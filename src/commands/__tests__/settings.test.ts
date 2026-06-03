@@ -1,8 +1,22 @@
-import type { ExtensionAPI, ThemeColor } from '@earendil-works/pi-coding-agent'
-import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+// Mock homedir before any imports to isolate global settings per test suite.
+// The settings module computes GLOBAL_CONFIG_FILE_PATH at import time
+// using homedir(), so this mock must be hoisted before that import.
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { vi } from 'vitest'
+
+vi.mock('node:os', async () => {
+  const actual = await vi.importActual('node:os')
+  const home = path.join(
+    ((actual as Record<string, unknown>)['tmpdir'] as () => string)(),
+    'pi-settings-global-test-home',
+  )
+  return { ...actual, homedir: () => home }
+})
+
+import type { ExtensionAPI, ThemeColor } from '@earendil-works/pi-coding-agent'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {
   formatDirectoryPath,
@@ -11,13 +25,28 @@ import {
 import { registerSettingsCommand } from '../settings.js'
 
 let tempRoot: string
+// The vi.mock above replaced homedir() with one pointing to this directory.
+const globalSettingsHome = path.join(tmpdir(), 'pi-settings-global-test-home')
+const globalSettingsPath = path.join(
+  globalSettingsHome,
+  '.pi',
+  'cradle',
+  'settings.json',
+)
 
 beforeEach(async () => {
   tempRoot = await mkdtemp(path.join(tmpdir(), 'pi-settings-test-'))
+  await mkdir(path.dirname(globalSettingsPath), { recursive: true })
+  await writeFile(globalSettingsPath, '{}')
 })
 
 afterEach(async () => {
   await rm(tempRoot, { force: true, recursive: true })
+  try {
+    await rm(globalSettingsPath, { force: true })
+  } catch {
+    // ignore
+  }
 })
 
 const mockTheme = {
@@ -30,6 +59,7 @@ interface SR {
   reminderTokenThreshold: number
   subagentModels: { low?: string; medium?: string; high?: string }
   advisorModel?: string
+  firecrawlApiKey?: string
 }
 
 async function invokeRegisteredHandler(
@@ -77,8 +107,26 @@ async function invokeRegisteredHandler(
   return { notifySpy }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+async function readSettings(
+  filePath: string,
+): Promise<Record<string, unknown>> {
+  const raw: unknown = JSON.parse(await readFile(filePath, 'utf8'))
+  if (!isRecord(raw)) {
+    throw new Error(`Expected JSON object at ${filePath}`)
+  }
+  return raw
+}
+
+function projectSettingsPath(): string {
+  return path.join(tempRoot, '.pi', 'cradle', 'settings.json')
+}
+
 describe('registerSettingsCommand', () => {
-  it('saves edited permissions and notifies', async () => {
+  it('saves edited permissions to project settings and notifies', async () => {
     const { notifySpy } = await invokeRegisteredHandler((editor) => {
       editor.onSave?.({
         permissions: [
@@ -98,22 +146,22 @@ describe('registerSettingsCommand', () => {
       }
     })
 
-    const settingsPath = path.join(tempRoot, '.pi', 'cradle', 'settings.json')
-    const saved = JSON.parse(await readFile(settingsPath, 'utf8'))
+    const saved = await readSettings(projectSettingsPath())
     expect(saved).toEqual({
       permissions: [
         { path: '/allowed-a', read: true, write: false, bash: false },
         { path: '/allowed-b', read: true, write: true, bash: false },
       ],
-      reminderTokenThreshold: 5000,
     })
+    const globalSaved = await readSettings(globalSettingsPath)
+    expect(globalSaved['reminderTokenThreshold']).toBe(5000)
     expect(notifySpy).toHaveBeenCalledWith(
       'Cradle settings saved: 2 permissions, 0 models, reminder token threshold 5000',
       'info',
     )
   })
 
-  it('saves with advisor model and notifies', async () => {
+  it('saves advisor model to global settings and notifies', async () => {
     const { notifySpy } = await invokeRegisteredHandler((editor) => {
       editor.onSave?.({
         permissions: [],
@@ -129,15 +177,37 @@ describe('registerSettingsCommand', () => {
       }
     })
 
-    const settingsPath = path.join(tempRoot, '.pi', 'cradle', 'settings.json')
-    const saved = JSON.parse(await readFile(settingsPath, 'utf8'))
-    expect(saved).toEqual({
-      permissions: [],
-      reminderTokenThreshold: 5000,
-      advisorModel: 'gpt-4',
-    })
+    const saved = await readSettings(projectSettingsPath())
+    expect(saved).toEqual({ permissions: [] })
+    const globalSaved = await readSettings(globalSettingsPath)
+    expect(globalSaved['advisorModel']).toBe('gpt-4')
+    expect(globalSaved['reminderTokenThreshold']).toBe(5000)
     expect(notifySpy).toHaveBeenCalledWith(
       'Cradle settings saved: 0 permissions, 1 models, reminder token threshold 5000',
+      'info',
+    )
+  })
+
+  it('saves firecrawl API key to global settings', async () => {
+    const { notifySpy } = await invokeRegisteredHandler((editor) => {
+      editor.onSave?.({
+        permissions: [],
+        reminderTokenThreshold: 6000,
+        subagentModels: {},
+        firecrawlApiKey: 'test-fc-key',
+      })
+      return {
+        permissions: [],
+        reminderTokenThreshold: 6000,
+        subagentModels: {},
+        firecrawlApiKey: 'test-fc-key',
+      }
+    })
+
+    const globalSaved = await readSettings(globalSettingsPath)
+    expect(globalSaved['firecrawlApiKey']).toBe('test-fc-key')
+    expect(notifySpy).toHaveBeenCalledWith(
+      'Cradle settings saved: 0 permissions, 0 models, reminder token threshold 6000 configured',
       'info',
     )
   })
@@ -147,8 +217,7 @@ describe('registerSettingsCommand', () => {
       editor.onCancel?.()
     })
 
-    const settingsPath = path.join(tempRoot, '.pi', 'cradle', 'settings.json')
-    await expect(readFile(settingsPath, 'utf8')).rejects.toThrow()
+    await expect(readFile(projectSettingsPath(), 'utf8')).rejects.toThrow()
     expect(notifySpy).toHaveBeenCalledWith('Cradle settings unchanged', 'info')
   })
 })

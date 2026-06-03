@@ -1,6 +1,7 @@
 import { truncateToWidth } from '@earendil-works/pi-tui'
 import {
   ADVISOR_MODEL_LABEL,
+  FIRECRAWL_API_KEY_LABEL,
   GAP,
   PERMISSION_LABELS,
   TIER_LABELS,
@@ -25,6 +26,7 @@ export class SettingsRenderer {
       ...this.renderTokenThresholdSection(width),
       ...this.renderModelSection(width),
       ...this.renderAdvisorModelSection(width),
+      ...this.renderFirecrawlApiKeySection(width),
       ...this.renderHelp(width),
     ]
   }
@@ -207,5 +209,19 @@ export class SettingsRenderer {
     const helpText =
       '↑↓ navigate • ←→ columns • Space/Enter toggle • Del remove • Ctrl+S save • Esc cancel'
     return [truncateToWidth(this.editor.theme.fg('dim', helpText), width)]
+  }
+
+  private renderFirecrawlApiKeySection(width: number): string[] {
+    const rowIndex = this.editor.rows.length + 6
+    const isFocused = this.editor.selectedRow === rowIndex
+    const prefix = isFocused ? '> ' : '  '
+    const inputWidth = Math.max(0, width - prefix.length)
+    const inputLines = this.editor.firecrawlApiKeyInput.render(inputWidth)
+    const [firstLine = ''] = inputLines
+    return [
+      '',
+      this.editor.theme.bold(FIRECRAWL_API_KEY_LABEL),
+      `${prefix}${firstLine}`,
+    ]
   }
 }

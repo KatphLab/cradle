@@ -7,9 +7,12 @@ import {
 import path from 'node:path'
 
 import {
-  loadCradleSettings,
-  saveCradleSettings,
-  type CradleSettings,
+  loadGlobalSettings,
+  loadProjectSettings,
+  saveGlobalSettings,
+  saveProjectSettings,
+  type GlobalSettings,
+  type ProjectSettings,
 } from '../config/settings.js'
 import { CradleSettingsEditor } from './settings-editor.js'
 
@@ -18,6 +21,7 @@ interface SettingsSaveResult {
   reminderTokenThreshold: number
   subagentModels: { low?: string; medium?: string; high?: string }
   advisorModel: string | undefined
+  firecrawlApiKey: string | undefined
 }
 
 function buildSaveNotification(result: SettingsSaveResult): string {
@@ -28,7 +32,8 @@ function buildSaveNotification(result: SettingsSaveResult): string {
       result.subagentModels.medium,
       result.subagentModels.high,
     ].filter(Boolean).length + (result.advisorModel ? 1 : 0)
-  return `Cradle settings saved: ${String(permissionCount)} permissions, ${String(modelCount)} models, reminder token threshold ${String(result.reminderTokenThreshold)}`
+  const apiKeyStatus = result.firecrawlApiKey ? ' configured' : ''
+  return `Cradle settings saved: ${String(permissionCount)} permissions, ${String(modelCount)} models, reminder token threshold ${String(result.reminderTokenThreshold)}${apiKeyStatus}`
 }
 
 /** @public */
@@ -38,7 +43,10 @@ export function registerSettingsCommand(
   pi.registerCommand('cradle-settings', {
     description: 'Configure Cradle settings',
     handler: async (_args, context) => {
-      const settings = await loadCradleSettings(context.cwd)
+      const [projectSettings, globalSettings] = await Promise.all([
+        loadProjectSettings(context.cwd),
+        loadGlobalSettings(),
+      ])
 
       const authStorage = AuthStorage.create(
         path.join(getAgentDir(), 'auth.json'),
@@ -57,7 +65,8 @@ export function registerSettingsCommand(
       const result = await context.ui.custom<SettingsSaveResult | undefined>(
         (tui, theme, _kb, done) => {
           const editor = new CradleSettingsEditor(
-            settings,
+            projectSettings,
+            globalSettings,
             context.cwd,
             theme,
             availableModels,
@@ -81,15 +90,26 @@ export function registerSettingsCommand(
         context.ui.notify('Cradle settings unchanged', 'info')
         return
       }
-      const settingsToSave: CradleSettings = {
+
+      const projectToSave: ProjectSettings = {
         permissions: result.permissions,
+      }
+
+      const globalToSave: GlobalSettings = {
         reminderTokenThreshold: result.reminderTokenThreshold,
         subagentModels: result.subagentModels,
       }
       if (result.advisorModel !== undefined) {
-        settingsToSave.advisorModel = result.advisorModel
+        globalToSave.advisorModel = result.advisorModel
       }
-      await saveCradleSettings(context.cwd, settingsToSave)
+      if (result.firecrawlApiKey !== undefined) {
+        globalToSave.firecrawlApiKey = result.firecrawlApiKey
+      }
+
+      await Promise.all([
+        saveProjectSettings(context.cwd, projectToSave),
+        saveGlobalSettings(globalToSave),
+      ])
       context.ui.notify(buildSaveNotification(result), 'info')
     },
   })

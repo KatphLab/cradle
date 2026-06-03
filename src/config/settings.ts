@@ -3,7 +3,10 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const CONFIG_FILE_PATH = path.join('.pi', 'cradle', 'settings.json')
+const PROJECT_CONFIG_FILE_PATH = path.join('.pi', 'cradle', 'settings.json')
+function getGlobalConfigPath(): string {
+  return path.join(homedir(), '.pi', 'cradle', 'settings.json')
+}
 
 export interface DirectoryPermission {
   path: string
@@ -22,12 +25,19 @@ export const DEFAULT_REMINDER_TOKEN_THRESHOLD = 6000
 export const MIN_REMINDER_TOKEN_THRESHOLD = 500
 export const MAX_REMINDER_TOKEN_THRESHOLD = 50_000
 
-export interface CradleSettings {
+export interface ProjectSettings {
   permissions?: DirectoryPermission[]
+}
+
+export interface GlobalSettings {
   reminderTokenThreshold?: number
   subagentModels?: SubagentModels
   advisorModel?: string
+  firecrawlApiKey?: string
 }
+
+/** @deprecated Use ProjectSettings or GlobalSettings instead. */
+export interface CradleSettings extends ProjectSettings, GlobalSettings {}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && Boolean(value) && !Array.isArray(value)
@@ -68,7 +78,15 @@ function normalizeAdvisorModel(raw: unknown): string | undefined {
   return undefined
 }
 
-function normalizeSettings(value: unknown, cwd: string): CradleSettings {
+function normalizeFirecrawlApiKey(raw: unknown): string | undefined {
+  if (typeof raw === 'string' && raw.length > 0) return raw
+  return undefined
+}
+
+function normalizeProjectSettings(
+  value: unknown,
+  cwd: string,
+): ProjectSettings {
   if (!isRecord(value)) return {}
 
   const rawPermissions = Array.isArray(value['permissions'])
@@ -83,6 +101,46 @@ function normalizeSettings(value: unknown, cwd: string): CradleSettings {
       bash: permission.bash,
     })) ?? undefined
 
+  return {
+    ...(permissions !== undefined && { permissions }),
+  }
+}
+
+function getProjectConfigFilePath(cwd: string): string {
+  return path.join(cwd, PROJECT_CONFIG_FILE_PATH)
+}
+
+/** @public */
+export async function loadProjectSettings(
+  cwd: string,
+): Promise<ProjectSettings> {
+  try {
+    const content = await readFile(getProjectConfigFilePath(cwd), 'utf8')
+    return normalizeProjectSettings(JSON.parse(content), cwd)
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+      return {}
+    }
+    throw error
+  }
+}
+
+/** @public */
+export async function saveProjectSettings(
+  cwd: string,
+  settings: ProjectSettings,
+): Promise<void> {
+  const configFilePath = getProjectConfigFilePath(cwd)
+  await mkdir(path.dirname(configFilePath), { recursive: true })
+  await writeFile(
+    configFilePath,
+    `${JSON.stringify(normalizeProjectSettings(settings, cwd), undefined, 2)}\n`,
+  )
+}
+
+function normalizeGlobalSettings(value: unknown): GlobalSettings {
+  if (!isRecord(value)) return {}
+
   const reminderTokenThreshold = normalizeReminderTokenThreshold(
     value['reminderTokenThreshold'],
   )
@@ -94,16 +152,49 @@ function normalizeSettings(value: unknown, cwd: string): CradleSettings {
 
   const advisorModel = normalizeAdvisorModel(value['advisorModel'])
 
+  const firecrawlApiKey = normalizeFirecrawlApiKey(value['firecrawlApiKey'])
+
   return {
-    ...(permissions !== undefined && { permissions }),
     ...(reminderTokenThreshold !== undefined && { reminderTokenThreshold }),
     ...(subagentModels !== undefined && { subagentModels }),
     ...(advisorModel !== undefined && { advisorModel }),
+    ...(firecrawlApiKey !== undefined && { firecrawlApiKey }),
   }
 }
 
-function getConfigFilePath(cwd: string): string {
-  return path.join(cwd, CONFIG_FILE_PATH)
+/** @public */
+export async function loadGlobalSettings(): Promise<GlobalSettings> {
+  try {
+    const content = await readFile(getGlobalConfigPath(), 'utf8')
+    return normalizeGlobalSettings(JSON.parse(content))
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+      return {}
+    }
+    throw error
+  }
+}
+
+/** @public */
+export async function saveGlobalSettings(
+  settings: GlobalSettings,
+): Promise<void> {
+  await mkdir(path.dirname(getGlobalConfigPath()), { recursive: true })
+  await writeFile(
+    getGlobalConfigPath(),
+    `${JSON.stringify(normalizeGlobalSettings(settings), undefined, 2)}\n`,
+  )
+}
+
+/** @public */
+export async function loadCradleSettings(
+  cwd: string,
+): Promise<ProjectSettings & GlobalSettings> {
+  const [project, global] = await Promise.all([
+    loadProjectSettings(cwd),
+    loadGlobalSettings(),
+  ])
+  return { ...global, ...project }
 }
 
 function getEarendilWorksDirectories(): string[] {
@@ -162,32 +253,6 @@ function resolveClosestDirectoryPermission(
 }
 
 /** @public */
-export async function loadCradleSettings(cwd: string): Promise<CradleSettings> {
-  try {
-    const content = await readFile(getConfigFilePath(cwd), 'utf8')
-    return normalizeSettings(JSON.parse(content), cwd)
-  } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-      return {}
-    }
-    throw error
-  }
-}
-
-/** @public */
-export async function saveCradleSettings(
-  cwd: string,
-  settings: CradleSettings,
-): Promise<void> {
-  const configFilePath = getConfigFilePath(cwd)
-  await mkdir(path.dirname(configFilePath), { recursive: true })
-  await writeFile(
-    configFilePath,
-    `${JSON.stringify(normalizeSettings(settings, cwd), undefined, 2)}\n`,
-  )
-}
-
-/** @public */
 export async function assertPermission(
   filePath: string,
   cwd: string,
@@ -201,9 +266,10 @@ export async function assertPermission(
     return
   }
 
-  // Implicit read directories (SDK packages + defaults)
+  // Implicit read directories (SDK packages + defaults + /tmp)
   if (operation === 'read') {
     const implicitDirectories = [
+      '/tmp',
       ...getEarendilWorksDirectories(),
       ...getDefaultReadDirectories(),
     ]
@@ -216,7 +282,7 @@ export async function assertPermission(
     }
   }
 
-  const settings = await loadCradleSettings(cwd)
+  const settings = await loadProjectSettings(cwd)
   const permissions = settings.permissions ?? []
   const closest = resolveClosestDirectoryPermission(
     resolvedFilePath,

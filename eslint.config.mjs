@@ -253,6 +253,7 @@ const eslintConfig = defineConfig([
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/ban-ts-comment': 'off',
       'unicorn/no-null': 'off',
+      '@typescript-eslint/no-unsafe-type-assertion': 'off',
     },
   },
   {
