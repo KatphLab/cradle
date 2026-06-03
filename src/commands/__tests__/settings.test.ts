@@ -61,6 +61,7 @@ interface SR {
   advisorModel?: string
   firecrawlApiKey?: string
   tavilyApiKey?: string
+  exaApiKey?: string
 }
 
 async function invokeRegisteredHandler(
@@ -233,6 +234,30 @@ describe('registerSettingsCommand', () => {
     expect(globalSaved['tavilyApiKey']).toBe('test-tvly-key')
     expect(notifySpy).toHaveBeenCalledWith(
       'Cradle settings saved: 0 permissions, 0 models, reminder token threshold 6000 tavily',
+      'info',
+    )
+  })
+
+  it('saves exa API key to global settings', async () => {
+    const { notifySpy } = await invokeRegisteredHandler((editor) => {
+      editor.onSave?.({
+        permissions: [],
+        reminderTokenThreshold: 6000,
+        subagentModels: {},
+        exaApiKey: 'test-exa-key',
+      })
+      return {
+        permissions: [],
+        reminderTokenThreshold: 6000,
+        subagentModels: {},
+        exaApiKey: 'test-exa-key',
+      }
+    })
+
+    const globalSaved = await readSettings(globalSettingsPath)
+    expect(globalSaved['exaApiKey']).toBe('test-exa-key')
+    expect(notifySpy).toHaveBeenCalledWith(
+      'Cradle settings saved: 0 permissions, 0 models, reminder token threshold 6000 exa',
       'info',
     )
   })
