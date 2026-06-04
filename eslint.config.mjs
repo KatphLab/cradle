@@ -34,39 +34,39 @@ const eslintConfig = defineConfig([
       'boundaries/elements': [
         {
           type: 'tests',
-          pattern: 'src/**/__tests__/**',
+          pattern: 'cradle/**/__tests__/**',
         },
         {
           type: 'lib',
-          pattern: 'src/lib/**',
+          pattern: 'cradle/lib/**',
         },
         {
           type: 'utils',
-          pattern: 'src/utils/**',
+          pattern: 'cradle/utils/**',
         },
         {
           type: 'config',
-          pattern: 'src/config/**',
+          pattern: 'cradle/config/**',
         },
         {
           type: 'types',
-          pattern: 'src/types/**',
+          pattern: 'cradle/types/**',
         },
         {
           type: 'entry',
-          pattern: 'src/index.ts',
+          pattern: 'cradle/index.ts',
         },
         {
           type: 'tools',
-          pattern: 'src/tools/**',
+          pattern: 'cradle/tools/**',
         },
         {
           type: 'commands',
-          pattern: 'src/commands/**',
+          pattern: 'cradle/commands/**',
         },
         {
           type: 'hooks',
-          pattern: 'src/hooks/**',
+          pattern: 'cradle/hooks/**',
         },
       ],
     },
@@ -305,7 +305,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ['src/config/shell-risk.ts'],
+    files: ['cradle/config/shell-risk.ts'],
     rules: {
       'security/detect-non-literal-regexp': 'off',
     },

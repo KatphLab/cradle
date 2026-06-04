@@ -140,13 +140,13 @@ Do not suppress linting with `// eslint-disable` comments anywhere in source fil
 
 The project is divided into layers. The following dependency rules are strictly enforced:
 
-| Layer                 | May depend on                                                 |
-| --------------------- | ------------------------------------------------------------- |
-| `src/lib/**`          | `src/lib/**`, `src/utils/**`, `src/config/**`, `src/types/**` |
-| `src/utils/**`        | `src/utils/**`, `src/config/**`, `src/types/**`               |
-| `src/config/**`       | `src/config/**`, `src/types/**`                               |
-| `src/types/**`        | `src/types/**`                                                |
-| `src/**` (production) | Must not import from `__tests__`                              |
+| Layer                    | May depend on                                                             |
+| ------------------------ | ------------------------------------------------------------------------- |
+| `cradle/lib/**`          | `cradle/lib/**`, `cradle/utils/**`, `cradle/config/**`, `cradle/types/**` |
+| `cradle/utils/**`        | `cradle/utils/**`, `cradle/config/**`, `cradle/types/**`                  |
+| `cradle/config/**`       | `cradle/config/**`, `cradle/types/**`                                     |
+| `cradle/types/**`        | `cradle/types/**`                                                         |
+| `cradle/**` (production) | Must not import from `__tests__`                                          |
 
 Violating these boundaries is a lint error that blocks merging.
 

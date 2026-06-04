@@ -99,7 +99,7 @@ describe('advisorTool', () => {
       'call-1',
       {
         context: 'I need help',
-        files: ['src/index.ts', 'src/lib.ts'],
+        files: ['cradle/index.ts', 'cradle/lib.ts'],
       },
       undefined,
       undefined,
@@ -113,7 +113,7 @@ describe('advisorTool', () => {
     expect(runAdvisor).toHaveBeenCalledWith(
       expect.objectContaining({
         context: 'I need help',
-        files: ['src/index.ts', 'src/lib.ts'],
+        files: ['cradle/index.ts', 'cradle/lib.ts'],
       }),
     )
   })

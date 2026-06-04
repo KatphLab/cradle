@@ -204,7 +204,7 @@ describe('registerSpecModeHook', () => {
     state.setEnabled(true)
     // @ts-expect-error minimal handler mock
     const result = toolCall?.(
-      { toolName: 'edit', input: { path: 'src/index.ts' } },
+      { toolName: 'edit', input: { path: 'cradle/index.ts' } },
       { cwd: '/test' },
     )
 

@@ -155,7 +155,7 @@ describe('discoverAgents', () => {
       return validAgent(content, makeAgent('project-only'))
     })
 
-    const result = discoverAgents('/workspace/repo/src/deep')
+    const result = discoverAgents('/workspace/repo/cradle/deep')
 
     expect(result.projectAgentsDir).toBe(projectAgentsDirectory)
     expect(result.agents).toHaveLength(3)
