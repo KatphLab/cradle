@@ -36,7 +36,7 @@ export default function configureExtension(
     | 'getActiveTools'
     | 'getAllTools'
     | 'setActiveTools'
-    | 'setModel'
+    | 'getThinkingLevel'
   >,
 ): void {
   pi.registerTool(readTool)

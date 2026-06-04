@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
+import { compact, type ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 import { loadGlobalSettings } from '../config/settings.js'
 
@@ -12,11 +12,9 @@ function getModelRef(
 
 /** @public */
 export function registerCompactionHook(
-  pi: Pick<ExtensionAPI, 'on' | 'setModel'>,
+  pi: Pick<ExtensionAPI, 'getThinkingLevel' | 'on'>,
 ): void {
-  let previousModelRef: string | undefined
-
-  pi.on('session_before_compact', async (_event, context) => {
+  pi.on('session_before_compact', async (event, context) => {
     const settings = await loadGlobalSettings()
     const targetModelRaw = settings.compactionModel
     if (targetModelRaw === undefined) return
@@ -55,25 +53,18 @@ export function registerCompactionHook(
       return
     }
 
-    previousModelRef = getModelRef(context.model)
-    const success = await pi.setModel(compactionModel)
-    if (!success) {
-      context.ui.notify('Failed to switch to compaction model', 'warning')
-      previousModelRef = undefined
-    }
-  })
+    context.ui.notify(`Compacting with model: ${compactionModel.id}`, 'info')
 
-  pi.on('session_compact', async (_event, context) => {
-    if (previousModelRef === undefined) return
-
-    const separatorIndex = previousModelRef.indexOf('/')
-    const model = context.modelRegistry.find(
-      previousModelRef.slice(0, separatorIndex),
-      previousModelRef.slice(separatorIndex + 1),
+    const compaction = await compact(
+      event.preparation,
+      compactionModel,
+      auth.apiKey,
+      auth.headers,
+      event.customInstructions,
+      event.signal,
+      pi.getThinkingLevel(),
     )
-    if (model === undefined) return
 
-    await pi.setModel(model)
-    previousModelRef = undefined
+    return { compaction }
   })
 }
