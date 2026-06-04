@@ -29,6 +29,7 @@ function tryHandleSave(editor: EditorLike, data: string): boolean {
       reminderTokenThreshold: clampedTokenThreshold,
       subagentModels: editor.getSubagentModels(),
       advisorModel: editor.advisorModel,
+      compactionModel: editor.compactionModel,
       firecrawlApiKey: editor.getFirecrawlApiKey(),
       tavilyApiKey: editor.getTavilyApiKey(),
       exaApiKey: editor.getExaApiKey(),
@@ -122,7 +123,7 @@ function tryHandleNavigation(editor: EditorLike, data: string): boolean {
 }
 
 function moveDown(editor: EditorLike): boolean {
-  const maxRow = editor.rows.length + 5 + API_KEY_EXTRA_ROW_COUNT
+  const maxRow = editor.rows.length + 6 + API_KEY_EXTRA_ROW_COUNT
   if (editor.selectedRow < maxRow) {
     editor.selectedRow++
     const isNowOnDataRow = editor.selectedRow < editor.rows.length
@@ -195,6 +196,11 @@ function tryHandleModelToggle(editor: EditorLike): boolean {
     editor.tuiRequestRender?.()
     return true
   }
+  if (relativeRow === 4) {
+    openCompactionModelSelect(editor)
+    editor.tuiRequestRender?.()
+    return true
+  }
   return false
 }
 
@@ -226,6 +232,16 @@ function openAdvisorModelSelect(editor: EditorLike): void {
     () => editor.advisorModel,
     (value: string) => {
       editor.advisorModel = value
+    },
+  )
+}
+
+function openCompactionModelSelect(editor: EditorLike): void {
+  openSelectList(
+    editor,
+    () => editor.compactionModel,
+    (value: string) => {
+      editor.compactionModel = value
     },
   )
 }

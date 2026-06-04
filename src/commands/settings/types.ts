@@ -10,6 +10,7 @@ export interface CradleSettingsResult {
   reminderTokenThreshold: number
   subagentModels: SubagentModels
   advisorModel: string | undefined
+  compactionModel: string | undefined
   firecrawlApiKey: string | undefined
   tavilyApiKey: string | undefined
   exaApiKey: string | undefined
@@ -25,6 +26,7 @@ export interface EditorLike {
   getRows(): DirectoryPermission[]
   getReminderTokenThreshold(): number
   getSubagentModels(): SubagentModels
+  getCompactionModel(): string | undefined
   getFirecrawlApiKey(): string | undefined
   getTavilyApiKey(): string | undefined
   getExaApiKey(): string | undefined
@@ -67,11 +69,13 @@ export interface EditorLike {
   tavilyApiKey: string | undefined
   exaApiKey: string | undefined
   advisorModel: string | undefined
+  compactionModel: string | undefined
 
   // ── initial snapshot values ───────────────────────────────
   readonly initialTokenThreshold: number
   readonly initialSubagentModels: SubagentModels
   readonly initialAdvisorModel: string | undefined
+  readonly initialCompactionModel: string | undefined
   readonly initialFirecrawlApiKey: string | undefined
   readonly initialTavilyApiKey: string | undefined
   readonly initialExaApiKey: string | undefined

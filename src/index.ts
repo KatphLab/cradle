@@ -3,6 +3,7 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { registerSettingsCommand } from './commands/settings.js'
 import { registerSpecCommand } from './commands/spec.js'
 import { registerStatsCommand } from './commands/stats.js'
+import { registerCompactionHook } from './hooks/compaction.js'
 import { registerShellHook } from './hooks/shell.js'
 import { registerSpecModeHook } from './hooks/spec-mode.js'
 import { registerSystemReminderHook } from './hooks/system-reminder.js'
@@ -35,6 +36,7 @@ export default function configureExtension(
     | 'getActiveTools'
     | 'getAllTools'
     | 'setActiveTools'
+    | 'getThinkingLevel'
   >,
 ): void {
   pi.registerTool(readTool)
@@ -60,5 +62,6 @@ export default function configureExtension(
   registerSpecCommand(pi, specModeState)
   registerShellHook(pi)
   registerSystemReminderHook(pi)
+  registerCompactionHook(pi)
   registerSpecModeHook(pi, specModeState)
 }

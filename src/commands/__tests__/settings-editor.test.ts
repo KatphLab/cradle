@@ -81,14 +81,17 @@ describe('CradleSettingsEditor — input', () => {
     down()
     expect(editor.getSelectedRow()).toBe(7) // advisor
     down()
-    expect(editor.getSelectedRow()).toBe(8) // firecrawl API key
+    expect(editor.getSelectedRow()).toBe(8) // compaction model
     down()
-    expect(editor.getSelectedRow()).toBe(9) // tavily API key
+    expect(editor.getSelectedRow()).toBe(9) // firecrawl API key
     down()
-    expect(editor.getSelectedRow()).toBe(10) // exa API key
+    expect(editor.getSelectedRow()).toBe(10) // tavily API key
     down()
-    expect(editor.getSelectedRow()).toBe(10) // stops at bottom
+    expect(editor.getSelectedRow()).toBe(11) // exa API key
+    down()
+    expect(editor.getSelectedRow()).toBe(11) // stops at bottom
 
+    up()
     up()
     up()
     up()
@@ -482,8 +485,8 @@ describe('CradleSettingsEditor — exa API key', () => {
   it('detects dirty on key change', () => {
     const editor = makeEditor({}, { exaApiKey: 'old-key' })
     expect(editor.isDirty()).toBe(false)
-    // Navigate to exa API key row (rows.length + 8 = 8)
-    for (let index = 0; index < 8; index++) {
+    // Navigate to exa API key row (rows.length + 9 = 9)
+    for (let index = 0; index < 9; index++) {
       editor.handleInput('\u001B[B')
     }
     editor.handleInput('n')
@@ -495,7 +498,7 @@ describe('CradleSettingsEditor — exa API key', () => {
     const editor = makeEditor()
     editor.onSave = saveSpy
     // Navigate to exa API key row and type
-    for (let index = 0; index < 8; index++) {
+    for (let index = 0; index < 9; index++) {
       editor.handleInput('\u001B[B')
     }
     editor.handleInput('e')

@@ -30,6 +30,7 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
   readonly tokenThresholdInput: Input
   readonly subagentModels: SubagentModels
   advisorModel: string | undefined
+  compactionModel: string | undefined
   firecrawlApiKey: string | undefined
   readonly firecrawlApiKeyInput: Input
   tavilyApiKey: string | undefined
@@ -50,6 +51,7 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
   readonly availableModels: string[]
   readonly initialSubagentModels: SubagentModels
   readonly initialAdvisorModel: string | undefined
+  readonly initialCompactionModel: string | undefined
   readonly initialFirecrawlApiKey: string | undefined
   readonly initialTavilyApiKey: string | undefined
   readonly initialExaApiKey: string | undefined
@@ -90,6 +92,8 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
       initialSubagentModels: this.initialSubagentModels,
       advisorModel: this.advisorModel,
       initialAdvisorModel: this.initialAdvisorModel,
+      compactionModel: this.compactionModel,
+      initialCompactionModel: this.initialCompactionModel,
       firecrawlApiKey: this.firecrawlApiKey,
       initialFirecrawlApiKey: this.initialFirecrawlApiKey,
       tavilyApiKey: this.tavilyApiKey,
@@ -126,6 +130,9 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
   }
   getSubagentModels(): SubagentModels {
     return { ...this.subagentModels }
+  }
+  getCompactionModel(): string | undefined {
+    return this.compactionModel
   }
   getFirecrawlApiKey(): string | undefined {
     return getApiKeyValue(this.firecrawlApiKeyInput)
