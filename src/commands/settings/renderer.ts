@@ -2,6 +2,7 @@ import { truncateToWidth } from '@earendil-works/pi-tui'
 import { API_KEY_FIELDS, maskApiKey } from './api-keys.js'
 import {
   ADVISOR_MODEL_LABEL,
+  COMPACTION_MODEL_LABEL,
   GAP,
   PERMISSION_LABELS,
   SEARCH_API_KEYS_LABEL,
@@ -27,6 +28,7 @@ export class SettingsRenderer {
       ...this.renderTokenThresholdSection(width),
       ...this.renderModelSection(width),
       ...this.renderAdvisorModelSection(width),
+      ...this.renderCompactionModelSection(width),
       ...this.renderApiKeySections(width),
       ...this.renderHelp(width),
     ]
@@ -184,12 +186,36 @@ export class SettingsRenderer {
   }
 
   private renderAdvisorModelSection(width: number): string[] {
-    const rowIndex = this.editor.rows.length + 5
+    return this.renderModelSelectionSection(
+      width,
+      this.editor.rows.length + 5,
+      this.editor.advisorModel,
+      ADVISOR_MODEL_LABEL,
+      'Advisor',
+    )
+  }
+
+  private renderCompactionModelSection(width: number): string[] {
+    return this.renderModelSelectionSection(
+      width,
+      this.editor.rows.length + 6,
+      this.editor.compactionModel,
+      COMPACTION_MODEL_LABEL,
+      'Compaction',
+    )
+  }
+
+  private renderModelSelectionSection(
+    width: number,
+    rowIndex: number,
+    modelValue: string | null | undefined,
+    label: string,
+    title: string,
+  ): string[] {
     const isFocused = this.editor.selectedRow === rowIndex
     const prefix = isFocused ? '> ' : '  '
-    const value = this.editor.advisorModel ?? '(none)'
+    const value = modelValue ?? '(none)'
     const displayValue = this.editor.modelDisplayNames.get(value) ?? value
-    const label = ADVISOR_MODEL_LABEL
     const labelWidth = prefix.length + label.length + 2
     const maxValueWidth = Math.max(0, width - labelWidth)
     const selectList = this.editor.getSelectList()
@@ -203,7 +229,7 @@ export class SettingsRenderer {
       lines.push(...selectListLines)
     }
 
-    return ['', this.editor.theme.bold('Advisor'), ...lines]
+    return ['', this.editor.theme.bold(title), ...lines]
   }
 
   private renderHelp(width: number): string[] {

@@ -19,19 +19,19 @@ export const API_KEY_FIELDS: readonly ApiKeyField[] = [
   {
     inputKey: 'firecrawlApiKeyInput',
     label: 'Firecrawl API Key',
-    rowOffset: 6,
+    rowOffset: 7,
     settingKey: 'firecrawlApiKey',
   },
   {
     inputKey: 'tavilyApiKeyInput',
     label: 'Tavily API Key',
-    rowOffset: 7,
+    rowOffset: 8,
     settingKey: 'tavilyApiKey',
   },
   {
     inputKey: 'exaApiKeyInput',
     label: 'Exa API Key',
-    rowOffset: 8,
+    rowOffset: 9,
     settingKey: 'exaApiKey',
   },
 ]

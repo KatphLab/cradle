@@ -24,6 +24,7 @@ export interface EditorState {
   readonly exaApiKey: string | undefined
   readonly subagentModels: SubagentModels
   readonly advisorModel: string | undefined
+  readonly compactionModel: string | undefined
   readonly modelDisplayNames: Map<string, string>
   readonly selectedRow: number
   readonly selectedCol: number
@@ -50,4 +51,5 @@ export const TIER_LABELS: Record<'low' | 'medium' | 'high', string> = {
   high: 'High Model',
 }
 export const ADVISOR_MODEL_LABEL = 'Advisor Model'
+export const COMPACTION_MODEL_LABEL = 'Compaction Model'
 export const SEARCH_API_KEYS_LABEL = 'Search API Keys'

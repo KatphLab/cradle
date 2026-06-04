@@ -11,6 +11,8 @@ export function initFromGlobal(globalSettings: GlobalSettings): {
   initialSubagentModels: SubagentModels
   advisorModel: string | undefined
   initialAdvisorModel: string | undefined
+  compactionModel: string | undefined
+  initialCompactionModel: string | undefined
   firecrawlApiKey: string | undefined
   initialFirecrawlApiKey: string | undefined
   tavilyApiKey: string | undefined
@@ -38,6 +40,8 @@ export function initFromGlobal(globalSettings: GlobalSettings): {
     initialSubagentModels: { ...subagentModels },
     advisorModel: globalSettings.advisorModel,
     initialAdvisorModel: globalSettings.advisorModel,
+    compactionModel: globalSettings.compactionModel,
+    initialCompactionModel: globalSettings.compactionModel,
     firecrawlApiKey: getInitialApiKey(globalSettings, 'firecrawlApiKey'),
     initialFirecrawlApiKey: getInitialApiKey(globalSettings, 'firecrawlApiKey'),
     tavilyApiKey: getInitialApiKey(globalSettings, 'tavilyApiKey'),

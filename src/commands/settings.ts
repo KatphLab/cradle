@@ -38,7 +38,9 @@ function buildSaveNotification(result: CradleSettingsResult): string {
       result.subagentModels.low,
       result.subagentModels.medium,
       result.subagentModels.high,
-    ].filter(Boolean).length + (result.advisorModel ? 1 : 0)
+    ].filter(Boolean).length +
+    (result.advisorModel ? 1 : 0) +
+    (result.compactionModel ? 1 : 0)
   const firecrawlStatus = result.firecrawlApiKey ? ' firecrawl' : ''
   const tavilyStatus = result.tavilyApiKey ? ' tavily' : ''
   const exaStatus = result.exaApiKey ? ' exa' : ''
@@ -98,6 +100,9 @@ export function registerSettingsCommand(
       }
       if (result.advisorModel !== undefined) {
         globalToSave.advisorModel = result.advisorModel
+      }
+      if (result.compactionModel !== undefined) {
+        globalToSave.compactionModel = result.compactionModel
       }
       if (result.firecrawlApiKey !== undefined) {
         globalToSave.firecrawlApiKey = result.firecrawlApiKey

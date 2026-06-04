@@ -13,6 +13,8 @@ export function isDirty(editor: EditorLike): boolean {
     editor.subagentModels.medium !== editor.initialSubagentModels.medium ||
     editor.subagentModels.high !== editor.initialSubagentModels.high
   const advisorChanged = editor.advisorModel !== editor.initialAdvisorModel
+  const compactionModelChanged =
+    editor.compactionModel !== editor.initialCompactionModel
   const firecrawlKeyChanged = isApiKeyChanged(
     editor.firecrawlApiKeyInput,
     editor.initialFirecrawlApiKey,
@@ -30,6 +32,7 @@ export function isDirty(editor: EditorLike): boolean {
     tokenThresholdChanged ||
     modelsChanged ||
     advisorChanged ||
+    compactionModelChanged ||
     firecrawlKeyChanged ||
     tavilyKeyChanged ||
     exaKeyChanged

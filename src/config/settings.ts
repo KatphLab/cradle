@@ -33,6 +33,7 @@ export interface GlobalSettings {
   reminderTokenThreshold?: number
   subagentModels?: SubagentModels
   advisorModel?: string
+  compactionModel?: string
   firecrawlApiKey?: string
   tavilyApiKey?: string
   exaApiKey?: string
@@ -73,6 +74,11 @@ function normalizeReminderTokenThreshold(raw: unknown): number | undefined {
 }
 
 function normalizeAdvisorModel(raw: unknown): string | undefined {
+  if (typeof raw === 'string' && raw.length > 0) return raw
+  return undefined
+}
+
+function normalizeCompactionModel(raw: unknown): string | undefined {
   if (typeof raw === 'string' && raw.length > 0) return raw
   return undefined
 }
@@ -160,6 +166,7 @@ function normalizeGlobalSettings(value: unknown): GlobalSettings {
     : undefined
 
   const advisorModel = normalizeAdvisorModel(value['advisorModel'])
+  const compactionModel = normalizeCompactionModel(value['compactionModel'])
 
   const firecrawlApiKey = normalizeFirecrawlApiKey(value['firecrawlApiKey'])
   const tavilyApiKey = normalizeTavilyApiKey(value['tavilyApiKey'])
@@ -169,6 +176,7 @@ function normalizeGlobalSettings(value: unknown): GlobalSettings {
     ...(reminderTokenThreshold !== undefined && { reminderTokenThreshold }),
     ...(subagentModels !== undefined && { subagentModels }),
     ...(advisorModel !== undefined && { advisorModel }),
+    ...(compactionModel !== undefined && { compactionModel }),
     ...(firecrawlApiKey !== undefined && { firecrawlApiKey }),
     ...(tavilyApiKey !== undefined && { tavilyApiKey }),
     ...(exaApiKey !== undefined && { exaApiKey }),

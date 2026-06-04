@@ -59,6 +59,7 @@ interface SR {
   reminderTokenThreshold: number
   subagentModels: { low?: string; medium?: string; high?: string }
   advisorModel?: string
+  compactionModel?: string
   firecrawlApiKey?: string
   tavilyApiKey?: string
   exaApiKey?: string
@@ -183,6 +184,33 @@ describe('registerSettingsCommand', () => {
     expect(saved).toEqual({ permissions: [] })
     const globalSaved = await readSettings(globalSettingsPath)
     expect(globalSaved['advisorModel']).toBe('gpt-4')
+    expect(globalSaved['reminderTokenThreshold']).toBe(5000)
+    expect(notifySpy).toHaveBeenCalledWith(
+      'Cradle settings saved: 0 permissions, 1 models, reminder token threshold 5000',
+      'info',
+    )
+  })
+
+  it('saves compaction model to global settings and notifies', async () => {
+    const { notifySpy } = await invokeRegisteredHandler((editor) => {
+      editor.onSave?.({
+        permissions: [],
+        reminderTokenThreshold: 5000,
+        subagentModels: {},
+        compactionModel: 'google/gemini-2.5-flash',
+      })
+      return {
+        permissions: [],
+        reminderTokenThreshold: 5000,
+        subagentModels: {},
+        compactionModel: 'google/gemini-2.5-flash',
+      }
+    })
+
+    const saved = await readSettings(projectSettingsPath())
+    expect(saved).toEqual({ permissions: [] })
+    const globalSaved = await readSettings(globalSettingsPath)
+    expect(globalSaved['compactionModel']).toBe('google/gemini-2.5-flash')
     expect(globalSaved['reminderTokenThreshold']).toBe(5000)
     expect(notifySpy).toHaveBeenCalledWith(
       'Cradle settings saved: 0 permissions, 1 models, reminder token threshold 5000',
