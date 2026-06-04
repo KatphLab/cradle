@@ -17,11 +17,11 @@ Repo-specific rules
 
 Project map
 
-- `src/index.ts` — application entry point
-- `src/lib/` — core library modules
-- `src/utils/` — utility helpers
-- `src/config/` — configuration modules
-- `src/types/` — shared TypeScript types
+- `cradle/index.ts` — application entry point
+- `cradle/lib/` — core library modules
+- `cradle/utils/` — utility helpers
+- `cradle/config/` — configuration modules
+- `cradle/types/` — shared TypeScript types
 
 Tooling configuration (NEVER EDIT)
 

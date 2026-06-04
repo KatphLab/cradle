@@ -18,7 +18,7 @@ export const globTool = defineTool({
   parameters: Type.Object({
     pattern: Type.String({
       description:
-        'Glob pattern to match files, e.g. "*.ts" or "src/**/*.spec.ts"',
+        'Glob pattern to match files, e.g. "*.ts" or "cradle/**/*.spec.ts"',
     }),
     path: optionalString('Directory to search in (default: current directory)'),
     limit: optionalNumber('Maximum number of results'),

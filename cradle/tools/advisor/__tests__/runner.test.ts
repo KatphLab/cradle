@@ -125,7 +125,7 @@ describe('runAdvisor', () => {
       code: undefined,
       error: undefined,
       attempted: undefined,
-      files: ['src/index.ts', 'src/lib.ts'],
+      files: ['cradle/index.ts', 'cradle/lib.ts'],
       cwd: '/repo',
       signal: undefined,
       onUpdate: undefined,
@@ -138,12 +138,12 @@ describe('runAdvisor', () => {
     )
     expect(runSingleAgent).toHaveBeenCalledWith(
       expect.objectContaining({
-        task: expect.stringContaining('src/index.ts'),
+        task: expect.stringContaining('cradle/index.ts'),
       }),
     )
     expect(runSingleAgent).toHaveBeenCalledWith(
       expect.objectContaining({
-        task: expect.stringContaining('src/lib.ts'),
+        task: expect.stringContaining('cradle/lib.ts'),
       }),
     )
   })

@@ -133,10 +133,10 @@ export default {
         'Production app code should not import from the __tests__ directory. Extract shared test fixtures to a neutral helper module when needed.',
       severity: 'error',
       from: {
-        path: '^src/(?!__tests__/).+',
+        path: '^cradle/(?!__tests__/).+',
       },
       to: {
-        path: '^src/__tests__/.+',
+        path: '^cradle/__tests__/.+',
       },
     },
     {
@@ -149,7 +149,7 @@ export default {
         'section of your package.json. If this module is development only - add it to the ' +
         'from.pathNot re of the not-to-dev-dep rule in the dependency-cruiser configuration',
       from: {
-        path: '^src',
+        path: '^cradle',
         pathNot: '[.](?:spec|test)[.](?:js|mjs|cjs|ts|mts|cts)$|test-utils/',
       },
       to: {
@@ -195,7 +195,7 @@ export default {
       },
       archi: {
         collapsePattern:
-          '^(?:packages|src|lib(s?)|app(s?)|bin|test(s?)|spec(s?))/[^/]+|node_modules/(?:@[^/]+/[^/]+|[^/]+)',
+          '^(?:packages|cradle|lib(s?)|app(s?)|bin|test(s?)|spec(s?))/[^/]+|node_modules/(?:@[^/]+/[^/]+|[^/]+)',
       },
       text: {
         highlightFocused: true,

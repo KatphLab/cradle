@@ -8,14 +8,14 @@ Registered in `package.json`:
 
 ```json
 "pi": {
-  "extensions": ["./src"]
+  "extensions": ["./cradle"]
 }
 ```
 
 ## Structure
 
 ```
-src/
+cradle/
   index.ts              ← extension entry point (configureExtension)
   cradle.test.ts        ← entry point tests
   tools/
