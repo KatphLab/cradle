@@ -39,6 +39,19 @@ interface TestBeforeAgentStartEvent {
   systemPrompt: string
 }
 
+interface TestMessageUpdateContext extends TestContext {
+  abort: () => void
+  isIdle: () => boolean
+}
+
+interface TestMessageUpdateEvent {
+  message: AgentMessage
+  assistantMessageEvent: {
+    delta: string
+    type: string
+  }
+}
+
 type ContextHandler = (
   event: { messages: AgentMessage[] },
   context: TestContext,
@@ -54,13 +67,22 @@ type BeforeAgentStartHandler = (
   context: TestSessionContext,
 ) => Promise<{ systemPrompt?: string } | undefined>
 
+type MessageUpdateHandler = (
+  event: TestMessageUpdateEvent,
+  context: TestMessageUpdateContext,
+) => unknown
+
 let tempRoot: string
 
-function createPi(handlers: RegisteredHandler[]): Pick<ExtensionAPI, 'on'> {
+function createPi(
+  handlers: RegisteredHandler[],
+  sendUserMessage: ExtensionAPI['sendUserMessage'] = vi.fn(),
+): Pick<ExtensionAPI, 'on' | 'sendUserMessage'> {
   return {
     on: (event, handler) => {
       handlers.push({ event, fn: handler })
     },
+    sendUserMessage,
   }
 }
 
@@ -75,6 +97,10 @@ function isSessionStartHandler(value: unknown): value is SessionStartHandler {
 function isBeforeAgentStartHandler(
   value: unknown,
 ): value is BeforeAgentStartHandler {
+  return typeof value === 'function'
+}
+
+function isMessageUpdateHandler(value: unknown): value is MessageUpdateHandler {
   return typeof value === 'function'
 }
 
@@ -115,10 +141,49 @@ function getBeforeAgentStartHandler(
   return handler.fn
 }
 
+function getMessageUpdateHandler(
+  handlers: RegisteredHandler[],
+): MessageUpdateHandler {
+  const handler = handlers.find((entry) => entry.event === 'message_update')
+  if (!handler) {
+    throw new Error('Expected message_update handler to be registered')
+  }
+  if (!isMessageUpdateHandler(handler.fn)) {
+    throw new TypeError('Expected registered handler to be callable')
+  }
+  return handler.fn
+}
+
 function createUserMessage(content: string): AgentMessage {
   return {
     role: 'user',
     content,
+    timestamp: Date.now(),
+  }
+}
+
+function createAssistantMessage(content: string): AgentMessage {
+  return {
+    role: 'assistant',
+    content: [{ type: 'thinking', thinking: content }],
+    api: 'test-api',
+    provider: 'test-provider',
+    model: 'test-model',
+    usage: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 0,
+      cost: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        total: 0,
+      },
+    },
+    stopReason: 'stop',
     timestamp: Date.now(),
   }
 }
@@ -254,14 +319,13 @@ describe('registerSystemReminderHook', () => {
 
     expect(result?.messages).toEqual([
       userMessage,
-      {
+      expect.objectContaining({
         role: 'custom',
         customType: 'cradle-system-reminder',
         content:
           '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
-        display: false,
         timestamp: Date.now(),
-      },
+      }),
     ])
   })
 
@@ -317,14 +381,13 @@ describe('registerSystemReminderHook', () => {
     expect(result?.messages).toEqual([
       userMessage,
       todoResult,
-      {
+      expect.objectContaining({
         role: 'custom',
         customType: 'cradle-system-reminder',
         content:
           '<system-reminder>\nAlways prefer tiny changes.\n\n## Current Todos\n1. [in_progress] Fix bug\n</system-reminder>',
-        display: false,
         timestamp: Date.now(),
-      },
+      }),
     ])
   })
 
@@ -420,6 +483,77 @@ describe('registerSystemReminderHook', () => {
       throw new Error('Expected system reminder message')
     }
     expect(lastMessage.content).toContain('## Current Todos')
+  })
+
+  it('aborts mid-thought and asks the agent to continue when streamed tokens cross the threshold', async () => {
+    await writeCradleSettings(tempRoot, { reminderTokenThreshold: 500 })
+
+    const handlers: RegisteredHandler[] = []
+    const sendUserMessage = vi.fn<ExtensionAPI['sendUserMessage']>()
+    registerSystemReminderHook(createPi(handlers, sendUserMessage))
+
+    const notify = vi.fn()
+    const sessionHandler = getSessionStartHandler(handlers)
+    await sessionHandler({}, { cwd: tempRoot, ui: { notify } })
+
+    const beforeHandler = getBeforeAgentStartHandler(handlers)
+    await beforeHandler(
+      {
+        systemPrompt:
+          '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
+      },
+      { cwd: tempRoot, ui: { notify } },
+    )
+
+    const userMessage = createUserMessage('please fix this')
+    const contextHandler = getContextHandler(handlers)
+    const firstResult = await contextHandler(
+      { messages: [userMessage] },
+      { cwd: tempRoot },
+    )
+    expect(firstResult?.messages?.at(-1)?.role).toBe('custom')
+
+    let idle = false
+    const abort = vi.fn(() => {
+      idle = true
+    })
+    const updateHandler = getMessageUpdateHandler(handlers)
+    await updateHandler(
+      {
+        message: createAssistantMessage('thinking'),
+        assistantMessageEvent: {
+          delta: 'x'.repeat(2000),
+          type: 'thinking_delta',
+        },
+      },
+      { abort, cwd: tempRoot, isIdle: () => idle },
+    )
+
+    expect(abort).toHaveBeenCalledOnce()
+    await vi.runOnlyPendingTimersAsync()
+    expect(sendUserMessage).toHaveBeenCalledWith('Continue.')
+
+    const continuedUserMessage = createUserMessage('Continue.')
+    const forcedResult = await contextHandler(
+      {
+        messages: [
+          userMessage,
+          createAssistantMessage(''),
+          continuedUserMessage,
+        ],
+      },
+      { cwd: tempRoot },
+    )
+
+    expect(forcedResult?.messages?.at(-1)).toEqual(
+      expect.objectContaining({
+        role: 'custom',
+        customType: 'cradle-system-reminder',
+        content:
+          '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
+        timestamp: Date.now(),
+      }),
+    )
   })
 
   it('strips system reminder tags from the system prompt', async () => {
