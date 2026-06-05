@@ -124,11 +124,12 @@ function handleBeforeAgentStart(
   if (!extracted) return undefined
 
   state.cachedReminder = extracted.reminder
+  const display = shouldDisplaySystemReminder(state.cachedSettings)
   const tokens = estimateTokens({
     role: 'custom',
     customType: SYSTEM_REMINDER_TYPE,
     content: state.cachedReminder,
-    display: true,
+    display,
     timestamp: Date.now(),
   })
   if (tokens > SYSTEM_REMINDER_TOKEN_LIMIT) {
@@ -139,7 +140,7 @@ function handleBeforeAgentStart(
   }
 
   return {
-    message: createSystemReminderDisplayMessage(state.cachedReminder),
+    message: createSystemReminderDisplayMessage(state.cachedReminder, display),
     systemPrompt: extracted.systemPrompt,
   }
 }
@@ -170,7 +171,15 @@ function handleContext(
   state.lastInjectedNonReminderTokens = currentNonReminderTokens
   state.streamedTokensSinceLastInjection = 0
 
-  return { messages: [...messages, createSystemReminderMessage(payload)] }
+  return {
+    messages: [
+      ...messages,
+      createSystemReminderMessage(
+        payload,
+        shouldDisplaySystemReminder(state.cachedSettings),
+      ),
+    ],
+  }
 }
 
 function shouldInjectReminder(
@@ -309,6 +318,10 @@ function getReminderTokenThreshold(settings: GlobalSettings): number {
   return settings.reminderTokenThreshold ?? DEFAULT_REMINDER_TOKEN_THRESHOLD
 }
 
+function shouldDisplaySystemReminder(settings: GlobalSettings): boolean {
+  return settings.displaySystemReminder ?? true
+}
+
 function getTodoReminder(
   messages: AgentMessage[],
   state: SystemReminderState,
@@ -326,15 +339,21 @@ function getTodoReminder(
   return state.cachedTodoReminder
 }
 
-function createSystemReminderMessage(reminder: string): AgentMessage {
+function createSystemReminderMessage(
+  reminder: string,
+  display: boolean,
+): AgentMessage {
   return {
     role: 'custom',
-    ...createSystemReminderDisplayMessage(reminder),
+    ...createSystemReminderDisplayMessage(reminder, display),
     timestamp: Date.now(),
   }
 }
 
-function createSystemReminderDisplayMessage(reminder: string): {
+function createSystemReminderDisplayMessage(
+  reminder: string,
+  display: boolean,
+): {
   customType: string
   content: string
   display: boolean
@@ -342,7 +361,7 @@ function createSystemReminderDisplayMessage(reminder: string): {
   return {
     customType: SYSTEM_REMINDER_TYPE,
     content: `<system-reminder>\n${reminder}\n</system-reminder>`,
-    display: true,
+    display,
   }
 }
 
