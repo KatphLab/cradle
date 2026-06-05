@@ -17,9 +17,6 @@ const SYSTEM_REMINDER_TOKEN_LIMIT = 500
 const CONTINUE_AFTER_REMINDER_PROMPT = 'Continue.'
 const REMINDER_CONTINUE_POLL_INTERVAL_MS = 25
 
-const SYSTEM_REMINDER_TAG_PATTERN =
-  /<system-reminder>([\s\S]*?)<\/system-reminder>/g
-
 type SystemReminderPi = Pick<ExtensionAPI, 'on' | 'sendUserMessage'>
 
 type ContinuationContext = Pick<ExtensionContext, 'abort' | 'isIdle'>
@@ -29,12 +26,21 @@ interface SystemReminderState {
   cachedReminder: string | undefined
   lastInjectedPayload: string | undefined
   lastInjectedNonReminderTokens: number
-  latestNonReminderMessages: AgentMessage[]
+  cachedPayload: string | undefined
   streamedTokensSinceLastInjection: number
   forcedNextPayload: string | undefined
   continuationScheduled: boolean
   sessionRevision: number
+  cachedTotalTokens: number
+  lastMessageCount: number
+  cachedTodoReminder: string | undefined
+  lastTodoMessageCount: number
 }
+
+type ResettableSystemReminderState = Omit<
+  SystemReminderState,
+  'cachedSettings' | 'sessionRevision'
+>
 
 interface BeforeAgentStartEventLike {
   systemPrompt: string
@@ -74,26 +80,30 @@ export function registerSystemReminderHook(pi: SystemReminderPi): void {
 function createSystemReminderState(): SystemReminderState {
   return {
     cachedSettings: {},
+    sessionRevision: 0,
+    ...createResettableSystemReminderState(),
+  }
+}
+
+function createResettableSystemReminderState(): ResettableSystemReminderState {
+  return {
     cachedReminder: undefined,
     lastInjectedPayload: undefined,
     lastInjectedNonReminderTokens: 0,
-    latestNonReminderMessages: [],
+    cachedPayload: undefined,
     streamedTokensSinceLastInjection: 0,
     forcedNextPayload: undefined,
     continuationScheduled: false,
-    sessionRevision: 0,
+    cachedTotalTokens: 0,
+    lastMessageCount: 0,
+    cachedTodoReminder: undefined,
+    lastTodoMessageCount: 0,
   }
 }
 
 function resetSystemReminderState(state: SystemReminderState): void {
+  Object.assign(state, createResettableSystemReminderState())
   state.sessionRevision++
-  state.cachedReminder = undefined
-  state.lastInjectedPayload = undefined
-  state.lastInjectedNonReminderTokens = 0
-  state.latestNonReminderMessages = []
-  state.streamedTokensSinceLastInjection = 0
-  state.forcedNextPayload = undefined
-  state.continuationScheduled = false
 }
 
 function handleBeforeAgentStart(
@@ -105,10 +115,16 @@ function handleBeforeAgentStart(
   if (!extracted) return undefined
 
   state.cachedReminder = extracted.reminder
-  const tokens = countSystemReminderTokens(state.cachedReminder)
+  const tokens = estimateTokens({
+    role: 'custom',
+    customType: SYSTEM_REMINDER_TYPE,
+    content: state.cachedReminder,
+    display: true,
+    timestamp: Date.now(),
+  })
   if (tokens > SYSTEM_REMINDER_TOKEN_LIMIT) {
     context.ui.notify(
-      `System reminder exceeds ${String(SYSTEM_REMINDER_TOKEN_LIMIT)} tokens (~${String(tokens)}). Consider shortening it.`,
+      `System reminder exceeds ${SYSTEM_REMINDER_TOKEN_LIMIT} tokens (~${tokens}). Consider shortening it.`,
       'warning',
     )
   }
@@ -121,14 +137,18 @@ function handleContext(
   state: SystemReminderState,
 ): { messages: AgentMessage[] } {
   const messages = eventMessages.filter((message) => !isSystemReminder(message))
-  state.latestNonReminderMessages = messages
+  const currentNonReminderTokens = getNonReminderTokens(messages, state)
 
   const forcedPayload = state.forcedNextPayload
-  const payload =
-    forcedPayload ?? buildReminderPayload(state.cachedReminder, eventMessages)
-  if (payload === undefined) return handleEmptyContextPayload(messages, state)
+  const payload = forcedPayload ?? buildReminderPayload(messages, state)
+  state.cachedPayload = payload
+  if (payload === undefined) {
+    state.lastInjectedPayload = undefined
+    state.lastInjectedNonReminderTokens = currentNonReminderTokens
+    state.streamedTokensSinceLastInjection = 0
+    return { messages }
+  }
 
-  const currentNonReminderTokens = countMessagesTokens(messages)
   if (!shouldInjectReminder(payload, currentNonReminderTokens, state)) {
     return { messages }
   }
@@ -139,16 +159,6 @@ function handleContext(
   state.streamedTokensSinceLastInjection = 0
 
   return { messages: [...messages, createSystemReminderMessage(payload)] }
-}
-
-function handleEmptyContextPayload(
-  messages: AgentMessage[],
-  state: SystemReminderState,
-): { messages: AgentMessage[] } {
-  state.lastInjectedPayload = undefined
-  state.lastInjectedNonReminderTokens = countMessagesTokens(messages)
-  state.streamedTokensSinceLastInjection = 0
-  return { messages }
 }
 
 function shouldInjectReminder(
@@ -176,25 +186,21 @@ function handleMessageUpdate(
 ): void {
   if (event.message.role !== 'assistant') return
 
-  const deltaTokens = countUpdateDeltaTokens(event)
-  if (deltaTokens === 0) return
+  const assistantEvent = event.assistantMessageEvent
+  if (!isStringDelta(assistantEvent)) return
+  const deltaTokens = Math.ceil(assistantEvent.delta.length / 4)
 
   state.streamedTokensSinceLastInjection += deltaTokens
-  if (state.continuationScheduled) return
   if (
+    state.continuationScheduled ||
     state.streamedTokensSinceLastInjection <
-    getReminderTokenThreshold(state.cachedSettings)
+      getReminderTokenThreshold(state.cachedSettings) ||
+    state.cachedPayload === undefined
   ) {
     return
   }
 
-  const payload = buildReminderPayload(
-    state.cachedReminder,
-    state.latestNonReminderMessages,
-  )
-  if (payload === undefined) return
-
-  state.forcedNextPayload = payload
+  state.forcedNextPayload = state.cachedPayload
   state.continuationScheduled = true
   const revision = state.sessionRevision
   context.abort()
@@ -231,7 +237,7 @@ function extractSystemReminder(
 ): { reminder: string; systemPrompt: string } | undefined {
   const matches: string[] = []
   const cleanedSystemPrompt = systemPrompt.replaceAll(
-    SYSTEM_REMINDER_TAG_PATTERN,
+    /<system-reminder>([\s\S]*?)<\/system-reminder>/g,
     (_match, content) => {
       const trimmed = String(content).trim()
       if (trimmed.length > 0) {
@@ -251,68 +257,61 @@ function extractSystemReminder(
 }
 
 function buildReminderPayload(
-  cachedReminder: string | undefined,
   messages: AgentMessage[],
+  state: SystemReminderState,
 ): string | undefined {
   const parts: string[] = []
+  if (state.cachedReminder) parts.push(state.cachedReminder)
 
-  if (cachedReminder) {
-    parts.push(cachedReminder)
-  }
+  const todoReminder = getTodoReminder(messages, state)
+  if (todoReminder) parts.push(todoReminder)
 
-  const currentTodos = reconstructTodos(messages)
-  const hasActiveTodos = currentTodos.some(
-    (todo) => todo.status !== 'completed',
-  )
-  if (hasActiveTodos) {
-    parts.push(formatTodoReminder(currentTodos))
-  }
-
-  if (parts.length === 0) {
-    return undefined
-  }
-
-  return parts.join('\n\n')
+  return parts.length > 0 ? parts.join('\n\n') : undefined
 }
 
-function countMessagesTokens(messages: AgentMessage[]): number {
-  return messages.reduce((total, message) => total + estimateTokens(message), 0)
+function getNonReminderTokens(
+  messages: AgentMessage[],
+  state: SystemReminderState,
+): number {
+  if (messages.length === state.lastMessageCount) {
+    return state.cachedTotalTokens
+  }
+
+  const canAppend = messages.length > state.lastMessageCount
+  const messagesToCount = canAppend
+    ? messages.slice(state.lastMessageCount)
+    : messages
+  const tokens = messagesToCount.reduce(
+    (total, message) => total + estimateTokens(message),
+    0,
+  )
+
+  state.cachedTotalTokens = canAppend
+    ? state.cachedTotalTokens + tokens
+    : tokens
+  state.lastMessageCount = messages.length
+  return state.cachedTotalTokens
 }
 
 function getReminderTokenThreshold(settings: GlobalSettings): number {
   return settings.reminderTokenThreshold ?? DEFAULT_REMINDER_TOKEN_THRESHOLD
 }
 
-function countUpdateDeltaTokens(event: {
-  assistantMessageEvent: unknown
-}): number {
-  const assistantEvent = event.assistantMessageEvent
-  if (!hasStringDelta(assistantEvent)) return 0
-  if (assistantEvent.delta.length === 0) return 0
-  return countTextTokens(assistantEvent.delta)
-}
-
-function hasStringDelta(value: unknown): value is { delta: string } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'delta' in value &&
-    typeof value.delta === 'string'
+function getTodoReminder(
+  messages: AgentMessage[],
+  state: SystemReminderState,
+): string | undefined {
+  if (messages.length === state.lastTodoMessageCount) {
+    return state.cachedTodoReminder
+  }
+  const currentTodos = reconstructTodos(messages)
+  state.cachedTodoReminder = currentTodos.some(
+    (todo) => todo.status !== 'completed',
   )
-}
-
-function countTextTokens(text: string): number {
-  return Math.ceil(text.length / 4)
-}
-
-function countSystemReminderTokens(reminder: string): number {
-  return estimateTokens({
-    role: 'custom',
-    customType: SYSTEM_REMINDER_TYPE,
-    content: reminder,
-    display: true,
-    timestamp: Date.now(),
-  })
+    ? formatTodoReminder(currentTodos)
+    : undefined
+  state.lastTodoMessageCount = messages.length
+  return state.cachedTodoReminder
 }
 
 function createSystemReminderMessage(reminder: string): AgentMessage {
@@ -323,6 +322,16 @@ function createSystemReminderMessage(reminder: string): AgentMessage {
     display: true,
     timestamp: Date.now(),
   }
+}
+
+function isStringDelta(value: unknown): value is { delta: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'delta' in value &&
+    typeof value.delta === 'string' &&
+    value.delta.length > 0
+  )
 }
 
 function isSystemReminder(message: AgentMessage): boolean {
