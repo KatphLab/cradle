@@ -37,6 +37,7 @@ export interface GlobalSettings {
   firecrawlApiKey?: string
   tavilyApiKey?: string
   exaApiKey?: string
+  jinaApiKey?: string
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -98,6 +99,11 @@ function normalizeExaApiKey(raw: unknown): string | undefined {
   return undefined
 }
 
+function normalizeJinaApiKey(raw: unknown): string | undefined {
+  if (typeof raw === 'string' && raw.length > 0) return raw
+  return undefined
+}
+
 function normalizeProjectSettings(
   value: unknown,
   cwd: string,
@@ -153,6 +159,20 @@ export async function saveProjectSettings(
   )
 }
 
+function normalizeApiKeys(value: unknown) {
+  if (!isRecord(value)) return {}
+  const firecrawlApiKey = normalizeFirecrawlApiKey(value['firecrawlApiKey'])
+  const tavilyApiKey = normalizeTavilyApiKey(value['tavilyApiKey'])
+  const exaApiKey = normalizeExaApiKey(value['exaApiKey'])
+  const jinaApiKey = normalizeJinaApiKey(value['jinaApiKey'])
+  return {
+    ...(firecrawlApiKey !== undefined && { firecrawlApiKey }),
+    ...(tavilyApiKey !== undefined && { tavilyApiKey }),
+    ...(exaApiKey !== undefined && { exaApiKey }),
+    ...(jinaApiKey !== undefined && { jinaApiKey }),
+  }
+}
+
 function normalizeGlobalSettings(value: unknown): GlobalSettings {
   if (!isRecord(value)) return {}
 
@@ -167,19 +187,14 @@ function normalizeGlobalSettings(value: unknown): GlobalSettings {
 
   const advisorModel = normalizeAdvisorModel(value['advisorModel'])
   const compactionModel = normalizeCompactionModel(value['compactionModel'])
-
-  const firecrawlApiKey = normalizeFirecrawlApiKey(value['firecrawlApiKey'])
-  const tavilyApiKey = normalizeTavilyApiKey(value['tavilyApiKey'])
-  const exaApiKey = normalizeExaApiKey(value['exaApiKey'])
+  const apiKeys = normalizeApiKeys(value)
 
   return {
     ...(reminderTokenThreshold !== undefined && { reminderTokenThreshold }),
     ...(subagentModels !== undefined && { subagentModels }),
     ...(advisorModel !== undefined && { advisorModel }),
     ...(compactionModel !== undefined && { compactionModel }),
-    ...(firecrawlApiKey !== undefined && { firecrawlApiKey }),
-    ...(tavilyApiKey !== undefined && { tavilyApiKey }),
-    ...(exaApiKey !== undefined && { exaApiKey }),
+    ...apiKeys,
   }
 }
 

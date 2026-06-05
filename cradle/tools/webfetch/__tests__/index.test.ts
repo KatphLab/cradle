@@ -11,9 +11,11 @@ import { ensureCacheDirectoryPath } from '../utilities.js'
 const mocks = vi.hoisted(() => ({
   createExaProvider: vi.fn(),
   createFirecrawlProvider: vi.fn(),
+  createJinaProvider: vi.fn(),
   createTavilyProvider: vi.fn(),
   exaFetch: vi.fn(),
   firecrawlFetch: vi.fn(),
+  jinaFetch: vi.fn(),
   loadGlobalSettings: vi.fn(),
   nativeFetch: vi.fn(),
   runSingleAgent: vi.fn(),
@@ -30,6 +32,10 @@ vi.mock('../providers/firecrawl.js', () => ({
 
 vi.mock('../providers/tavily.js', () => ({
   createTavilyProvider: mocks.createTavilyProvider,
+}))
+
+vi.mock('../providers/jina.js', () => ({
+  createJinaProvider: mocks.createJinaProvider,
 }))
 
 vi.mock('../providers/exa.js', () => ({
@@ -109,6 +115,11 @@ beforeEach(async () => {
     name: 'exa',
     fetch: mocks.exaFetch,
   } satisfies WebFetchProvider)
+  mocks.createJinaProvider.mockReturnValue({
+    name: 'jina',
+    fetch: mocks.jinaFetch,
+  } satisfies WebFetchProvider)
+  mocks.jinaFetch.mockRejectedValue(new Error('jina not configured'))
   cacheDirectory = await ensureCacheDirectoryPath()
 })
 
