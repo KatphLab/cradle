@@ -29,6 +29,7 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
   readonly dirInput: Input
   readonly tokenThresholdInput: Input
   readonly subagentModels: SubagentModels
+  displaySystemReminder: boolean
   advisorModel: string | undefined
   compactionModel: string | undefined
   firecrawlApiKey: string | undefined
@@ -50,6 +51,7 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
    * Made non-private so the delegate functions can read them from the editor object.
    */
   readonly initialTokenThreshold: number
+  readonly initialDisplaySystemReminder: boolean
   readonly availableModels: string[]
   readonly initialSubagentModels: SubagentModels
   readonly initialAdvisorModel: string | undefined
@@ -91,8 +93,10 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
     this.rows = (projectSettings.permissions ?? []).map((row) => ({ ...row }))
     ;({
       tokenThreshold: this.initialTokenThreshold,
+      displaySystemReminder: this.displaySystemReminder,
       subagentModels: this.subagentModels,
       initialSubagentModels: this.initialSubagentModels,
+      initialDisplaySystemReminder: this.initialDisplaySystemReminder,
       advisorModel: this.advisorModel,
       initialAdvisorModel: this.initialAdvisorModel,
       compactionModel: this.compactionModel,
@@ -133,6 +137,9 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
   getReminderTokenThreshold(): number {
     const value = Number.parseInt(this.tokenThresholdInput.getValue())
     return Number.isNaN(value) ? this.initialTokenThreshold : value
+  }
+  getDisplaySystemReminder(): boolean {
+    return this.displaySystemReminder
   }
   getSubagentModels(): SubagentModels {
     return { ...this.subagentModels }

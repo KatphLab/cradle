@@ -27,6 +27,7 @@ function tryHandleSave(editor: EditorLike, data: string): boolean {
     editor.onSave?.({
       permissions: editor.getRows(),
       reminderTokenThreshold: clampedTokenThreshold,
+      displaySystemReminder: editor.getDisplaySystemReminder(),
       subagentModels: editor.getSubagentModels(),
       advisorModel: editor.advisorModel,
       compactionModel: editor.compactionModel,
@@ -124,7 +125,7 @@ function tryHandleNavigation(editor: EditorLike, data: string): boolean {
 }
 
 function moveDown(editor: EditorLike): boolean {
-  const maxRow = editor.rows.length + 6 + API_KEY_EXTRA_ROW_COUNT
+  const maxRow = editor.rows.length + 7 + API_KEY_EXTRA_ROW_COUNT
   if (editor.selectedRow < maxRow) {
     editor.selectedRow++
     const isNowOnDataRow = editor.selectedRow < editor.rows.length
@@ -182,11 +183,17 @@ function tryHandleToggle(editor: EditorLike, data: string): boolean {
     editor.tuiRequestRender?.()
     return true
   }
+  if (editor.selectedRow === editor.rows.length + 2) {
+    editor.displaySystemReminder = !editor.displaySystemReminder
+    editor.dirty = true
+    editor.tuiRequestRender?.()
+    return true
+  }
   return tryHandleModelToggle(editor)
 }
 
 function tryHandleModelToggle(editor: EditorLike): boolean {
-  const relativeRow = editor.selectedRow - (editor.rows.length + 2)
+  const relativeRow = editor.selectedRow - (editor.rows.length + 3)
   if (relativeRow >= 0 && relativeRow <= 2) {
     openModelSelect(editor, getTierFromRow(editor, editor.selectedRow))
     editor.tuiRequestRender?.()
@@ -209,7 +216,7 @@ function getTierFromRow(
   editor: EditorLike,
   rowIndex: number,
 ): 'low' | 'medium' | 'high' {
-  const offset = rowIndex - (editor.rows.length + 2)
+  const offset = rowIndex - (editor.rows.length + 3)
   const tiers = ['low', 'medium', 'high'] as const
   return tiers[offset] ?? 'low'
 }

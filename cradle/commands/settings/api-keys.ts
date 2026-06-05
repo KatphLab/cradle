@@ -24,25 +24,25 @@ export const API_KEY_FIELDS: readonly ApiKeyField[] = [
   {
     inputKey: 'firecrawlApiKeyInput',
     label: 'Firecrawl API Key',
-    rowOffset: 7,
+    rowOffset: 8,
     settingKey: 'firecrawlApiKey',
   },
   {
     inputKey: 'tavilyApiKeyInput',
     label: 'Tavily API Key',
-    rowOffset: 8,
+    rowOffset: 9,
     settingKey: 'tavilyApiKey',
   },
   {
     inputKey: 'exaApiKeyInput',
     label: 'Exa API Key',
-    rowOffset: 9,
+    rowOffset: 10,
     settingKey: 'exaApiKey',
   },
   {
     inputKey: 'jinaApiKeyInput',
     label: 'Jina API Key',
-    rowOffset: 10,
+    rowOffset: 11,
     settingKey: 'jinaApiKey',
   },
 ]

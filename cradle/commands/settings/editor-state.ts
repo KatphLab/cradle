@@ -20,6 +20,8 @@ export function isDirty(editor: EditorLike): boolean {
   const tokenThresholdChanged =
     editor.tokenThresholdInput.getValue() !==
     String(editor.initialTokenThreshold)
+  const displaySystemReminderChanged =
+    editor.displaySystemReminder !== editor.initialDisplaySystemReminder
   const modelsChanged =
     editor.subagentModels.low !== editor.initialSubagentModels.low ||
     editor.subagentModels.medium !== editor.initialSubagentModels.medium ||
@@ -30,6 +32,7 @@ export function isDirty(editor: EditorLike): boolean {
   return (
     editor.dirty ||
     tokenThresholdChanged ||
+    displaySystemReminderChanged ||
     modelsChanged ||
     advisorChanged ||
     compactionModelChanged ||

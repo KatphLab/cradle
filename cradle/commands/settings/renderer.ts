@@ -3,6 +3,7 @@ import { API_KEY_FIELDS, maskApiKey } from './api-keys.js'
 import {
   ADVISOR_MODEL_LABEL,
   COMPACTION_MODEL_LABEL,
+  DISPLAY_SYSTEM_REMINDER_LABEL,
   GAP,
   PERMISSION_LABELS,
   SEARCH_API_KEYS_LABEL,
@@ -147,7 +148,10 @@ export class SettingsRenderer {
 
   private renderTokenThresholdSection(width: number): string[] {
     const isFocused = this.editor.selectedRow === this.editor.rows.length + 1
+    const toggleFocused =
+      this.editor.selectedRow === this.editor.rows.length + 2
     const prefix = isFocused ? '> ' : '  '
+    const togglePrefix = toggleFocused ? '> ' : '  '
     const inputWidth = Math.max(0, width - prefix.length)
     const inputLines = this.editor.tokenThresholdInput.render(inputWidth)
     const [firstLine = ''] = inputLines
@@ -155,6 +159,10 @@ export class SettingsRenderer {
       '',
       this.editor.theme.bold(TOKEN_THRESHOLD_LABEL),
       `${prefix}${firstLine}`,
+      `${togglePrefix}${DISPLAY_SYSTEM_REMINDER_LABEL}: ${this.renderToggle(
+        this.editor.displaySystemReminder,
+        toggleFocused,
+      )}`,
     ]
   }
 
@@ -164,7 +172,7 @@ export class SettingsRenderer {
     const selectList = this.editor.getSelectList()
 
     for (const [index, tier] of tiers.entries()) {
-      const rowIndex = this.editor.rows.length + 2 + index
+      const rowIndex = this.editor.rows.length + 3 + index
       const isFocused = this.editor.selectedRow === rowIndex
       const prefix = isFocused ? '> ' : '  '
       const label = TIER_LABELS[tier]
@@ -188,7 +196,7 @@ export class SettingsRenderer {
   private renderAdvisorModelSection(width: number): string[] {
     return this.renderModelSelectionSection(
       width,
-      this.editor.rows.length + 5,
+      this.editor.rows.length + 6,
       this.editor.advisorModel,
       ADVISOR_MODEL_LABEL,
       'Advisor',
@@ -198,7 +206,7 @@ export class SettingsRenderer {
   private renderCompactionModelSection(width: number): string[] {
     return this.renderModelSelectionSection(
       width,
-      this.editor.rows.length + 6,
+      this.editor.rows.length + 7,
       this.editor.compactionModel,
       COMPACTION_MODEL_LABEL,
       'Compaction',
