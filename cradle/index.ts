@@ -1,9 +1,11 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
+import { registerOrchestratorCommand } from './commands/orchestrator.js'
 import { registerSettingsCommand } from './commands/settings.js'
 import { registerSpecCommand } from './commands/spec.js'
 import { registerStatsCommand } from './commands/stats.js'
 import { registerCompactionHook } from './hooks/compaction.js'
+import { registerOrchestratorModeHook } from './hooks/orchestrator-mode.js'
 import { registerShellHook } from './hooks/shell.js'
 import { registerSpecModeHook } from './hooks/spec-mode.js'
 import { registerSystemReminderHook } from './hooks/system-reminder.js'
@@ -23,6 +25,7 @@ import {
   webSearchTool,
 } from './tools/websearch/index.js'
 import { writeTool } from './tools/write.js'
+import { createOrchestratorModeState } from './utils/orchestrator-state.js'
 import { createSpecModeState } from './utils/spec-state.js'
 
 /** @public */
@@ -56,12 +59,15 @@ export default function configureExtension(
   pi.registerTool(advisorTool)
 
   const specModeState = createSpecModeState()
+  const orchestratorModeState = createOrchestratorModeState()
 
   registerSettingsCommand(pi)
   registerStatsCommand(pi)
   registerSpecCommand(pi, specModeState)
+  registerOrchestratorCommand(pi, orchestratorModeState)
   registerShellHook(pi)
   registerSystemReminderHook(pi)
   registerCompactionHook(pi)
   registerSpecModeHook(pi, specModeState)
+  registerOrchestratorModeHook(pi, orchestratorModeState)
 }

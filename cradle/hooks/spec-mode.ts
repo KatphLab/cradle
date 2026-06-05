@@ -7,11 +7,15 @@ import type {
 
 import { SPEC_MODE_SYSTEM_PROMPT } from '../prompts/spec.js'
 import {
+  registerBeforeAgentStartPrompt,
+  restoreToolMode,
+  type ModeState,
+} from '../utils/mode-helpers.js'
+import {
   SPEC_MODE_TOOLS,
   restoreSpecModeEnabled,
   type SpecModeState,
 } from '../utils/spec-state.js'
-import { filterMainAgentTools } from '../utils/tool.js'
 
 const MUTATION_TOOLS = new Set(['bash', 'edit', 'write'])
 
@@ -43,21 +47,12 @@ function updateSpecStatus(context: ExtensionContext, enabled: boolean): void {
   )
 }
 
-function getAllToolNames(pi: Pick<ExtensionAPI, 'getAllTools'>): string[] {
-  return pi.getAllTools().map((tool) => tool.name)
-}
-
-function restoreToolMode(
+function restoreTools(
   pi: Pick<ExtensionAPI, 'getAllTools' | 'setActiveTools'>,
   context: ExtensionContext,
-  state: SpecModeState,
+  state: ModeState,
 ): void {
-  pi.setActiveTools(
-    state.isEnabled()
-      ? SPEC_MODE_TOOLS
-      : filterMainAgentTools(getAllToolNames(pi)),
-  )
-  updateSpecStatus(context, state.isEnabled())
+  restoreToolMode(pi, context, state, SPEC_MODE_TOOLS, updateSpecStatus)
 }
 
 /** @public */
@@ -69,16 +64,10 @@ export function registerSpecModeHook(
     state.setEnabled(
       restoreSpecModeEnabled(context.sessionManager.getEntries()),
     )
-    restoreToolMode(pi, context, state)
+    restoreTools(pi, context, state)
   })
 
-  pi.on('before_agent_start', (event) => {
-    if (!state.isEnabled()) return
-
-    return {
-      systemPrompt: `${event.systemPrompt}\n\n${SPEC_MODE_SYSTEM_PROMPT}`,
-    }
-  })
+  registerBeforeAgentStartPrompt(pi, state, SPEC_MODE_SYSTEM_PROMPT)
 
   pi.on('tool_call', (event, context) => {
     if (!state.isEnabled()) return
