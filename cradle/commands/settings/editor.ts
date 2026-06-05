@@ -37,6 +37,8 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
   readonly tavilyApiKeyInput: Input
   exaApiKey: string | undefined
   readonly exaApiKeyInput: Input
+  jinaApiKey: string | undefined
+  readonly jinaApiKeyInput: Input
   readonly modelDisplayNames: Map<string, string>
   selectedRow: number
   selectedCol: number
@@ -55,6 +57,7 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
   readonly initialFirecrawlApiKey: string | undefined
   readonly initialTavilyApiKey: string | undefined
   readonly initialExaApiKey: string | undefined
+  readonly initialJinaApiKey: string | undefined
   private readonly renderer: SettingsRenderer
   dirty = false
   lastInputValue = ''
@@ -100,6 +103,8 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
       initialTavilyApiKey: this.initialTavilyApiKey,
       exaApiKey: this.exaApiKey,
       initialExaApiKey: this.initialExaApiKey,
+      jinaApiKey: this.jinaApiKey,
+      initialJinaApiKey: this.initialJinaApiKey,
     } = initFromGlobal(globalSettings))
 
     this.dirInput = new Input()
@@ -114,6 +119,7 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
     this.firecrawlApiKeyInput = createApiKeyInput(this.firecrawlApiKey)
     this.tavilyApiKeyInput = createApiKeyInput(this.tavilyApiKey)
     this.exaApiKeyInput = createApiKeyInput(this.exaApiKey)
+    this.jinaApiKeyInput = createApiKeyInput(this.jinaApiKey)
 
     this.selectedRow = this.rows.length
     this.selectedCol = 0
@@ -142,6 +148,9 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
   }
   getExaApiKey(): string | undefined {
     return getApiKeyValue(this.exaApiKeyInput)
+  }
+  getJinaApiKey(): string | undefined {
+    return getApiKeyValue(this.jinaApiKeyInput)
   }
   getSuggestions(): string[] {
     return [...this.suggestions]
@@ -193,5 +202,6 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
     this.firecrawlApiKeyInput.invalidate()
     this.tavilyApiKeyInput.invalidate()
     this.exaApiKeyInput.invalidate()
+    this.jinaApiKeyInput.invalidate()
   }
 }

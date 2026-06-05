@@ -19,9 +19,11 @@ export interface EditorState {
   readonly firecrawlApiKeyInput: Input
   readonly tavilyApiKeyInput: Input
   readonly exaApiKeyInput: Input
+  readonly jinaApiKeyInput: Input
   readonly firecrawlApiKey: string | undefined
   readonly tavilyApiKey: string | undefined
   readonly exaApiKey: string | undefined
+  readonly jinaApiKey: string | undefined
   readonly subagentModels: SubagentModels
   readonly advisorModel: string | undefined
   readonly compactionModel: string | undefined

@@ -14,6 +14,7 @@ export interface CradleSettingsResult {
   firecrawlApiKey: string | undefined
   tavilyApiKey: string | undefined
   exaApiKey: string | undefined
+  jinaApiKey: string | undefined
 }
 
 /**
@@ -30,6 +31,7 @@ export interface EditorLike {
   getFirecrawlApiKey(): string | undefined
   getTavilyApiKey(): string | undefined
   getExaApiKey(): string | undefined
+  getJinaApiKey(): string | undefined
   addCurrentInput(): void
   deleteRow(index: number): void
   togglePermission(rowIndex: number, colIndex: number): void
@@ -63,11 +65,13 @@ export interface EditorLike {
   readonly firecrawlApiKeyInput: Input
   readonly tavilyApiKeyInput: Input
   readonly exaApiKeyInput: Input
+  readonly jinaApiKeyInput: Input
 
   // ── API keys ──────────────────────────────────────────────
   firecrawlApiKey: string | undefined
   tavilyApiKey: string | undefined
   exaApiKey: string | undefined
+  jinaApiKey: string | undefined
   advisorModel: string | undefined
   compactionModel: string | undefined
 
@@ -79,6 +83,7 @@ export interface EditorLike {
   readonly initialFirecrawlApiKey: string | undefined
   readonly initialTavilyApiKey: string | undefined
   readonly initialExaApiKey: string | undefined
+  readonly initialJinaApiKey: string | undefined
 
   // ── select list ─────────────────────────────────────────────
   selectList: SelectList | undefined
