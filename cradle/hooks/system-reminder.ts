@@ -46,6 +46,15 @@ interface BeforeAgentStartEventLike {
   systemPrompt: string
 }
 
+interface BeforeAgentStartResultLike {
+  message?: {
+    customType: string
+    content: string
+    display: boolean
+  }
+  systemPrompt?: string
+}
+
 interface NotifyContextLike {
   ui: {
     notify(message: string, level: 'warning'): void
@@ -110,7 +119,7 @@ function handleBeforeAgentStart(
   event: BeforeAgentStartEventLike,
   context: NotifyContextLike,
   state: SystemReminderState,
-): { systemPrompt: string } | undefined {
+): BeforeAgentStartResultLike | undefined {
   const extracted = extractSystemReminder(event.systemPrompt)
   if (!extracted) return undefined
 
@@ -129,7 +138,10 @@ function handleBeforeAgentStart(
     )
   }
 
-  return { systemPrompt: extracted.systemPrompt }
+  return {
+    message: createSystemReminderDisplayMessage(state.cachedReminder),
+    systemPrompt: extracted.systemPrompt,
+  }
 }
 
 function handleContext(
@@ -317,10 +329,20 @@ function getTodoReminder(
 function createSystemReminderMessage(reminder: string): AgentMessage {
   return {
     role: 'custom',
+    ...createSystemReminderDisplayMessage(reminder),
+    timestamp: Date.now(),
+  }
+}
+
+function createSystemReminderDisplayMessage(reminder: string): {
+  customType: string
+  content: string
+  display: boolean
+} {
+  return {
     customType: SYSTEM_REMINDER_TYPE,
     content: `<system-reminder>\n${reminder}\n</system-reminder>`,
     display: true,
-    timestamp: Date.now(),
   }
 }
 
