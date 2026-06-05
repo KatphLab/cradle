@@ -257,6 +257,14 @@ function getEarendilWorksDirectories(): string[] {
   return [...directories]
 }
 
+function getCradleProjectDirectory(): string {
+  // This file is at cradle/config/settings.ts inside the extension.
+  // Navigate up two levels to reach the extension root (cradle/),
+  // then one more to reach the package/project root.
+  const thisFile = fileURLToPath(import.meta.url)
+  return path.resolve(path.dirname(thisFile), '..', '..')
+}
+
 function getDefaultReadDirectories(): string[] {
   return [
     path.join(homedir(), '.agents'),
@@ -306,10 +314,11 @@ export async function assertPermission(
     return
   }
 
-  // Implicit read directories (SDK packages + defaults + /tmp)
+  // Implicit read directories (SDK packages + cradle extension + defaults + /tmp)
   if (operation === 'read') {
     const implicitDirectories = [
       '/tmp',
+      getCradleProjectDirectory(),
       ...getEarendilWorksDirectories(),
       ...getDefaultReadDirectories(),
     ]
