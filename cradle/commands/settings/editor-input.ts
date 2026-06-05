@@ -33,6 +33,7 @@ function tryHandleSave(editor: EditorLike, data: string): boolean {
       firecrawlApiKey: editor.getFirecrawlApiKey(),
       tavilyApiKey: editor.getTavilyApiKey(),
       exaApiKey: editor.getExaApiKey(),
+      jinaApiKey: editor.getJinaApiKey(),
     })
     return true
   }

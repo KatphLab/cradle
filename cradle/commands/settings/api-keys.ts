@@ -2,11 +2,16 @@ import { Input } from '@earendil-works/pi-tui'
 
 import type { GlobalSettings } from '../../config/settings.js'
 
-export type ApiKeySettingKey = 'firecrawlApiKey' | 'tavilyApiKey' | 'exaApiKey'
+export type ApiKeySettingKey =
+  | 'firecrawlApiKey'
+  | 'tavilyApiKey'
+  | 'exaApiKey'
+  | 'jinaApiKey'
 type ApiKeyInputKey =
   | 'firecrawlApiKeyInput'
   | 'tavilyApiKeyInput'
   | 'exaApiKeyInput'
+  | 'jinaApiKeyInput'
 
 export interface ApiKeyField {
   inputKey: ApiKeyInputKey
@@ -33,6 +38,12 @@ export const API_KEY_FIELDS: readonly ApiKeyField[] = [
     label: 'Exa API Key',
     rowOffset: 9,
     settingKey: 'exaApiKey',
+  },
+  {
+    inputKey: 'jinaApiKeyInput',
+    label: 'Jina API Key',
+    rowOffset: 10,
+    settingKey: 'jinaApiKey',
   },
 ]
 

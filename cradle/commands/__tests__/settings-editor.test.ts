@@ -89,8 +89,11 @@ describe('CradleSettingsEditor — input', () => {
     down()
     expect(editor.getSelectedRow()).toBe(11) // exa API key
     down()
-    expect(editor.getSelectedRow()).toBe(11) // stops at bottom
+    expect(editor.getSelectedRow()).toBe(12) // jina API key
+    down()
+    expect(editor.getSelectedRow()).toBe(12) // stops at bottom
 
+    up()
     up()
     up()
     up()
@@ -208,7 +211,11 @@ describe('CradleSettingsEditor — keys', () => {
       reminderTokenThreshold: 6000,
       subagentModels: {},
       advisorModel: undefined,
+      compactionModel: undefined,
       firecrawlApiKey: undefined,
+      tavilyApiKey: undefined,
+      exaApiKey: undefined,
+      jinaApiKey: undefined,
     })
 
     editor.handleInput('\u001B') // escape
@@ -465,8 +472,11 @@ describe('CradleSettingsEditor — reminder token threshold', () => {
       reminderTokenThreshold: 50_000,
       subagentModels: {},
       advisorModel: undefined,
+      compactionModel: undefined,
       firecrawlApiKey: undefined,
       tavilyApiKey: undefined,
+      exaApiKey: undefined,
+      jinaApiKey: undefined,
     })
   })
 })

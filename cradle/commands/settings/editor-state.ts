@@ -4,6 +4,18 @@ import { PERMISSION_COLUMNS } from './constants.js'
 import type { EditorLike } from './types.js'
 import { scanDirectorySuggestions } from './utilities.js'
 
+function anyApiKeyChanged(editor: EditorLike): boolean {
+  return (
+    isApiKeyChanged(
+      editor.firecrawlApiKeyInput,
+      editor.initialFirecrawlApiKey,
+    ) ||
+    isApiKeyChanged(editor.tavilyApiKeyInput, editor.initialTavilyApiKey) ||
+    isApiKeyChanged(editor.exaApiKeyInput, editor.initialExaApiKey) ||
+    isApiKeyChanged(editor.jinaApiKeyInput, editor.initialJinaApiKey)
+  )
+}
+
 export function isDirty(editor: EditorLike): boolean {
   const tokenThresholdChanged =
     editor.tokenThresholdInput.getValue() !==
@@ -15,27 +27,13 @@ export function isDirty(editor: EditorLike): boolean {
   const advisorChanged = editor.advisorModel !== editor.initialAdvisorModel
   const compactionModelChanged =
     editor.compactionModel !== editor.initialCompactionModel
-  const firecrawlKeyChanged = isApiKeyChanged(
-    editor.firecrawlApiKeyInput,
-    editor.initialFirecrawlApiKey,
-  )
-  const tavilyKeyChanged = isApiKeyChanged(
-    editor.tavilyApiKeyInput,
-    editor.initialTavilyApiKey,
-  )
-  const exaKeyChanged = isApiKeyChanged(
-    editor.exaApiKeyInput,
-    editor.initialExaApiKey,
-  )
   return (
     editor.dirty ||
     tokenThresholdChanged ||
     modelsChanged ||
     advisorChanged ||
     compactionModelChanged ||
-    firecrawlKeyChanged ||
-    tavilyKeyChanged ||
-    exaKeyChanged
+    anyApiKeyChanged(editor)
   )
 }
 

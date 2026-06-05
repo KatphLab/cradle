@@ -10,6 +10,7 @@ import {
 } from '../../utils/subagent-tool-helpers.js'
 import { createExaProvider } from './providers/exa.js'
 import { createFirecrawlProvider } from './providers/firecrawl.js'
+import { createJinaProvider } from './providers/jina.js'
 import { nativeProvider } from './providers/native.js'
 import { createTavilyProvider } from './providers/tavily.js'
 import { renderWebFetchResult } from './render.js'
@@ -46,21 +47,21 @@ const MaxAgeSecondsParameter = Type.Optional(
 
 async function getProviders(): Promise<WebFetchProvider[]> {
   const globalSettings = await loadGlobalSettings()
-  const providers: WebFetchProvider[] = []
 
-  if (globalSettings.tavilyApiKey) {
-    providers.push(createTavilyProvider(globalSettings.tavilyApiKey))
-  }
+  const providers: WebFetchProvider[] = [
+    ...(globalSettings.tavilyApiKey
+      ? [createTavilyProvider(globalSettings.tavilyApiKey)]
+      : []),
+    ...(globalSettings.firecrawlApiKey
+      ? [createFirecrawlProvider(globalSettings.firecrawlApiKey)]
+      : []),
+    ...(globalSettings.exaApiKey
+      ? [createExaProvider(globalSettings.exaApiKey)]
+      : []),
+    createJinaProvider(globalSettings.jinaApiKey),
+    nativeProvider,
+  ]
 
-  if (globalSettings.firecrawlApiKey) {
-    providers.push(createFirecrawlProvider(globalSettings.firecrawlApiKey))
-  }
-
-  if (globalSettings.exaApiKey) {
-    providers.push(createExaProvider(globalSettings.exaApiKey))
-  }
-
-  providers.push(nativeProvider)
   return providers
 }
 

@@ -19,6 +19,8 @@ export function initFromGlobal(globalSettings: GlobalSettings): {
   initialTavilyApiKey: string | undefined
   exaApiKey: string | undefined
   initialExaApiKey: string | undefined
+  jinaApiKey: string | undefined
+  initialJinaApiKey: string | undefined
 } {
   const tokenThreshold =
     globalSettings.reminderTokenThreshold ?? DEFAULT_REMINDER_TOKEN_THRESHOLD
@@ -48,5 +50,7 @@ export function initFromGlobal(globalSettings: GlobalSettings): {
     initialTavilyApiKey: getInitialApiKey(globalSettings, 'tavilyApiKey'),
     exaApiKey: getInitialApiKey(globalSettings, 'exaApiKey'),
     initialExaApiKey: getInitialApiKey(globalSettings, 'exaApiKey'),
+    jinaApiKey: getInitialApiKey(globalSettings, 'jinaApiKey'),
+    initialJinaApiKey: getInitialApiKey(globalSettings, 'jinaApiKey'),
   }
 }
