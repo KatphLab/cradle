@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { loadCradleSettings } from '../../../config/settings.js'
-import { runSingleAgent } from '../../../subagents/runner.js'
-import type { SingleResult } from '../../../subagents/types.js'
+import { runSingleAgent } from '../../../lib/subagents/runner.js'
+import type { SingleResult } from '../../../lib/subagents/types.js'
 import { runAdvisor } from '../runner.js'
 
-vi.mock('../../../subagents/runner.js', async (importOriginal) => {
+vi.mock('../../../lib/subagents/runner.js', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
   return {
     ...actual,

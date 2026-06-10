@@ -1,9 +1,9 @@
 import type { TextContent } from '@earendil-works/pi-ai'
 
 import type { GlobalSettings } from '../config/settings.js'
-import { runSingleAgent } from '../subagents/runner.js'
-import type { AgentConfig, SingleResult } from '../subagents/types.js'
-import { getFinalOutput, isFailedResult } from '../subagents/utilities.js'
+import { runSingleAgent } from '../lib/subagents/runner.js'
+import type { AgentConfig, SingleResult } from '../lib/subagents/types.js'
+import { getFinalOutput, isFailedResult } from '../lib/subagents/utilities.js'
 
 function getSubagentFailureText(result: SingleResult): string {
   if (result.errorMessage) return result.errorMessage

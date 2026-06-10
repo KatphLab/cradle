@@ -5,13 +5,13 @@ import type {
 import { StringEnum } from '@earendil-works/pi-ai'
 import { Type, type Static } from 'typebox'
 import { loadCradleSettings } from '../../config/settings.js'
-import { runSingleAgent } from '../../subagents/runner.js'
+import { runSingleAgent } from '../../lib/subagents/runner.js'
 import type {
   AgentConfig,
   SingleResult,
   SubagentDetails,
   TaskComplexity,
-} from '../../subagents/types.js'
+} from '../../lib/subagents/types.js'
 import {
   getFinalOutput,
   getResultOutput,
@@ -20,7 +20,7 @@ import {
   MAX_CONCURRENCY,
   MAX_PARALLEL_TASKS,
   truncateParallelOutput,
-} from '../../subagents/utilities.js'
+} from '../../lib/subagents/utilities.js'
 
 const ComplexitySchema = StringEnum(['low', 'medium', 'high'] as const, {
   description: 'Task complexity for model selection',

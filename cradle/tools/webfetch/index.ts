@@ -3,7 +3,7 @@ import { Type } from '@earendil-works/pi-ai'
 import { defineTool } from '@earendil-works/pi-coding-agent'
 
 import { loadGlobalSettings } from '../../config/settings.js'
-import { discoverAgents } from '../../subagents/agents.js'
+import { discoverAgents } from '../../lib/subagents/agents.js'
 import {
   buildSubagentResult,
   executeToolSubagent,

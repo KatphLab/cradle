@@ -5,7 +5,7 @@ import type {
   AgentDiscoveryResult,
   SingleResult,
   UsageStats,
-} from '../../subagents/types.js'
+} from '../../lib/subagents/types.js'
 import { makeDetailsFactory, type ToolContext } from './subagent-modes.js'
 
 const emptyUsage: UsageStats = {

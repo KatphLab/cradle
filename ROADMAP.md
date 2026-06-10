@@ -72,12 +72,12 @@
 
 | Status | Feature                                          | Location                                                                     |
 | ------ | ------------------------------------------------ | ---------------------------------------------------------------------------- |
-| [x]    | Subagent discovery                               | `cradle/subagents/agents.ts`                                                 |
-| [x]    | Subagent render — result formatting              | `cradle/subagents/render.ts`                                                 |
-| [x]    | Subagent runner                                  | `cradle/subagents/runner.ts`                                                 |
-| [x]    | Subagent types                                   | `cradle/subagents/types.ts`                                                  |
-| [x]    | Subagent utilities                               | `cradle/subagents/utilities.ts`                                              |
-| [x]    | Subagent validation                              | `cradle/subagents/validate.ts`                                               |
+| [x]    | Subagent discovery                               | `cradle/lib/subagents/agents.ts`                                             |
+| [x]    | Subagent render — result formatting              | `cradle/lib/subagents/render.ts`                                             |
+| [x]    | Subagent runner                                  | `cradle/lib/subagents/runner.ts`                                             |
+| [x]    | Subagent types                                   | `cradle/lib/subagents/types.ts`                                              |
+| [x]    | Subagent utilities                               | `cradle/lib/subagents/utilities.ts`                                          |
+| [x]    | Subagent validation                              | `cradle/lib/subagents/validate.ts`                                           |
 | [x]    | Todo state management                            | `cradle/utils/todo-state.ts`                                                 |
 | [x]    | Spec mode state                                  | `cradle/utils/spec-state.ts`                                                 |
 | [x]    | Tool utilities                                   | `cradle/utils/tool.ts`                                                       |

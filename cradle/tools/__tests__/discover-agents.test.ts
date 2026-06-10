@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { discoverAgentsTool } from '../discover-agents.js'
 
-vi.mock('../../subagents/agents.js', () => ({
+vi.mock('../../lib/subagents/agents.js', () => ({
   discoverAgents: vi.fn(),
 }))
 
@@ -18,7 +18,7 @@ function getTextContent(result: { content: unknown[] }): string {
   return item.text
 }
 
-const agentsModule = await import('../../subagents/agents.js')
+const agentsModule = await import('../../lib/subagents/agents.js')
 const mockDiscoverAgents = vi.mocked(agentsModule.discoverAgents)
 
 function executeDiscoverAgents(cwd = '/test') {

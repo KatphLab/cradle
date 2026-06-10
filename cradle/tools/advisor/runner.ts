@@ -1,12 +1,12 @@
 import type { AgentToolResult } from '@earendil-works/pi-agent-core'
 import { loadCradleSettings } from '../../config/settings.js'
-import { runSingleAgent } from '../../subagents/runner.js'
+import { runSingleAgent } from '../../lib/subagents/runner.js'
 import type {
   AgentConfig,
   SingleResult,
   SubagentDetails,
-} from '../../subagents/types.js'
-import { getFinalOutput } from '../../subagents/utilities.js'
+} from '../../lib/subagents/types.js'
+import { getFinalOutput } from '../../lib/subagents/utilities.js'
 import { ADVISOR_SYSTEM_PROMPT, buildAdvisorUserMessage } from './prompt.js'
 
 const ADVISOR_TOOLS = ['read', 'ls', 'grep', 'glob']

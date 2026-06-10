@@ -2,9 +2,9 @@ import type { Message } from '@earendil-works/pi-ai'
 import { readFile, rm } from 'node:fs/promises'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { RunSingleAgentOptions } from '../../../subagents/runner.js'
-import type { SingleResult } from '../../../subagents/types.js'
-import type * as SubagentUtilities from '../../../subagents/utilities.js'
+import type { RunSingleAgentOptions } from '../../../lib/subagents/runner.js'
+import type { SingleResult } from '../../../lib/subagents/types.js'
+import type * as SubagentUtilities from '../../../lib/subagents/utilities.js'
 import type { WebFetchProvider } from '../types.js'
 import { ensureCacheDirectoryPath } from '../utilities.js'
 
@@ -49,11 +49,11 @@ vi.mock('../providers/native.js', () => ({
   },
 }))
 
-vi.mock('../../../subagents/runner.js', () => ({
+vi.mock('../../../lib/subagents/runner.js', () => ({
   runSingleAgent: mocks.runSingleAgent,
 }))
 
-vi.mock('../../../subagents/agents.js', () => ({
+vi.mock('../../../lib/subagents/agents.js', () => ({
   discoverAgents: vi.fn(() => ({
     agents: [
       {
@@ -69,7 +69,7 @@ vi.mock('../../../subagents/agents.js', () => ({
   })),
 }))
 
-vi.mock('../../../subagents/utilities.js', async (importOriginal) => {
+vi.mock('../../../lib/subagents/utilities.js', async (importOriginal) => {
   const actual = await importOriginal<typeof SubagentUtilities>()
   return {
     ...actual,
