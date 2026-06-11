@@ -28,6 +28,7 @@ import {
   createTodoToolResult,
   createUserMessage,
   getBeforeAgentStartHandler,
+  getBeforeProviderRequestHandler,
   getContextHandler,
   getMessageUpdateHandler,
   getSessionStartHandler,
@@ -116,7 +117,7 @@ describe('registerSystemReminderHook', () => {
     )
   })
 
-  it('adds the system reminder and removes stale reminders', async () => {
+  it('removes stale reminders from context', async () => {
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
 
@@ -138,17 +139,11 @@ describe('registerSystemReminderHook', () => {
       { cwd: tempRoot },
     )
 
-    expect(result?.messages).toEqual([
-      userMessage,
-      expect.objectContaining({
-        role: 'user',
-        content: '[REMINDER]\nAlways prefer tiny changes.',
-        timestamp: Date.now(),
-      }),
-    ])
+    // Context handler filters stale reminders but does not inject new ones
+    expect(result?.messages).toEqual([userMessage])
   })
 
-  it('injects default reminder and removes stale reminders when no user-defined reminder exists', async () => {
+  it('removes stale reminders and caches todo state', async () => {
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
 
@@ -167,19 +162,11 @@ describe('registerSystemReminderHook', () => {
       { cwd: tempRoot },
     )
 
-    expect(result?.messages).toEqual([
-      userMessage,
-      expect.objectContaining({
-        role: 'user',
-        content: expect.stringContaining(
-          'Always use the todo tool to break tasks into concrete steps and track progress.',
-        ),
-        timestamp: Date.now(),
-      }),
-    ])
+    // Context handler filters stale reminders but does not inject new ones
+    expect(result?.messages).toEqual([userMessage])
   })
 
-  it('adds active todo reminder alongside system reminder', async () => {
+  it('caches todo reminder for before_provider_request', async () => {
     await writeCradleSettings(tempRoot, {
       reminderTokenThreshold: 500,
       displaySystemReminder: false,
@@ -207,25 +194,67 @@ describe('registerSystemReminderHook', () => {
 
     const userMessage = createUserMessage('please fix this')
     const todoResult = createTodoToolResult('1. [in_progress] Fix bug')
-    const handler = getContextHandler(handlers)
-    const result = await handler(
+    const contextHandler = getContextHandler(handlers)
+    const contextResult = await contextHandler(
       { messages: [userMessage, todoResult] },
       { cwd: tempRoot },
     )
 
-    expect(result?.messages).toEqual([
-      userMessage,
-      todoResult,
-      expect.objectContaining({
-        role: 'user',
-        content:
-          '[REMINDER]\nAlways prefer tiny changes.\n\n## Current Todos\n1. [in_progress] Fix bug',
-        timestamp: Date.now(),
-      }),
-    ])
+    // Context handler filters but does not inject
+    expect(contextResult?.messages).toEqual([userMessage, todoResult])
+
+    // Verify task state is cached by checking before_provider_request
+    const providerHandler = getBeforeProviderRequestHandler(handlers)
+    const payload = {
+      messages: [{ role: 'user', content: 'test' }],
+      model: 'test',
+    }
+    providerHandler({ payload })
+
+    expect(payload.messages).toHaveLength(2)
+    const reminderMessage = payload.messages[1] as {
+      role: string
+      content: { type: string; text: string }[]
+    }
+    expect(reminderMessage.role).toBe('user')
+    expect(reminderMessage.content[0].text).toContain(
+      'Always prefer tiny changes.',
+    )
+    expect(reminderMessage.content[0].text).toContain('## Current Todos')
   })
 
-  it('skips unchanged reminders until token threshold is reached', async () => {
+  it('before_provider_request injects reminder into LLM payload', async () => {
+    const handlers: RegisteredHandler[] = []
+    registerSystemReminderHook(createPi(handlers))
+
+    const notify = vi.fn()
+    const beforeHandler = getBeforeAgentStartHandler(handlers)
+    await beforeHandler(
+      {
+        systemPrompt:
+          '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
+      },
+      { cwd: tempRoot, ui: { notify } },
+    )
+
+    const providerHandler = getBeforeProviderRequestHandler(handlers)
+    const payload = {
+      messages: [{ role: 'user', content: 'please fix this' }],
+      model: 'test',
+    }
+    const result = providerHandler({ payload })
+
+    expect(result).toBe(payload)
+    expect(payload.messages).toHaveLength(2)
+    expect(payload.messages[1]).toEqual({
+      role: 'user',
+      content: [
+        { type: 'text', text: '[REMINDER]\nAlways prefer tiny changes.' },
+      ],
+    })
+  })
+
+  it('before_provider_request always injects regardless of token threshold', async () => {
     await writeCradleSettings(tempRoot, { reminderTokenThreshold: 500 })
 
     const handlers: RegisteredHandler[] = []
@@ -244,45 +273,46 @@ describe('registerSystemReminderHook', () => {
       { cwd: tempRoot, ui: { notify } },
     )
 
-    const userMessage = createUserMessage('please fix this')
-    const handler = getContextHandler(handlers)
+    const providerHandler = getBeforeProviderRequestHandler(handlers)
 
-    const firstResult = await handler(
-      { messages: [userMessage] },
-      { cwd: tempRoot },
-    )
-    expect(firstResult?.messages).toHaveLength(2)
-    const firstReminder = firstResult?.messages?.at(-1)
-    if (firstReminder === undefined) {
-      throw new Error('Expected first reminder to be injected')
+    // First call
+    const payload1 = {
+      messages: [{ role: 'user', content: 'first' }],
+      model: 'test',
     }
+    providerHandler({ payload: payload1 })
+    expect(payload1.messages).toHaveLength(2)
 
-    const smallMessage = createUserMessage('ok')
-    const secondResult = await handler(
-      { messages: [userMessage, firstReminder, smallMessage] },
-      { cwd: tempRoot },
-    )
-    expect(secondResult?.messages).toEqual([userMessage, smallMessage])
-
-    const largeMessage = createUserMessage('x'.repeat(2400))
-    const thirdResult = await handler(
-      { messages: [userMessage, firstReminder, smallMessage, largeMessage] },
-      { cwd: tempRoot },
-    )
-    expect(thirdResult?.messages).toHaveLength(4)
-    expect(thirdResult?.messages?.at(-1)?.role).toBe('user')
+    // Second call with same reminder — should still inject
+    const payload2 = {
+      messages: [{ role: 'user', content: 'second' }],
+      model: 'test',
+    }
+    providerHandler({ payload: payload2 })
+    expect(payload2.messages).toHaveLength(2)
+    expect((payload2.messages[1] as { role: string }).role).toBe('user')
   })
 
-  it('injects when the reminder payload changes below the token threshold', async () => {
-    await writeCradleSettings(tempRoot, { reminderTokenThreshold: 50_000 })
+  it('before_provider_request returns undefined when no reminder cached', () => {
+    const handlers: RegisteredHandler[] = []
+    registerSystemReminderHook(createPi(handlers))
 
+    const providerHandler = getBeforeProviderRequestHandler(handlers)
+    const payload = {
+      messages: [{ role: 'user', content: 'test' }],
+      model: 'test',
+    }
+    const result = providerHandler({ payload })
+
+    expect(result).toBeUndefined()
+    expect(payload.messages).toHaveLength(1)
+  })
+
+  it('before_provider_request returns undefined when payload has no messages', async () => {
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
 
     const notify = vi.fn()
-    const sessionHandler = getSessionStartHandler(handlers)
-    await sessionHandler({}, { cwd: tempRoot, ui: { notify } })
-
     const beforeHandler = getBeforeAgentStartHandler(handlers)
     await beforeHandler(
       {
@@ -292,31 +322,10 @@ describe('registerSystemReminderHook', () => {
       { cwd: tempRoot, ui: { notify } },
     )
 
-    const userMessage = createUserMessage('hello')
-    const handler = getContextHandler(handlers)
+    const providerHandler = getBeforeProviderRequestHandler(handlers)
+    const result = providerHandler({ payload: { model: 'test' } })
 
-    const firstResult = await handler(
-      { messages: [userMessage] },
-      { cwd: tempRoot },
-    )
-    const firstReminder = firstResult?.messages?.at(-1)
-    if (firstReminder === undefined) {
-      throw new Error('Expected first reminder to be injected')
-    }
-
-    const todoResult = createTodoToolResult('1. [in_progress] Fix bug')
-    const result = await handler(
-      { messages: [userMessage, firstReminder, todoResult] },
-      { cwd: tempRoot },
-    )
-
-    expect(result?.messages).toHaveLength(3)
-    const lastMessage = result?.messages?.at(-1)
-    expect(lastMessage?.role).toBe('user')
-    if (lastMessage === undefined || !('content' in lastMessage)) {
-      throw new Error('Expected system reminder message')
-    }
-    expect(lastMessage.content).toContain('## Current Todos')
+    expect(result).toBeUndefined()
   })
 
   it('aborts mid-thought and asks the agent to continue when streamed tokens cross the threshold', async () => {
@@ -341,11 +350,21 @@ describe('registerSystemReminderHook', () => {
 
     const userMessage = createUserMessage('please fix this')
     const contextHandler = getContextHandler(handlers)
-    const firstResult = await contextHandler(
+    const contextResult = await contextHandler(
       { messages: [userMessage] },
       { cwd: tempRoot },
     )
-    expect(firstResult?.messages?.at(-1)?.role).toBe('user')
+    // Context handler filters but does not inject
+    expect(contextResult?.messages).toEqual([userMessage])
+
+    // before_provider_request injects the reminder
+    const providerHandler = getBeforeProviderRequestHandler(handlers)
+    const payload = {
+      messages: [{ role: 'user', content: 'please fix this' }],
+      model: 'test',
+    }
+    providerHandler({ payload })
+    expect(payload.messages).toHaveLength(2)
 
     let idle = false
     const abort = vi.fn(() => {
@@ -381,13 +400,28 @@ describe('registerSystemReminderHook', () => {
       { cwd: tempRoot },
     )
 
-    expect(forcedResult?.messages?.at(-1)).toEqual(
-      expect.objectContaining({
-        role: 'user',
-        content: '[REMINDER]\nAlways prefer tiny changes.',
-        timestamp: Date.now(),
-      }),
-    )
+    // Context handler filters stale reminders but keeps other messages
+    expect(forcedResult?.messages).toHaveLength(3)
+    expect(forcedResult?.messages?.[0]).toEqual(userMessage)
+    expect(forcedResult?.messages?.[1]).toEqual(createAssistantMessage(''))
+    expect(forcedResult?.messages?.[2]).toEqual(continuedUserMessage)
+
+    // before_provider_request injects the reminder
+    const forcedPayload = {
+      messages: [
+        { role: 'user', content: 'test' },
+        { role: 'assistant', content: 'response' },
+      ],
+      model: 'test',
+    }
+    providerHandler({ payload: forcedPayload })
+    expect(forcedPayload.messages).toHaveLength(3)
+    expect(forcedPayload.messages[2]).toEqual({
+      role: 'user',
+      content: [
+        { type: 'text', text: '[REMINDER]\nAlways prefer tiny changes.' },
+      ],
+    })
   })
 
   it('strips system reminder tags from the system prompt', async () => {
