@@ -14,7 +14,8 @@ import { formatTodoReminder, reconstructTodos } from '../utils/todo-state.js'
 
 const SYSTEM_REMINDER_TYPE = 'cradle-system-reminder'
 const SYSTEM_REMINDER_TOKEN_LIMIT = 500
-const CONTINUE_AFTER_REMINDER_PROMPT = 'Continue.'
+export const CONTINUE_AFTER_REMINDER_PROMPT =
+  'You have been working for too long. If you are stuck with a thought or problem, ask the advisor. Otherwise, continue.'
 const REMINDER_CONTINUE_POLL_INTERVAL_MS = 25
 
 type SystemReminderPi = Pick<ExtensionAPI, 'on' | 'sendUserMessage'>

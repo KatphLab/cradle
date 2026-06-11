@@ -17,7 +17,10 @@ import { homedir, tmpdir } from 'node:os'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { registerSystemReminderHook } from '../system-reminder.js'
+import {
+  CONTINUE_AFTER_REMINDER_PROMPT,
+  registerSystemReminderHook,
+} from '../system-reminder.js'
 import {
   createAssistantMessage,
   createPi,
@@ -353,9 +356,11 @@ describe('registerSystemReminderHook', () => {
 
     expect(abort).toHaveBeenCalledOnce()
     await vi.runOnlyPendingTimersAsync()
-    expect(sendUserMessage).toHaveBeenCalledWith('Continue.')
+    expect(sendUserMessage).toHaveBeenCalledWith(CONTINUE_AFTER_REMINDER_PROMPT)
 
-    const continuedUserMessage = createUserMessage('Continue.')
+    const continuedUserMessage = createUserMessage(
+      CONTINUE_AFTER_REMINDER_PROMPT,
+    )
     const forcedResult = await contextHandler(
       {
         messages: [
