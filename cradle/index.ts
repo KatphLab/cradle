@@ -15,6 +15,7 @@ import { discoverAgentsTool } from './tools/discover-agents.js'
 import { editTool } from './tools/edit.js'
 import { globTool } from './tools/glob.js'
 import { grepTool } from './tools/grep.js'
+import { iterativeRetrievalTool } from './tools/iterative-retrieval/index.js'
 import { lsTool } from './tools/ls.js'
 import { readTool } from './tools/read.js'
 import { subagentTool } from './tools/subagent.js'
@@ -58,6 +59,7 @@ export default function configureExtension(
   pi.registerTool(subagentTool)
   pi.registerTool(discoverAgentsTool)
   pi.registerTool(advisorTool)
+  pi.registerTool(iterativeRetrievalTool)
 
   const specModeState = createSpecModeState()
   const orchestratorModeState = createOrchestratorModeState()
