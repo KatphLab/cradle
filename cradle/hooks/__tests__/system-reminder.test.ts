@@ -96,7 +96,7 @@ describe('registerSystemReminderHook', () => {
     expect(result?.systemPrompt).toBe('')
   })
 
-  it('does not warn on before_agent_start when the system reminder is missing', async () => {
+  it('uses default system reminder when no user-defined reminder tags exist', async () => {
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
 
@@ -108,7 +108,12 @@ describe('registerSystemReminderHook', () => {
     )
 
     expect(notify).not.toHaveBeenCalled()
-    expect(result).toBeUndefined()
+    expect(result?.systemPrompt).toBe(
+      'Some system prompt without reminder tags',
+    )
+    expect(result?.message?.content).toContain(
+      'Always use the todo tool to break tasks into concrete steps and track progress.',
+    )
   })
 
   it('adds the system reminder and removes stale reminders', async () => {
@@ -146,7 +151,7 @@ describe('registerSystemReminderHook', () => {
     ])
   })
 
-  it('only removes stale reminders when the system reminder is empty', async () => {
+  it('injects default reminder and removes stale reminders when no user-defined reminder exists', async () => {
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
 
@@ -165,7 +170,18 @@ describe('registerSystemReminderHook', () => {
       { cwd: tempRoot },
     )
 
-    expect(result?.messages).toEqual([userMessage])
+    expect(result?.messages).toEqual([
+      userMessage,
+      expect.objectContaining({
+        role: 'custom',
+        customType: 'cradle-system-reminder',
+        content: expect.stringContaining(
+          'Always use the todo tool to break tasks into concrete steps and track progress.',
+        ),
+        display: true,
+        timestamp: Date.now(),
+      }),
+    ])
   })
 
   it('adds active todo reminder alongside system reminder', async () => {
