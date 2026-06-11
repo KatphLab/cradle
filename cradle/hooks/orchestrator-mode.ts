@@ -23,6 +23,7 @@ const REVIEW_TAG_END = '</cradle-orchestrator-review>'
 const CONTINUE_TAG_END = '</cradle-orchestrator-continue>'
 const DECISION_STOP_LINE = 'CRADLE_ORCHESTRATOR_DECISION: STOP'
 const DECISION_CONTINUE_LINE = 'CRADLE_ORCHESTRATOR_DECISION: CONTINUE'
+const DECISION_ASK_USER_LINE = 'CRADLE_ORCHESTRATOR_DECISION: ASK_USER'
 
 type ReviewPhase = 'idle' | 'awaitingReviewDecision' | 'awaitingContinueTurn'
 type InjectedPromptKind = 'review' | 'continue'
@@ -185,6 +186,10 @@ function parseReviewDecision(text: string): ReviewDecision | undefined {
   return undefined
 }
 
+function isAskingUser(text: string): boolean {
+  return getFinalNonEmptyLine(text) === DECISION_ASK_USER_LINE
+}
+
 function createPromptId(state: ReviewLoopState): string {
   state.promptSequence += 1
   return `orch-review-${state.promptSequence}`
@@ -206,7 +211,12 @@ ${REVIEW_TAG_END}`
 
 function createContinuePrompt(promptId: string): string {
   return `${CONTINUE_TAG_START}${promptId}">
-Continue addressing the gaps you identified in your review. Use orchestrator-mode tools and subagents as needed. When this continuation is complete, stop normally; you will be asked to review again.
+Continue addressing the gaps you identified in your review. Use orchestrator-mode tools and subagents as needed.
+
+If you need to ask the user a question, end your final non-empty line with:
+${DECISION_ASK_USER_LINE}
+
+Otherwise, when this continuation is complete, stop normally; you will be asked to review again.
 ${CONTINUE_TAG_END}`
 }
 
@@ -267,26 +277,12 @@ function handleReviewDecision(
   sendContinuePrompt(pi, state)
 }
 
-function handleAgentEnd(
+function handleAgentEndPhase(
   pi: Pick<ExtensionAPI, 'sendUserMessage'>,
-  state: OrchestratorModeState,
   reviewState: ReviewLoopState,
-  messages: readonly unknown[],
+  injectedPrompt: InjectedPrompt | undefined,
+  assistantText: string,
 ): void {
-  if (!state.isEnabled()) {
-    resetReviewLoop(reviewState)
-    return
-  }
-
-  const eventKey = getAgentEndKey(messages)
-  if (eventKey === reviewState.lastProcessedAgentEndKey) return
-  reviewState.lastProcessedAgentEndKey = eventKey
-
-  const userText = getLastMessageText(messages, 'user')
-  const assistantText = getLastMessageText(messages, 'assistant')
-  if (userText.length === 0 || assistantText.length === 0) return
-
-  const injectedPrompt = getInjectedPrompt(userText)
   if (reviewState.phase === 'awaitingReviewDecision') {
     if (isExpectedPrompt(reviewState, injectedPrompt, 'review')) {
       handleReviewDecision(pi, reviewState, assistantText)
@@ -307,6 +303,38 @@ function handleAgentEnd(
 
   if (injectedPrompt !== undefined) return
   sendInitialReviewPrompt(pi, reviewState)
+}
+
+function handleAgentEnd(
+  pi: Pick<ExtensionAPI, 'sendUserMessage'>,
+  state: OrchestratorModeState,
+  reviewState: ReviewLoopState,
+  messages: readonly unknown[],
+): void {
+  if (!state.isEnabled()) {
+    resetReviewLoop(reviewState)
+    return
+  }
+
+  const eventKey = getAgentEndKey(messages)
+  if (eventKey === reviewState.lastProcessedAgentEndKey) return
+  reviewState.lastProcessedAgentEndKey = eventKey
+
+  const userText = getLastMessageText(messages, 'user')
+  const assistantText = getLastMessageText(messages, 'assistant')
+  if (userText.length === 0 || assistantText.length === 0) return
+
+  if (isAskingUser(assistantText)) {
+    resetReviewLoop(reviewState)
+    return
+  }
+
+  handleAgentEndPhase(
+    pi,
+    reviewState,
+    getInjectedPrompt(userText),
+    assistantText,
+  )
 }
 
 /** @public */
