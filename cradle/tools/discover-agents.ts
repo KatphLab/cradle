@@ -1,8 +1,8 @@
 import { Type } from '@earendil-works/pi-ai'
 import { defineTool } from '@earendil-works/pi-coding-agent'
 
-import { discoverAgents } from '../subagents/agents.js'
-import type { AgentConfig, AgentSource } from '../subagents/types.js'
+import { discoverAgents } from '../lib/subagents/agents.js'
+import type { AgentConfig, AgentSource } from '../lib/subagents/types.js'
 
 interface DiscoverAgentsDetails {
   agents: AgentConfig[]

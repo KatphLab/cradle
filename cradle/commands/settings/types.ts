@@ -8,6 +8,7 @@ import type { EditorTheme } from './constants.js'
 export interface CradleSettingsResult {
   permissions: DirectoryPermission[]
   reminderTokenThreshold: number
+  displaySystemReminder: boolean
   subagentModels: SubagentModels
   advisorModel: string | undefined
   compactionModel: string | undefined
@@ -26,6 +27,7 @@ export interface EditorLike {
   // ── methods ───────────────────────────────────────────────
   getRows(): DirectoryPermission[]
   getReminderTokenThreshold(): number
+  getDisplaySystemReminder(): boolean
   getSubagentModels(): SubagentModels
   getCompactionModel(): string | undefined
   getFirecrawlApiKey(): string | undefined
@@ -44,6 +46,7 @@ export interface EditorLike {
   lastInputValue: string
   suggestions: string[]
   suggestionIndex: number
+  displaySystemReminder: boolean
 
   // ── callbacks ─────────────────────────────────────────────
   onSave?: (result: CradleSettingsResult) => void
@@ -77,6 +80,7 @@ export interface EditorLike {
 
   // ── initial snapshot values ───────────────────────────────
   readonly initialTokenThreshold: number
+  readonly initialDisplaySystemReminder: boolean
   readonly initialSubagentModels: SubagentModels
   readonly initialAdvisorModel: string | undefined
   readonly initialCompactionModel: string | undefined

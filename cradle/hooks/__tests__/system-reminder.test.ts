@@ -11,150 +11,31 @@ vi.mock('node:os', async () => {
   return { ...actual, homedir: () => home }
 })
 
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 
-import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { registerSystemReminderHook } from '../system-reminder.js'
-
-interface RegisteredHandler {
-  event: string
-  fn: unknown
-}
-
-interface TestContext {
-  cwd: string
-}
-
-interface TestSessionContext extends TestContext {
-  ui: {
-    notify: (message: string, level: string) => void
-  }
-}
-
-interface TestBeforeAgentStartEvent {
-  systemPrompt: string
-}
-
-type ContextHandler = (
-  event: { messages: AgentMessage[] },
-  context: TestContext,
-) => Promise<{ messages?: AgentMessage[] } | undefined>
-
-type SessionStartHandler = (
-  event: unknown,
-  context: TestSessionContext,
-) => unknown
-
-type BeforeAgentStartHandler = (
-  event: TestBeforeAgentStartEvent,
-  context: TestSessionContext,
-) => Promise<{ systemPrompt?: string } | undefined>
+import {
+  CONTINUE_AFTER_REMINDER_PROMPT,
+  registerSystemReminderHook,
+} from '../system-reminder.js'
+import {
+  createAssistantMessage,
+  createPi,
+  createStaleReminder,
+  createTodoToolResult,
+  createUserMessage,
+  getBeforeAgentStartHandler,
+  getContextHandler,
+  getMessageUpdateHandler,
+  getSessionStartHandler,
+  type RegisteredHandler,
+  writeCradleSettings,
+} from './system-reminder-fixtures.js'
 
 let tempRoot: string
-
-function createPi(handlers: RegisteredHandler[]): Pick<ExtensionAPI, 'on'> {
-  return {
-    on: (event, handler) => {
-      handlers.push({ event, fn: handler })
-    },
-  }
-}
-
-function isContextHandler(value: unknown): value is ContextHandler {
-  return typeof value === 'function'
-}
-
-function isSessionStartHandler(value: unknown): value is SessionStartHandler {
-  return typeof value === 'function'
-}
-
-function isBeforeAgentStartHandler(
-  value: unknown,
-): value is BeforeAgentStartHandler {
-  return typeof value === 'function'
-}
-
-function getContextHandler(handlers: RegisteredHandler[]): ContextHandler {
-  const handler = handlers.find((entry) => entry.event === 'context')
-  if (!handler) {
-    throw new Error('Expected context handler to be registered')
-  }
-  if (!isContextHandler(handler.fn)) {
-    throw new TypeError('Expected registered handler to be callable')
-  }
-  return handler.fn
-}
-
-function getSessionStartHandler(
-  handlers: RegisteredHandler[],
-): SessionStartHandler {
-  const handler = handlers.find((entry) => entry.event === 'session_start')
-  if (!handler) {
-    throw new Error('Expected session_start handler to be registered')
-  }
-  if (!isSessionStartHandler(handler.fn)) {
-    throw new TypeError('Expected registered handler to be callable')
-  }
-  return handler.fn
-}
-
-function getBeforeAgentStartHandler(
-  handlers: RegisteredHandler[],
-): BeforeAgentStartHandler {
-  const handler = handlers.find((entry) => entry.event === 'before_agent_start')
-  if (!handler) {
-    throw new Error('Expected before_agent_start handler to be registered')
-  }
-  if (!isBeforeAgentStartHandler(handler.fn)) {
-    throw new TypeError('Expected registered handler to be callable')
-  }
-  return handler.fn
-}
-
-function createUserMessage(content: string): AgentMessage {
-  return {
-    role: 'user',
-    content,
-    timestamp: Date.now(),
-  }
-}
-
-function createStaleReminder(content: string): AgentMessage {
-  return {
-    role: 'custom',
-    customType: 'cradle-system-reminder',
-    content,
-    display: false,
-    timestamp: Date.now(),
-  }
-}
-
-function createTodoToolResult(text: string): AgentMessage {
-  return {
-    role: 'toolResult',
-    toolName: 'todo',
-    toolCallId: 'call_1',
-    content: [{ type: 'text', text }],
-    isError: false,
-    timestamp: Date.now(),
-  }
-}
-
-async function writeCradleSettings(
-  _cwd: string,
-  settings: Record<string, unknown>,
-): Promise<void> {
-  const configDirectory = path.join(homedir(), '.pi', 'cradle')
-  await mkdir(configDirectory, { recursive: true })
-  await writeFile(
-    path.join(configDirectory, 'settings.json'),
-    JSON.stringify(settings, undefined, 2),
-  )
-}
 
 describe('registerSystemReminderHook', () => {
   beforeEach(async () => {
@@ -254,14 +135,14 @@ describe('registerSystemReminderHook', () => {
 
     expect(result?.messages).toEqual([
       userMessage,
-      {
+      expect.objectContaining({
         role: 'custom',
         customType: 'cradle-system-reminder',
         content:
           '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
-        display: false,
+        display: true,
         timestamp: Date.now(),
-      },
+      }),
     ])
   })
 
@@ -288,6 +169,10 @@ describe('registerSystemReminderHook', () => {
   })
 
   it('adds active todo reminder alongside system reminder', async () => {
+    await writeCradleSettings(tempRoot, {
+      reminderTokenThreshold: 500,
+      displaySystemReminder: false,
+    })
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
 
@@ -298,12 +183,15 @@ describe('registerSystemReminderHook', () => {
     await sessionHandler({}, { cwd: tempRoot, ui: { notify } })
 
     const beforeHandler = getBeforeAgentStartHandler(handlers)
-    await beforeHandler(
+    const beforeResult = await beforeHandler(
       {
         systemPrompt:
           '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
       },
       { cwd: tempRoot, ui: { notify } },
+    )
+    expect(beforeResult?.message).toEqual(
+      expect.objectContaining({ display: false }),
     )
 
     const userMessage = createUserMessage('please fix this')
@@ -317,14 +205,14 @@ describe('registerSystemReminderHook', () => {
     expect(result?.messages).toEqual([
       userMessage,
       todoResult,
-      {
+      expect.objectContaining({
         role: 'custom',
         customType: 'cradle-system-reminder',
         content:
           '<system-reminder>\nAlways prefer tiny changes.\n\n## Current Todos\n1. [in_progress] Fix bug\n</system-reminder>',
         display: false,
         timestamp: Date.now(),
-      },
+      }),
     ])
   })
 
@@ -420,6 +308,79 @@ describe('registerSystemReminderHook', () => {
       throw new Error('Expected system reminder message')
     }
     expect(lastMessage.content).toContain('## Current Todos')
+  })
+
+  it('aborts mid-thought and asks the agent to continue when streamed tokens cross the threshold', async () => {
+    await writeCradleSettings(tempRoot, { reminderTokenThreshold: 500 })
+
+    const handlers: RegisteredHandler[] = []
+    const sendUserMessage = vi.fn<ExtensionAPI['sendUserMessage']>()
+    registerSystemReminderHook(createPi(handlers, sendUserMessage))
+
+    const notify = vi.fn()
+    const sessionHandler = getSessionStartHandler(handlers)
+    await sessionHandler({}, { cwd: tempRoot, ui: { notify } })
+
+    const beforeHandler = getBeforeAgentStartHandler(handlers)
+    await beforeHandler(
+      {
+        systemPrompt:
+          '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
+      },
+      { cwd: tempRoot, ui: { notify } },
+    )
+
+    const userMessage = createUserMessage('please fix this')
+    const contextHandler = getContextHandler(handlers)
+    const firstResult = await contextHandler(
+      { messages: [userMessage] },
+      { cwd: tempRoot },
+    )
+    expect(firstResult?.messages?.at(-1)?.role).toBe('custom')
+
+    let idle = false
+    const abort = vi.fn(() => {
+      idle = true
+    })
+    const updateHandler = getMessageUpdateHandler(handlers)
+    await updateHandler(
+      {
+        message: createAssistantMessage('thinking'),
+        assistantMessageEvent: {
+          delta: 'x'.repeat(2000),
+          type: 'thinking_delta',
+        },
+      },
+      { abort, cwd: tempRoot, isIdle: () => idle },
+    )
+
+    expect(abort).toHaveBeenCalledOnce()
+    await vi.runOnlyPendingTimersAsync()
+    expect(sendUserMessage).toHaveBeenCalledWith(CONTINUE_AFTER_REMINDER_PROMPT)
+
+    const continuedUserMessage = createUserMessage(
+      CONTINUE_AFTER_REMINDER_PROMPT,
+    )
+    const forcedResult = await contextHandler(
+      {
+        messages: [
+          userMessage,
+          createAssistantMessage(''),
+          continuedUserMessage,
+        ],
+      },
+      { cwd: tempRoot },
+    )
+
+    expect(forcedResult?.messages?.at(-1)).toEqual(
+      expect.objectContaining({
+        role: 'custom',
+        customType: 'cradle-system-reminder',
+        content:
+          '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
+        timestamp: Date.now(),
+      }),
+    )
   })
 
   it('strips system reminder tags from the system prompt', async () => {

@@ -295,7 +295,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ['**/*.test.ts'],
+    files: ['**/*.test.ts', '**/__tests__/**.ts'],
     rules: {
       'max-lines-per-function': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',

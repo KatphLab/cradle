@@ -31,6 +31,7 @@ export interface ProjectSettings {
 
 export interface GlobalSettings {
   reminderTokenThreshold?: number
+  displaySystemReminder?: boolean
   subagentModels?: SubagentModels
   advisorModel?: string
   compactionModel?: string
@@ -72,6 +73,10 @@ function normalizeReminderTokenThreshold(raw: unknown): number | undefined {
     MIN_REMINDER_TOKEN_THRESHOLD,
     Math.min(MAX_REMINDER_TOKEN_THRESHOLD, Math.round(raw)),
   )
+}
+
+function normalizeDisplaySystemReminder(raw: unknown): boolean | undefined {
+  return typeof raw === 'boolean' ? raw : undefined
 }
 
 function normalizeAdvisorModel(raw: unknown): string | undefined {
@@ -179,6 +184,9 @@ function normalizeGlobalSettings(value: unknown): GlobalSettings {
   const reminderTokenThreshold = normalizeReminderTokenThreshold(
     value['reminderTokenThreshold'],
   )
+  const displaySystemReminder = normalizeDisplaySystemReminder(
+    value['displaySystemReminder'],
+  )
 
   const rawSubagentModels = value['subagentModels']
   const subagentModels = isSubagentModels(rawSubagentModels)
@@ -191,6 +199,7 @@ function normalizeGlobalSettings(value: unknown): GlobalSettings {
 
   return {
     ...(reminderTokenThreshold !== undefined && { reminderTokenThreshold }),
+    ...(displaySystemReminder !== undefined && { displaySystemReminder }),
     ...(subagentModels !== undefined && { subagentModels }),
     ...(advisorModel !== undefined && { advisorModel }),
     ...(compactionModel !== undefined && { compactionModel }),

@@ -1,12 +1,12 @@
 import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { discoverAgents } from '../../subagents/agents.js'
+import { discoverAgents } from '../../lib/subagents/agents.js'
 import type {
   AgentConfig,
   AgentDiscoveryResult,
   SingleResult,
-} from '../../subagents/types.js'
+} from '../../lib/subagents/types.js'
 import { subagentTool } from '../subagent.js'
 import type {
   SubagentParametersType,
@@ -25,7 +25,7 @@ vi.mock('@earendil-works/pi-coding-agent', () => ({
   ),
 }))
 
-vi.mock('../../subagents/agents.js', () => ({
+vi.mock('../../lib/subagents/agents.js', () => ({
   discoverAgents: vi.fn(),
   formatAgentList: vi.fn((agents: AgentConfig[], maxItems: number) => {
     const listed = agents.slice(0, maxItems)

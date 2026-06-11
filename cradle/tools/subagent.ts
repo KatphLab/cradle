@@ -1,6 +1,6 @@
 import { defineTool } from '@earendil-works/pi-coding-agent'
-import { discoverAgents } from '../subagents/agents.js'
-import type { AgentConfig } from '../subagents/types.js'
+import { discoverAgents } from '../lib/subagents/agents.js'
+import type { AgentConfig } from '../lib/subagents/types.js'
 import {
   handleChainMode,
   handleParallelMode,

@@ -40,6 +40,7 @@ export default function configureExtension(
     | 'getAllTools'
     | 'setActiveTools'
     | 'getThinkingLevel'
+    | 'sendUserMessage'
   >,
 ): void {
   pi.registerTool(readTool)

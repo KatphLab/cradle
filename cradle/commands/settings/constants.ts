@@ -25,6 +25,7 @@ export interface EditorState {
   readonly exaApiKey: string | undefined
   readonly jinaApiKey: string | undefined
   readonly subagentModels: SubagentModels
+  readonly displaySystemReminder: boolean
   readonly advisorModel: string | undefined
   readonly compactionModel: string | undefined
   readonly modelDisplayNames: Map<string, string>
@@ -47,6 +48,7 @@ export const PERMISSION_LABELS: Record<PermissionColumn, string> = {
 export const TOGGLE_WIDTH = 5
 export const GAP = 2
 export const TOKEN_THRESHOLD_LABEL = 'System Reminder Token Threshold'
+export const DISPLAY_SYSTEM_REMINDER_LABEL = 'Display System Reminder'
 export const TIER_LABELS: Record<'low' | 'medium' | 'high', string> = {
   low: 'Low Model',
   medium: 'Medium Model',

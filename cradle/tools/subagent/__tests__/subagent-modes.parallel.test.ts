@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { runSingleAgent } from '../../../subagents/runner.js'
-import { MAX_PARALLEL_TASKS } from '../../../subagents/utilities.js'
+import { runSingleAgent } from '../../../lib/subagents/runner.js'
+import { MAX_PARALLEL_TASKS } from '../../../lib/subagents/utilities.js'
 import {
   handleParallelMode,
   makeDetailsFactory,
@@ -18,7 +18,7 @@ import {
   noProjectAgentsDirectory,
 } from '../subagent-modes.test-helpers.js'
 
-vi.mock('../../../subagents/runner.js', () => ({
+vi.mock('../../../lib/subagents/runner.js', () => ({
   runSingleAgent: vi.fn(),
 }))
 

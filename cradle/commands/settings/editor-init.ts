@@ -7,9 +7,11 @@ import { getInitialApiKey } from './api-keys.js'
 
 export function initFromGlobal(globalSettings: GlobalSettings): {
   tokenThreshold: number
+  displaySystemReminder: boolean
   subagentModels: SubagentModels
   initialSubagentModels: SubagentModels
   advisorModel: string | undefined
+  initialDisplaySystemReminder: boolean
   initialAdvisorModel: string | undefined
   compactionModel: string | undefined
   initialCompactionModel: string | undefined
@@ -24,6 +26,7 @@ export function initFromGlobal(globalSettings: GlobalSettings): {
 } {
   const tokenThreshold =
     globalSettings.reminderTokenThreshold ?? DEFAULT_REMINDER_TOKEN_THRESHOLD
+  const displaySystemReminder = globalSettings.displaySystemReminder ?? true
 
   const subagentModels: SubagentModels = {}
   if (globalSettings.subagentModels?.low !== undefined) {
@@ -38,8 +41,10 @@ export function initFromGlobal(globalSettings: GlobalSettings): {
 
   return {
     tokenThreshold,
+    displaySystemReminder,
     subagentModels,
     initialSubagentModels: { ...subagentModels },
+    initialDisplaySystemReminder: displaySystemReminder,
     advisorModel: globalSettings.advisorModel,
     initialAdvisorModel: globalSettings.advisorModel,
     compactionModel: globalSettings.compactionModel,

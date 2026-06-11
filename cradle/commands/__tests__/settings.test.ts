@@ -57,6 +57,7 @@ const mockTheme = {
 interface SR {
   permissions: { path: string; read: boolean; write: boolean; bash: boolean }[]
   reminderTokenThreshold: number
+  displaySystemReminder: boolean
   subagentModels: { low?: string; medium?: string; high?: string }
   advisorModel?: string
   compactionModel?: string
@@ -137,6 +138,7 @@ describe('registerSettingsCommand', () => {
           { path: '/allowed-b', read: true, write: true, bash: false },
         ],
         reminderTokenThreshold: 5000,
+        displaySystemReminder: true,
         subagentModels: {},
       })
       return {
@@ -145,6 +147,7 @@ describe('registerSettingsCommand', () => {
           { path: '/allowed-b', read: true, write: true, bash: false },
         ],
         reminderTokenThreshold: 5000,
+        displaySystemReminder: true,
         subagentModels: {},
       }
     })
@@ -158,6 +161,7 @@ describe('registerSettingsCommand', () => {
     })
     const globalSaved = await readSettings(globalSettingsPath)
     expect(globalSaved['reminderTokenThreshold']).toBe(5000)
+    expect(globalSaved['displaySystemReminder']).toBe(true)
     expect(notifySpy).toHaveBeenCalledWith(
       'Cradle settings saved: 2 permissions, 0 models, reminder token threshold 5000',
       'info',
@@ -169,12 +173,14 @@ describe('registerSettingsCommand', () => {
       editor.onSave?.({
         permissions: [],
         reminderTokenThreshold: 5000,
+        displaySystemReminder: true,
         subagentModels: {},
         advisorModel: 'gpt-4',
       })
       return {
         permissions: [],
         reminderTokenThreshold: 5000,
+        displaySystemReminder: true,
         subagentModels: {},
         advisorModel: 'gpt-4',
       }
@@ -196,12 +202,14 @@ describe('registerSettingsCommand', () => {
       editor.onSave?.({
         permissions: [],
         reminderTokenThreshold: 5000,
+        displaySystemReminder: true,
         subagentModels: {},
         compactionModel: 'google/gemini-2.5-flash',
       })
       return {
         permissions: [],
         reminderTokenThreshold: 5000,
+        displaySystemReminder: true,
         subagentModels: {},
         compactionModel: 'google/gemini-2.5-flash',
       }
@@ -223,12 +231,14 @@ describe('registerSettingsCommand', () => {
       editor.onSave?.({
         permissions: [],
         reminderTokenThreshold: 6000,
+        displaySystemReminder: true,
         subagentModels: {},
         firecrawlApiKey: 'test-fc-key',
       })
       return {
         permissions: [],
         reminderTokenThreshold: 6000,
+        displaySystemReminder: true,
         subagentModels: {},
         firecrawlApiKey: 'test-fc-key',
       }
@@ -247,12 +257,14 @@ describe('registerSettingsCommand', () => {
       editor.onSave?.({
         permissions: [],
         reminderTokenThreshold: 6000,
+        displaySystemReminder: true,
         subagentModels: {},
         tavilyApiKey: 'test-tvly-key',
       })
       return {
         permissions: [],
         reminderTokenThreshold: 6000,
+        displaySystemReminder: true,
         subagentModels: {},
         tavilyApiKey: 'test-tvly-key',
       }
@@ -271,12 +283,14 @@ describe('registerSettingsCommand', () => {
       editor.onSave?.({
         permissions: [],
         reminderTokenThreshold: 6000,
+        displaySystemReminder: true,
         subagentModels: {},
         exaApiKey: 'test-exa-key',
       })
       return {
         permissions: [],
         reminderTokenThreshold: 6000,
+        displaySystemReminder: true,
         subagentModels: {},
         exaApiKey: 'test-exa-key',
       }

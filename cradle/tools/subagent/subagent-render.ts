@@ -7,8 +7,8 @@ import {
   buildParallelResultExpanded,
   buildSingleResultCollapsed,
   buildSingleResultExpanded,
-} from '../../subagents/render.js'
-import type { SubagentDetails } from '../../subagents/types.js'
+} from '../../lib/subagents/render.js'
+import type { SubagentDetails } from '../../lib/subagents/types.js'
 import type { ThemeLike } from '../../utils/helpers.js'
 import type {
   ChainModeParameters,

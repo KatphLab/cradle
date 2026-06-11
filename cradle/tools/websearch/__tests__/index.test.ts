@@ -1,9 +1,9 @@
 import type { Message } from '@earendil-works/pi-ai'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { RunSingleAgentOptions } from '../../../subagents/runner.js'
-import type { SingleResult } from '../../../subagents/types.js'
-import type * as SubagentUtilities from '../../../subagents/utilities.js'
+import type { RunSingleAgentOptions } from '../../../lib/subagents/runner.js'
+import type { SingleResult } from '../../../lib/subagents/types.js'
+import type * as SubagentUtilities from '../../../lib/subagents/utilities.js'
 import type { WebSearchProvider } from '../types.js'
 
 const mocks = vi.hoisted(() => ({
@@ -33,11 +33,11 @@ vi.mock('../providers/exa.js', () => ({
   createExaSearchProvider: mocks.createExaSearchProvider,
 }))
 
-vi.mock('../../../subagents/runner.js', () => ({
+vi.mock('../../../lib/subagents/runner.js', () => ({
   runSingleAgent: mocks.runSingleAgent,
 }))
 
-vi.mock('../../../subagents/agents.js', () => ({
+vi.mock('../../../lib/subagents/agents.js', () => ({
   discoverAgents: vi.fn(() => ({
     agents: [
       {
@@ -53,7 +53,7 @@ vi.mock('../../../subagents/agents.js', () => ({
   })),
 }))
 
-vi.mock('../../../subagents/utilities.js', async (importOriginal) => {
+vi.mock('../../../lib/subagents/utilities.js', async (importOriginal) => {
   const actual = await importOriginal<typeof SubagentUtilities>()
   return {
     ...actual,
@@ -339,7 +339,7 @@ describe('webSearchTool (facade)', () => {
   })
 
   it('returns error when web-searcher agent not found', async () => {
-    const { discoverAgents } = await import('../../../subagents/agents.js')
+    const { discoverAgents } = await import('../../../lib/subagents/agents.js')
     vi.mocked(discoverAgents).mockReturnValue({
       agents: [],
       projectAgentsDir: undefined,
