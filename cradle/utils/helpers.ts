@@ -26,3 +26,11 @@ export interface ThemeLike {
   fg(color: string, text: string): string
   bold(text: string): string
 }
+
+export function getOptionalString(
+  record: Record<string, unknown>,
+  key: string,
+): string | undefined {
+  const value = record[key]
+  return typeof value === 'string' ? value : undefined
+}

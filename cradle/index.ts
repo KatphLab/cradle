@@ -11,6 +11,7 @@ import { registerSpecModeHook } from './hooks/spec-mode.js'
 import { registerSystemReminderHook } from './hooks/system-reminder.js'
 import { advisorTool } from './tools/advisor.js'
 import { bashTool } from './tools/bash.js'
+import { councilTool } from './tools/council.js'
 import { discoverAgentsTool } from './tools/discover-agents.js'
 import { editTool } from './tools/edit.js'
 import { globTool } from './tools/glob.js'
@@ -59,6 +60,7 @@ export default function configureExtension(
   pi.registerTool(subagentTool)
   pi.registerTool(discoverAgentsTool)
   pi.registerTool(advisorTool)
+  pi.registerTool(councilTool)
   pi.registerTool(iterativeRetrievalTool)
 
   const specModeState = createSpecModeState()
