@@ -212,15 +212,15 @@ describe('registerSystemReminderHook', () => {
     providerHandler({ payload })
 
     expect(payload.messages).toHaveLength(2)
-    const reminderMessage = payload.messages[1] as {
+    const reminderMessage = (payload.messages[1] ?? {}) as unknown as {
       role: string
       content: { type: string; text: string }[]
     }
     expect(reminderMessage.role).toBe('user')
-    expect(reminderMessage.content[0].text).toContain(
+    expect(reminderMessage.content[0]?.text ?? '').toContain(
       'Always prefer tiny changes.',
     )
-    expect(reminderMessage.content[0].text).toContain('## Current Todos')
+    expect(reminderMessage.content[0]?.text ?? '').toContain('## Current Todos')
   })
 
   it('before_provider_request injects reminder into LLM payload', async () => {
