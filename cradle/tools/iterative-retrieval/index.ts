@@ -11,7 +11,7 @@ import {
   executeToolSubagent,
   getSubagentFailureText,
 } from '../../utils/subagent-tool-helpers.js'
-import { renderIterativeRetrievalResult } from './render.js'
+import { buildRenderCall, renderIterativeRetrievalResult } from './render.js'
 import {
   DEFAULT_LIMIT,
   DEFAULT_MAX_CYCLES,
@@ -242,6 +242,10 @@ export const iterativeRetrievalTool = defineTool({
     )
 
     return buildIterativeRetrievalResult(result, parameters.task)
+  },
+
+  renderCall(args, theme) {
+    return buildRenderCall(args, theme)
   },
 
   renderResult(result, { expanded }, theme) {
