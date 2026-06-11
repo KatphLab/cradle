@@ -31,15 +31,9 @@ type ContinuationContext = Pick<ExtensionContext, 'abort' | 'isIdle'>
 interface SystemReminderState {
   cachedSettings: GlobalSettings
   cachedReminder: string | undefined
-  lastInjectedPayload: string | undefined
-  lastInjectedNonReminderTokens: number
-  cachedPayload: string | undefined
   streamedTokensSinceLastInjection: number
-  forcedNextPayload: string | undefined
   continuationScheduled: boolean
   sessionRevision: number
-  cachedTotalTokens: number
-  lastMessageCount: number
   cachedTodoReminder: string | undefined
   lastTodoMessageCount: number
 }
@@ -88,6 +82,10 @@ export function registerSystemReminderHook(pi: SystemReminderPi): void {
 
   pi.on('context', (event) => handleContext(event.messages, state))
 
+  pi.on('before_provider_request', (event) =>
+    handleBeforeProviderRequest(event, state),
+  )
+
   pi.on('message_update', (event, context) => {
     handleMessageUpdate(event, context, pi, state)
   })
@@ -104,14 +102,8 @@ function createSystemReminderState(): SystemReminderState {
 function createResettableSystemReminderState(): ResettableSystemReminderState {
   return {
     cachedReminder: undefined,
-    lastInjectedPayload: undefined,
-    lastInjectedNonReminderTokens: 0,
-    cachedPayload: undefined,
     streamedTokensSinceLastInjection: 0,
-    forcedNextPayload: undefined,
     continuationScheduled: false,
-    cachedTotalTokens: 0,
-    lastMessageCount: 0,
     cachedTodoReminder: undefined,
     lastTodoMessageCount: 0,
   }
@@ -166,53 +158,53 @@ function handleContext(
   state: SystemReminderState,
 ): { messages: AgentMessage[] } {
   const messages = eventMessages.filter((message) => !isSystemReminder(message))
-  const currentNonReminderTokens = getNonReminderTokens(messages, state)
 
-  const forcedPayload = state.forcedNextPayload
-  const payload = forcedPayload ?? buildReminderPayload(messages, state)
-  state.cachedPayload = payload
-  if (payload === undefined) {
-    state.lastInjectedPayload = undefined
-    state.lastInjectedNonReminderTokens = currentNonReminderTokens
-    state.streamedTokensSinceLastInjection = 0
-    return { messages }
-  }
+  // Cache updated task reminder for before_provider_request
+  getTodoReminder(messages, state)
 
-  if (!shouldInjectReminder(payload, currentNonReminderTokens, state)) {
-    return { messages }
-  }
-
-  if (forcedPayload !== undefined) state.forcedNextPayload = undefined
-  state.lastInjectedPayload = payload
-  state.lastInjectedNonReminderTokens = currentNonReminderTokens
-  state.streamedTokensSinceLastInjection = 0
-
-  return {
-    messages: [
-      ...messages,
-      createSystemReminderMessage(
-        payload,
-        shouldDisplaySystemReminder(state.cachedSettings),
-      ),
-    ],
-  }
+  return { messages }
 }
 
-function shouldInjectReminder(
-  payload: string,
-  currentNonReminderTokens: number,
+function isProviderPayload(
+  payload: unknown,
+): payload is { messages: unknown[] } {
+  return (
+    typeof payload === 'object' &&
+    payload !== null &&
+    'messages' in payload &&
+    Array.isArray(payload.messages)
+  )
+}
+
+function handleBeforeProviderRequest(
+  event: { payload: unknown },
   state: SystemReminderState,
-): boolean {
-  if (state.forcedNextPayload !== undefined) return true
+): unknown {
+  const payload = event.payload
+  if (!isProviderPayload(payload)) {
+    return undefined
+  }
 
-  const tokenDistance =
-    currentNonReminderTokens - state.lastInjectedNonReminderTokens
-  const payloadChanged = payload !== state.lastInjectedPayload
-  const contextAppearsTruncated = tokenDistance < 0
-  const thresholdReached =
-    tokenDistance >= getReminderTokenThreshold(state.cachedSettings)
+  const reminder = buildFullReminder(state)
+  if (!reminder) {
+    return undefined
+  }
 
-  return payloadChanged || contextAppearsTruncated || thresholdReached
+  payload.messages.push({
+    role: 'user',
+    content: [{ type: 'text', text: `[REMINDER]\n${reminder}` }],
+  })
+
+  state.streamedTokensSinceLastInjection = 0
+
+  return payload
+}
+
+function buildFullReminder(state: SystemReminderState): string | undefined {
+  const parts: string[] = []
+  if (state.cachedReminder) parts.push(state.cachedReminder)
+  if (state.cachedTodoReminder) parts.push(state.cachedTodoReminder)
+  return parts.length > 0 ? parts.join('\n\n') : undefined
 }
 
 function handleMessageUpdate(
@@ -231,13 +223,11 @@ function handleMessageUpdate(
   if (
     state.continuationScheduled ||
     state.streamedTokensSinceLastInjection <
-      getReminderTokenThreshold(state.cachedSettings) ||
-    state.cachedPayload === undefined
+      getReminderTokenThreshold(state.cachedSettings)
   ) {
     return
   }
 
-  state.forcedNextPayload = state.cachedPayload
   state.continuationScheduled = true
   const revision = state.sessionRevision
   context.abort()
@@ -252,10 +242,6 @@ function scheduleContinueAfterAbort(
 ): void {
   const continueWhenIdle = (): void => {
     if (revision !== state.sessionRevision) return
-    if (state.forcedNextPayload === undefined) {
-      state.continuationScheduled = false
-      return
-    }
     if (!context.isIdle()) {
       setTimeout(continueWhenIdle, REMINDER_CONTINUE_POLL_INTERVAL_MS)
       return
@@ -293,43 +279,6 @@ function extractSystemReminder(
   return { reminder, systemPrompt: cleanedSystemPrompt }
 }
 
-function buildReminderPayload(
-  messages: AgentMessage[],
-  state: SystemReminderState,
-): string | undefined {
-  const parts: string[] = []
-  if (state.cachedReminder) parts.push(state.cachedReminder)
-
-  const todoReminder = getTodoReminder(messages, state)
-  if (todoReminder) parts.push(todoReminder)
-
-  return parts.length > 0 ? parts.join('\n\n') : undefined
-}
-
-function getNonReminderTokens(
-  messages: AgentMessage[],
-  state: SystemReminderState,
-): number {
-  if (messages.length === state.lastMessageCount) {
-    return state.cachedTotalTokens
-  }
-
-  const canAppend = messages.length > state.lastMessageCount
-  const messagesToCount = canAppend
-    ? messages.slice(state.lastMessageCount)
-    : messages
-  const tokens = messagesToCount.reduce(
-    (total, message) => total + estimateTokens(message),
-    0,
-  )
-
-  state.cachedTotalTokens = canAppend
-    ? state.cachedTotalTokens + tokens
-    : tokens
-  state.lastMessageCount = messages.length
-  return state.cachedTotalTokens
-}
-
 function getReminderTokenThreshold(settings: GlobalSettings): number {
   return settings.reminderTokenThreshold ?? DEFAULT_REMINDER_TOKEN_THRESHOLD
 }
@@ -355,17 +304,6 @@ function getTodoReminder(
   return state.cachedTodoReminder
 }
 
-function createSystemReminderMessage(
-  reminder: string,
-  display: boolean,
-): AgentMessage {
-  return {
-    role: 'custom',
-    ...createSystemReminderDisplayMessage(reminder, display),
-    timestamp: Date.now(),
-  }
-}
-
 function createSystemReminderDisplayMessage(
   reminder: string,
   display: boolean,
@@ -376,7 +314,7 @@ function createSystemReminderDisplayMessage(
 } {
   return {
     customType: SYSTEM_REMINDER_TYPE,
-    content: `<system-reminder>\n${reminder}\n</system-reminder>`,
+    content: `[REMINDER]\n${reminder}`,
     display,
   }
 }

@@ -67,6 +67,8 @@ type MessageUpdateHandler = (
   context: TestMessageUpdateContext,
 ) => unknown
 
+type BeforeProviderRequestHandler = (event: { payload: unknown }) => unknown
+
 const noopSendUserMessage = (() => {
   return
 }) as ExtensionAPI['sendUserMessage']
@@ -98,6 +100,12 @@ function isBeforeAgentStartHandler(
 }
 
 function isMessageUpdateHandler(value: unknown): value is MessageUpdateHandler {
+  return typeof value === 'function'
+}
+
+function isBeforeProviderRequestHandler(
+  value: unknown,
+): value is BeforeProviderRequestHandler {
   return typeof value === 'function'
 }
 
@@ -146,6 +154,21 @@ export function getMessageUpdateHandler(
     throw new Error('Expected message_update handler to be registered')
   }
   if (!isMessageUpdateHandler(handler.fn)) {
+    throw new TypeError('Expected registered handler to be callable')
+  }
+  return handler.fn
+}
+
+export function getBeforeProviderRequestHandler(
+  handlers: RegisteredHandler[],
+): BeforeProviderRequestHandler {
+  const handler = handlers.find(
+    (entry) => entry.event === 'before_provider_request',
+  )
+  if (!handler) {
+    throw new Error('Expected before_provider_request handler to be registered')
+  }
+  if (!isBeforeProviderRequestHandler(handler.fn)) {
     throw new TypeError('Expected registered handler to be callable')
   }
   return handler.fn

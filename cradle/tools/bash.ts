@@ -11,6 +11,22 @@ import {
   type RiskLevel,
 } from '../config/shell-risk.js'
 
+function resolveEffectiveRisk(
+  declaredRisk: RiskLevel,
+  declaredReason: string,
+  detected: { level: RiskLevel; reason: string } | undefined,
+): { effectiveRisk: RiskLevel; effectiveReason: string } {
+  if (detected) {
+    // Override if the model under-declared the risk.
+    const upgraded = riskRank(declaredRisk) >= riskRank(detected.level)
+    return {
+      effectiveRisk: upgraded ? declaredRisk : detected.level,
+      effectiveReason: upgraded ? declaredReason : detected.reason,
+    }
+  }
+  return { effectiveRisk: declaredRisk, effectiveReason: declaredReason }
+}
+
 function riskRank(level: RiskLevel): number {
   switch (level) {
     case 'low': {
@@ -39,10 +55,18 @@ export const bashTool = defineTool({
       command: Type.String({
         description: 'The shell command to execute',
       }),
-      summary: Type.String({
-        description:
-          'Short human-readable description of what this command does',
-      }),
+      summary: Type.Optional(
+        Type.String({
+          description:
+            'Short human-readable description of what this command does',
+        }),
+      ),
+      description: Type.Optional(
+        Type.String({
+          description:
+            'Alias for summary — what this command does. Prefer summary.',
+        }),
+      ),
       riskLevel: Type.Union(
         [
           Type.Literal('low'),
@@ -62,34 +86,24 @@ export const bashTool = defineTool({
     { additionalProperties: false },
   ),
   async execute(toolCallId, parameters, signal, onUpdate, context) {
+    const summary =
+      parameters.summary ?? parameters.description ?? 'Bash command'
+
     await assertPermission(context.cwd, context.cwd, 'bash')
     const patterns = await loadShellRiskPatterns(context.cwd)
     const detected = classifyShellRisk(parameters.command, patterns)
 
-    let effectiveRisk: RiskLevel
-    let effectiveReason: string
-
-    if (detected) {
-      // Patterns loaded — override if the model under-declared the risk.
-      effectiveRisk =
-        riskRank(parameters.riskLevel) >= riskRank(detected.level)
-          ? parameters.riskLevel
-          : detected.level
-      effectiveReason =
-        effectiveRisk === detected.level
-          ? detected.reason
-          : parameters.riskReason
-    } else {
-      // No patterns loaded — trust what the LLM returned.
-      effectiveRisk = parameters.riskLevel
-      effectiveReason = parameters.riskReason
-    }
+    const { effectiveRisk, effectiveReason } = resolveEffectiveRisk(
+      parameters.riskLevel,
+      parameters.riskReason,
+      detected,
+    )
 
     // Confirm high/critical commands with the user.
     if (effectiveRisk === 'high' || effectiveRisk === 'critical') {
       const allowed = await context.ui.confirm(
         `High-risk command: ${effectiveRisk}`,
-        `${parameters.summary}\n\nCommand: ${parameters.command}${
+        `${summary}\n\nCommand: ${parameters.command}${
           detected
             ? `\nDetected risk: ${detected.level} (${detected.reason})`
             : ''

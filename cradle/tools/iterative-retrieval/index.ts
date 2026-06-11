@@ -4,6 +4,7 @@ import { loadGlobalSettings } from '../../config/settings.js'
 import { discoverAgents } from '../../lib/subagents/agents.js'
 import type { SingleResult } from '../../lib/subagents/types.js'
 import {
+  getDisplayItems,
   getFinalOutput,
   isFailedResult,
 } from '../../lib/subagents/utilities.js'
@@ -11,7 +12,7 @@ import {
   executeToolSubagent,
   getSubagentFailureText,
 } from '../../utils/subagent-tool-helpers.js'
-import { renderIterativeRetrievalResult } from './render.js'
+import { buildRenderCall, renderIterativeRetrievalResult } from './render.js'
 import {
   DEFAULT_LIMIT,
   DEFAULT_MAX_CYCLES,
@@ -174,6 +175,11 @@ function buildIterativeRetrievalResult(
   }
 
   const details = tryParseDetails(output, task)
+  if (details) {
+    if (result.model !== undefined) details.model = result.model
+    details.usage = result.usage
+    details.displayItems = getDisplayItems(result.messages)
+  }
   return {
     content: [{ type: 'text', text: output }],
     details,
@@ -242,6 +248,10 @@ export const iterativeRetrievalTool = defineTool({
     )
 
     return buildIterativeRetrievalResult(result, parameters.task)
+  },
+
+  renderCall(args, theme) {
+    return buildRenderCall(args, theme)
   },
 
   renderResult(result, { expanded }, theme) {
