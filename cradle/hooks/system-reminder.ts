@@ -376,7 +376,7 @@ function createSystemReminderDisplayMessage(
 } {
   return {
     customType: SYSTEM_REMINDER_TYPE,
-    content: `<system-reminder>\n${reminder}\n</system-reminder>`,
+    content: `[REMINDER]\n${reminder}`,
     display,
   }
 }

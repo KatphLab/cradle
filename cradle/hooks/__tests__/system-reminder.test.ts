@@ -143,8 +143,7 @@ describe('registerSystemReminderHook', () => {
       expect.objectContaining({
         role: 'custom',
         customType: 'cradle-system-reminder',
-        content:
-          '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
+        content: '[REMINDER]\nAlways prefer tiny changes.',
         display: true,
         timestamp: Date.now(),
       }),
@@ -225,7 +224,7 @@ describe('registerSystemReminderHook', () => {
         role: 'custom',
         customType: 'cradle-system-reminder',
         content:
-          '<system-reminder>\nAlways prefer tiny changes.\n\n## Current Todos\n1. [in_progress] Fix bug\n</system-reminder>',
+          '[REMINDER]\nAlways prefer tiny changes.\n\n## Current Todos\n1. [in_progress] Fix bug',
         display: false,
         timestamp: Date.now(),
       }),
@@ -392,8 +391,7 @@ describe('registerSystemReminderHook', () => {
       expect.objectContaining({
         role: 'custom',
         customType: 'cradle-system-reminder',
-        content:
-          '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
+        content: '[REMINDER]\nAlways prefer tiny changes.',
         timestamp: Date.now(),
       }),
     )
