@@ -5,7 +5,7 @@ import { runSingleAgent } from '../lib/subagents/runner.js'
 import type { AgentConfig, SingleResult } from '../lib/subagents/types.js'
 import { getFinalOutput, isFailedResult } from '../lib/subagents/utilities.js'
 
-function getSubagentFailureText(result: SingleResult): string {
+export function getSubagentFailureText(result: SingleResult): string {
   if (result.errorMessage) return result.errorMessage
   if (result.stderr) return result.stderr
   const output = getFinalOutput(result.messages)

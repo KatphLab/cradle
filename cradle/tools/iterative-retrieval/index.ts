@@ -7,7 +7,10 @@ import {
   getFinalOutput,
   isFailedResult,
 } from '../../lib/subagents/utilities.js'
-import { executeToolSubagent } from '../../utils/subagent-tool-helpers.js'
+import {
+  executeToolSubagent,
+  getSubagentFailureText,
+} from '../../utils/subagent-tool-helpers.js'
 import { renderIterativeRetrievalResult } from './render.js'
 import {
   DEFAULT_LIMIT,
@@ -151,14 +154,6 @@ function tryParseDetails(
   const cycles = parseCycles(text)
 
   return { task, cycles, paths, sources, findings, gaps, suggestions }
-}
-
-function getSubagentFailureText(result: SingleResult): string {
-  if (result.errorMessage) return result.errorMessage
-  if (result.stderr) return result.stderr
-  const output = getFinalOutput(result.messages)
-  if (output.length > 0) return output
-  return result.stopReason ?? 'error'
 }
 
 function buildIterativeRetrievalResult(
