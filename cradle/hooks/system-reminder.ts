@@ -16,6 +16,12 @@ const SYSTEM_REMINDER_TYPE = 'cradle-system-reminder'
 const SYSTEM_REMINDER_TOKEN_LIMIT = 500
 export const CONTINUE_AFTER_REMINDER_PROMPT =
   'You have been working for too long. If you are stuck with a thought or problem, ask the advisor. Otherwise, continue.'
+
+const DEFAULT_SYSTEM_REMINDER = [
+  'Always use the todo tool to break tasks into concrete steps and track progress.',
+  'Periodically review what the user originally asked and confirm you are still on track.',
+  'If you are stuck or unsure, ask the advisor for help.',
+].join('\n')
 const REMINDER_CONTINUE_POLL_INTERVAL_MS = 25
 
 type SystemReminderPi = Pick<ExtensionAPI, 'on' | 'sendUserMessage'>
@@ -122,27 +128,36 @@ function handleBeforeAgentStart(
   state: SystemReminderState,
 ): BeforeAgentStartResultLike | undefined {
   const extracted = extractSystemReminder(event.systemPrompt)
-  if (!extracted) return undefined
-
-  state.cachedReminder = extracted.reminder
   const display = shouldDisplaySystemReminder(state.cachedSettings)
-  const tokens = estimateTokens({
-    role: 'custom',
-    customType: SYSTEM_REMINDER_TYPE,
-    content: state.cachedReminder,
-    display,
-    timestamp: Date.now(),
-  })
-  if (tokens > SYSTEM_REMINDER_TOKEN_LIMIT) {
-    context.ui.notify(
-      `System reminder exceeds ${SYSTEM_REMINDER_TOKEN_LIMIT} tokens (~${tokens}). Consider shortening it.`,
-      'warning',
-    )
+
+  if (extracted) {
+    const tokens = estimateTokens({
+      role: 'custom',
+      customType: SYSTEM_REMINDER_TYPE,
+      content: extracted.reminder,
+      display,
+      timestamp: Date.now(),
+    })
+    if (tokens > SYSTEM_REMINDER_TOKEN_LIMIT) {
+      context.ui.notify(
+        `System reminder exceeds ${SYSTEM_REMINDER_TOKEN_LIMIT} tokens (~${tokens}). Consider shortening it.`,
+        'warning',
+      )
+    }
+    state.cachedReminder = extracted.reminder
+    return {
+      message: createSystemReminderDisplayMessage(
+        state.cachedReminder,
+        display,
+      ),
+      systemPrompt: extracted.systemPrompt,
+    }
   }
 
+  state.cachedReminder = DEFAULT_SYSTEM_REMINDER
   return {
     message: createSystemReminderDisplayMessage(state.cachedReminder, display),
-    systemPrompt: extracted.systemPrompt,
+    systemPrompt: event.systemPrompt,
   }
 }
 
