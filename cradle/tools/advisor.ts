@@ -1,6 +1,7 @@
 import { defineTool } from '@earendil-works/pi-coding-agent'
 import { Text } from '@earendil-works/pi-tui'
 import { Type, type Static } from 'typebox'
+import { getOptionalString, isRecord } from '../utils/helpers.js'
 import {
   buildAdvisorRenderCall,
   buildAdvisorRenderResult,
@@ -35,18 +36,6 @@ const AdvisorParameters = Type.Object({
 })
 
 type AdvisorParametersType = Static<typeof AdvisorParameters>
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function getOptionalString(
-  record: Record<string, unknown>,
-  key: string,
-): string | undefined {
-  const value = record[key]
-  return typeof value === 'string' ? value : undefined
-}
 
 function normalizeFilesField(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined

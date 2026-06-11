@@ -14,13 +14,21 @@ export const writeTool = defineTool({
   name: 'write',
   label: 'Write',
   description:
-    'Create or overwrite a file with the provided content. Parent directories are created automatically.',
+    'Create a new file or intentionally replace an entire file. Do not use this for ordinary edits to existing files; use edit for targeted changes. Parent directories are created automatically.',
+  promptSnippet:
+    'Create new files or deliberate full-file replacements; prefer edit for modifying existing files',
+  promptGuidelines: [
+    'Use write for new files or when the user explicitly wants a complete file replacement.',
+    'Do not use write just to modify part of an existing file; use edit with targeted replacements instead.',
+    'Before overwriting an existing file, read it first unless the task clearly specifies full replacement content.',
+  ],
   parameters: Type.Object({
     path: Type.String({
-      description: 'Path to the file to write (relative or absolute)',
+      description:
+        'Path to the file to create or fully replace (relative or absolute)',
     }),
     content: Type.String({
-      description: 'Content to write to the file',
+      description: 'Complete content for the new or fully replaced file',
     }),
   }),
   async execute(toolCallId, parameters, signal, onUpdate, context) {
