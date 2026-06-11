@@ -188,13 +188,7 @@ function handleContext(
   state.streamedTokensSinceLastInjection = 0
 
   return {
-    messages: [
-      ...messages,
-      createSystemReminderMessage(
-        payload,
-        shouldDisplaySystemReminder(state.cachedSettings),
-      ),
-    ],
+    messages: [...messages, createSystemReminderMessage(payload)],
   }
 }
 
@@ -355,15 +349,13 @@ function getTodoReminder(
   return state.cachedTodoReminder
 }
 
-function createSystemReminderMessage(
-  reminder: string,
-  display: boolean,
-): AgentMessage {
+function createSystemReminderMessage(reminder: string): AgentMessage {
   return {
-    role: 'custom',
-    ...createSystemReminderDisplayMessage(reminder, display),
+    role: 'user',
+    content: `[REMINDER]\n${reminder}`,
+    customType: SYSTEM_REMINDER_TYPE,
     timestamp: Date.now(),
-  }
+  } as AgentMessage
 }
 
 function createSystemReminderDisplayMessage(

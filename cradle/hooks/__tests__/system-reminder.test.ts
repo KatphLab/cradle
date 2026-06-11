@@ -141,10 +141,8 @@ describe('registerSystemReminderHook', () => {
     expect(result?.messages).toEqual([
       userMessage,
       expect.objectContaining({
-        role: 'custom',
-        customType: 'cradle-system-reminder',
+        role: 'user',
         content: '[REMINDER]\nAlways prefer tiny changes.',
-        display: true,
         timestamp: Date.now(),
       }),
     ])
@@ -172,12 +170,10 @@ describe('registerSystemReminderHook', () => {
     expect(result?.messages).toEqual([
       userMessage,
       expect.objectContaining({
-        role: 'custom',
-        customType: 'cradle-system-reminder',
+        role: 'user',
         content: expect.stringContaining(
           'Always use the todo tool to break tasks into concrete steps and track progress.',
         ),
-        display: true,
         timestamp: Date.now(),
       }),
     ])
@@ -221,11 +217,9 @@ describe('registerSystemReminderHook', () => {
       userMessage,
       todoResult,
       expect.objectContaining({
-        role: 'custom',
-        customType: 'cradle-system-reminder',
+        role: 'user',
         content:
           '[REMINDER]\nAlways prefer tiny changes.\n\n## Current Todos\n1. [in_progress] Fix bug',
-        display: false,
         timestamp: Date.now(),
       }),
     ])
@@ -276,7 +270,7 @@ describe('registerSystemReminderHook', () => {
       { cwd: tempRoot },
     )
     expect(thirdResult?.messages).toHaveLength(4)
-    expect(thirdResult?.messages?.at(-1)?.role).toBe('custom')
+    expect(thirdResult?.messages?.at(-1)?.role).toBe('user')
   })
 
   it('injects when the reminder payload changes below the token threshold', async () => {
@@ -318,7 +312,7 @@ describe('registerSystemReminderHook', () => {
 
     expect(result?.messages).toHaveLength(3)
     const lastMessage = result?.messages?.at(-1)
-    expect(lastMessage?.role).toBe('custom')
+    expect(lastMessage?.role).toBe('user')
     if (lastMessage === undefined || !('content' in lastMessage)) {
       throw new Error('Expected system reminder message')
     }
@@ -351,7 +345,7 @@ describe('registerSystemReminderHook', () => {
       { messages: [userMessage] },
       { cwd: tempRoot },
     )
-    expect(firstResult?.messages?.at(-1)?.role).toBe('custom')
+    expect(firstResult?.messages?.at(-1)?.role).toBe('user')
 
     let idle = false
     const abort = vi.fn(() => {
@@ -389,8 +383,7 @@ describe('registerSystemReminderHook', () => {
 
     expect(forcedResult?.messages?.at(-1)).toEqual(
       expect.objectContaining({
-        role: 'custom',
-        customType: 'cradle-system-reminder',
+        role: 'user',
         content: '[REMINDER]\nAlways prefer tiny changes.',
         timestamp: Date.now(),
       }),
