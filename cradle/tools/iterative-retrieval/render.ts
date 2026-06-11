@@ -3,6 +3,11 @@ import { getMarkdownTheme } from '@earendil-works/pi-coding-agent'
 import { Container, Markdown, Spacer, Text } from '@earendil-works/pi-tui'
 
 import type { MarkdownTheme } from '@earendil-works/pi-tui'
+import type { DisplayItem } from '../../lib/subagents/types.js'
+import {
+  formatToolCall,
+  formatUsageStats,
+} from '../../lib/subagents/utilities.js'
 import type { ThemeLike } from '../../utils/helpers.js'
 import { renderToolError } from '../../utils/tool.js'
 import type {
@@ -83,6 +88,26 @@ function getCollapsedItems(
   return lines
 }
 
+function formatToolCallLine(item: DisplayItem, theme: ThemeLike): string {
+  if (item.type !== 'toolCall') return ''
+  const prefix = theme.fg('muted', '\u2192 ')
+  return prefix + formatToolCall(item.name, item.args, theme.fg.bind(theme))
+}
+
+function getCollapsedDisplayItems(
+  items: DisplayItem[],
+  limit: number,
+  theme: ThemeLike,
+): string[] {
+  const lines: string[] = []
+  for (const item of items.slice(-limit)) {
+    if (item.type === 'toolCall') {
+      lines.push(`  ${formatToolCallLine(item, theme)}`)
+    }
+  }
+  return lines
+}
+
 function getCollapsedGapLines(gaps: string[], theme: ThemeLike): string[] {
   if (gaps.length === 0) return []
   const lines: string[] = ['', theme.fg('dim', 'Gaps:')]
@@ -120,6 +145,24 @@ function getCollapsedText(
     text += `\n${gapLines.join('\n')}`
   }
 
+  if (details.displayItems !== undefined && details.displayItems.length > 0) {
+    const displayLines = getCollapsedDisplayItems(
+      details.displayItems,
+      5,
+      theme,
+    )
+    if (displayLines.length > 0) {
+      text += `\n${displayLines.join('\n')}`
+    }
+  }
+
+  if (details.usage !== undefined) {
+    const usageString = formatUsageStats(details.usage, details.model)
+    if (usageString.length > 0) {
+      text += `\n${theme.fg('dim', usageString)}`
+    }
+  }
+
   text += `\n${theme.fg('muted', '(Ctrl+O to expand)')}`
 
   return text
@@ -132,6 +175,18 @@ function getFullOutput(result: AgentToolResult<unknown>): string {
   return textContent !== undefined && 'text' in textContent
     ? textContent.text
     : ''
+}
+
+function addDisplayItemsToContainer(
+  container: Container,
+  displayItems: DisplayItem[],
+  theme: ThemeLike,
+): void {
+  for (const item of displayItems) {
+    if (item.type === 'toolCall') {
+      container.addChild(new Text(formatToolCallLine(item, theme), 0, 0))
+    }
+  }
 }
 
 function buildExpandedContainer(
@@ -169,6 +224,29 @@ function buildExpandedContainer(
     container.addChild(new Markdown(output.trim(), 0, 0, mdTheme))
   } else {
     container.addChild(new Text(theme.fg('muted', '(no output)'), 0, 0))
+  }
+
+  if (details.displayItems !== undefined && details.displayItems.length > 0) {
+    container.addChild(new Spacer(1))
+    container.addChild(
+      new Text(
+        theme.fg(
+          'muted',
+          '\u2500\u2500\u2500 Retrieval Steps \u2500\u2500\u2500',
+        ),
+        0,
+        0,
+      ),
+    )
+    addDisplayItemsToContainer(container, details.displayItems, theme)
+  }
+
+  if (details.usage !== undefined) {
+    const usageString = formatUsageStats(details.usage, details.model)
+    if (usageString.length > 0) {
+      container.addChild(new Spacer(1))
+      container.addChild(new Text(theme.fg('dim', usageString), 0, 0))
+    }
   }
 
   return container

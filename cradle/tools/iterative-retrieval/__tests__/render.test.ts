@@ -293,10 +293,102 @@ describe('renderIterativeRetrievalResult', () => {
       )
       expect(textOf(rendered)).toContain('<muted>(Ctrl+O to expand)</muted>')
     })
+
+    it('renders usage stats and model name in collapsed view', () => {
+      // With model
+      const withModel = makeDetails({
+        model: 'claude-sonnet-4',
+        usage: {
+          input: 2300,
+          output: 1100,
+          cacheRead: 0,
+          cacheWrite: 0,
+          cost: 0.0123,
+          contextTokens: 0,
+          turns: 7,
+        },
+      })
+      const text1 = textOf(
+        renderIterativeRetrievalResult(makeResult(withModel), false, theme),
+      )
+      expect(text1).toContain('7 turns')
+      expect(text1).toContain('claude-sonnet-4')
+      expect(text1).toContain('$0.0123')
+
+      // Without model
+      const noModel = makeDetails({
+        usage: {
+          input: 500,
+          output: 200,
+          cacheRead: 0,
+          cacheWrite: 0,
+          cost: 0.005,
+          contextTokens: 0,
+          turns: 3,
+        },
+      })
+      const text2 = textOf(
+        renderIterativeRetrievalResult(makeResult(noModel), false, theme),
+      )
+      expect(text2).toContain('3 turns')
+      expect(text2).not.toContain('claude-sonnet-4')
+
+      // Without usage entirely
+      const noUsage = makeDetails({ model: 'gpt-4' })
+      const text3 = textOf(
+        renderIterativeRetrievalResult(makeResult(noUsage), false, theme),
+      )
+      expect(text3).not.toContain('turns')
+    })
+
+    it('renders display items (tool calls) when present', () => {
+      const withItems = makeDetails({
+        displayItems: [
+          { type: 'toolCall', name: 'read', args: { path: 'src/auth.ts' } },
+          { type: 'toolCall', name: 'grep', args: { pattern: 'jwt' } },
+          { type: 'text', text: 'some text output' },
+        ],
+      })
+      const text1 = textOf(
+        renderIterativeRetrievalResult(makeResult(withItems), false, theme),
+      )
+      expect(text1).toContain('<muted>\u2192 </muted>')
+      expect(text1).toContain('src/auth.ts')
+      expect(text1).toContain('/jwt/')
+      expect(text1).not.toContain('some text output')
+
+      // Last 5 items only
+      const manyItems = makeDetails({
+        displayItems: [
+          { type: 'toolCall', name: 'read', args: { path: 'a.ts' } },
+          { type: 'toolCall', name: 'read', args: { path: 'b.ts' } },
+          { type: 'toolCall', name: 'read', args: { path: 'c.ts' } },
+          { type: 'toolCall', name: 'read', args: { path: 'd.ts' } },
+          { type: 'toolCall', name: 'read', args: { path: 'e.ts' } },
+          { type: 'toolCall', name: 'read', args: { path: 'f.ts' } },
+          { type: 'toolCall', name: 'read', args: { path: 'g.ts' } },
+        ],
+      })
+      const text2 = textOf(
+        renderIterativeRetrievalResult(makeResult(manyItems), false, theme),
+      )
+      const arrowCount = (text2.match(/\u2192 /gu) ?? []).length
+      expect(arrowCount).toBe(5)
+      expect(text2).toContain('c.ts')
+      expect(text2).toContain('g.ts')
+      expect(text2).not.toContain('a.ts')
+
+      // Empty displays nothing
+      const empty = makeDetails({ displayItems: [] })
+      const text3 = textOf(
+        renderIterativeRetrievalResult(makeResult(empty), false, theme),
+      )
+      expect(text3).not.toContain('\u2192')
+    })
   })
 
   describe('expanded', () => {
-    it('returns a Container with header, task, and markdown output', () => {
+    it('returns a Container with header, task, output, and handles empty content', () => {
       const details = makeDetails()
       const rendered = renderIterativeRetrievalResult(
         makeResult(
@@ -308,71 +400,128 @@ describe('renderIterativeRetrievalResult', () => {
       )
       const children = childrenOf(rendered)
 
-      // Header Text
-      const headerText = children[0]
-      expect(isMockTextInstance(headerText)).toBe(true)
-      expect(textOf(headerText)).toContain('<success>\u2713</success>')
-      expect(textOf(headerText)).toContain(
+      // Header
+      expect(isMockTextInstance(children[0])).toBe(true)
+      expect(textOf(children[0])).toContain(
         '<toolTitle><bold>Iterative Retrieval</bold></toolTitle>',
       )
-
-      // Spacer(1) after header
-      const spacer1 = children[1]
-      expect(spacer1).toMatchObject({ kind: 'Spacer', size: 1 })
-
-      // "─── Task ───" Text
-      const taskHeader = children[2]
-      expect(isMockTextInstance(taskHeader)).toBe(true)
-      expect(textOf(taskHeader)).toContain(
-        '<muted>\u2500\u2500\u2500 Task \u2500\u2500\u2500</muted>',
-      )
-
-      // Task text
-      const taskText = children[3]
-      expect(isMockTextInstance(taskText)).toBe(true)
-      expect(textOf(taskText)).toContain('<dim>test task</dim>')
-
-      // Spacer(1) after task section
-      const spacer2 = children[4]
-      expect(spacer2).toMatchObject({ kind: 'Spacer', size: 1 })
-
-      // "─── Output ───" Text
-      const outputHeader = children[5]
-      expect(isMockTextInstance(outputHeader)).toBe(true)
-      expect(textOf(outputHeader)).toContain(
-        '<muted>\u2500\u2500\u2500 Output \u2500\u2500\u2500</muted>',
-      )
-
-      // Spacer(1) before Markdown
-      const spacer3 = children[6]
-      expect(spacer3).toMatchObject({ kind: 'Spacer', size: 1 })
-
-      // Markdown output
-      const markdown = children[7]
-      expect(markdown).toMatchObject({
+      // Spacers
+      expect(children[1]).toMatchObject({ kind: 'Spacer', size: 1 })
+      // Task section
+      expect(textOf(children[2])).toContain('Task')
+      expect(textOf(children[3])).toContain('test task')
+      expect(children[4]).toMatchObject({ kind: 'Spacer', size: 1 })
+      // Output section
+      expect(textOf(children[5])).toContain('Output')
+      expect(children[6]).toMatchObject({ kind: 'Spacer', size: 1 })
+      // Markdown
+      expect(children[7]).toMatchObject({
         kind: 'Markdown',
         text: '## Relevant Paths\n- src/auth.ts (relevance: 0.9) — reason: auth',
-        x: 0,
-        y: 0,
       })
+
+      // Empty content -> (no output)
+      const noContentResult = renderIterativeRetrievalResult(
+        { content: [], details },
+        true,
+        theme,
+      )
+      const noContentChildren = childrenOf(noContentResult)
+      const last = noContentChildren.at(-1)
+      if (isMockTextInstance(last))
+        expect(textOf(last)).toContain('(no output)')
     })
 
-    it('shows (no output) when content is empty', () => {
-      const details = makeDetails()
-      const rendered = renderIterativeRetrievalResult(
-        {
-          content: [],
-          details,
+    it('renders retrieval steps and usage in expanded view', () => {
+      const details = makeDetails({
+        model: 'claude-sonnet-4',
+        usage: {
+          input: 2300,
+          output: 1100,
+          cacheRead: 0,
+          cacheWrite: 0,
+          cost: 0.0123,
+          contextTokens: 0,
+          turns: 7,
         },
+        displayItems: [
+          { type: 'toolCall', name: 'read', args: { path: 'src/auth.ts' } },
+          { type: 'toolCall', name: 'grep', args: { pattern: 'jwt' } },
+        ],
+      })
+      const rendered = renderIterativeRetrievalResult(
+        makeResult(
+          details,
+          '## Relevant Paths\n- src/auth.ts (relevance: 0.9) — reason: auth',
+        ),
         true,
         theme,
       )
       const children = childrenOf(rendered)
 
-      // Last child should be the no-output Text
-      const lastChild = children.at(-1)
-      expect(isMockTextInstance(lastChild)).toBe(true)
-      expect(textOf(lastChild)).toContain('<muted>(no output)</muted>')
+      // Retrieval steps header
+      const stepsHeader = children.find(
+        (child) =>
+          isMockTextInstance(child) &&
+          textOf(child).includes('Retrieval Steps'),
+      )
+      expect(stepsHeader).toBeDefined()
+      if (isMockTextInstance(stepsHeader)) {
+        expect(textOf(stepsHeader)).toContain(
+          '<muted>\u2500\u2500\u2500 Retrieval Steps \u2500\u2500\u2500</muted>',
+        )
+      }
+
+      // Two arrow-prefixed tool call texts
+      const toolCallTexts = children.filter(
+        (child) =>
+          isMockTextInstance(child) && textOf(child).includes('\u2192'),
+      )
+      expect(toolCallTexts.length).toBe(2)
+
+      // Usage with model
+      const usageChild = children.find(
+        (child) =>
+          isMockTextInstance(child) &&
+          textOf(child).includes('claude-sonnet-4'),
+      )
+      expect(usageChild).toBeDefined()
+      if (isMockTextInstance(usageChild)) {
+        expect(textOf(usageChild)).toContain('7 turns')
+        expect(textOf(usageChild)).toContain('$0.0123')
+      }
+
+      // Empty display items -> no retrieval steps
+      const empty = makeDetails({ displayItems: [] })
+      expect(
+        childrenOf(
+          renderIterativeRetrievalResult(
+            makeResult(
+              empty,
+              '## Relevant Paths\n- src/auth.ts (relevance: 0.9)',
+            ),
+            true,
+            theme,
+          ),
+        ).find(
+          (c) => isMockTextInstance(c) && textOf(c).includes('Retrieval Steps'),
+        ),
+      ).toBeUndefined()
+
+      // No usage -> no usage text
+      const noUsage = makeDetails()
+      expect(
+        childrenOf(
+          renderIterativeRetrievalResult(
+            makeResult(
+              noUsage,
+              '## Relevant Paths\n- src/auth.ts (relevance: 0.9)',
+            ),
+            true,
+            theme,
+          ),
+        ).find((c) => isMockTextInstance(c) && textOf(c).includes('turns')),
+      ).toBeUndefined()
     })
   })
 

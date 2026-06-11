@@ -1,6 +1,8 @@
 import type { TextContent } from '@earendil-works/pi-ai'
 import { Type } from '@earendil-works/pi-ai'
 
+import type { DisplayItem, UsageStats } from '../../lib/subagents/types.js'
+
 export const DEFAULT_MAX_CYCLES = 3
 export const DEFAULT_MIN_RELEVANCE = 0.5
 export const DEFAULT_LIMIT = 20
@@ -19,6 +21,9 @@ export interface IterativeRetrievalDetails {
   findings: string[]
   gaps: string[]
   suggestions: string[]
+  model?: string
+  usage?: UsageStats
+  displayItems?: DisplayItem[]
 }
 
 export function retrievalToolError(message: string): {
