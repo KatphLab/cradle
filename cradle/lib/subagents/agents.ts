@@ -96,6 +96,7 @@ function mergeAgentsIntoMap(
 const extensionAgentsDirectory = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',
+  '..',
   'agents',
 )
 
