@@ -1,7 +1,6 @@
 import type { AgentToolResult } from '@earendil-works/pi-agent-core'
 import type { Theme } from '@earendil-works/pi-coding-agent'
-import type { Component } from '@earendil-works/pi-tui'
-import { Text } from '@earendil-works/pi-tui'
+import { Container, Text, type Component } from '@earendil-works/pi-tui'
 
 import { getToolOutputMode } from '../config/settings.js'
 
@@ -10,35 +9,32 @@ interface CollapsedContext {
   isPartial: boolean
 }
 
-/**
- * Renders a collapsed (non-expanded) tool result based on the configured mode.
- * Returns `undefined` when the result should be rendered normally (preview mode
- * or expanded), signaling the caller to use its own renderer.
- */
-export function renderWithMode(
+interface RenderCallContext extends CollapsedContext {
+  expanded: boolean
+}
+
+function renderToolHeader(
   toolName: string,
   keyArgs: string,
-  options: { expanded: boolean; isPartial: boolean },
   theme: Theme,
   context: CollapsedContext,
-): Component | undefined {
-  const mode = getToolOutputMode()
-
-  if (options.expanded || mode === 'preview') return undefined
-
-  if (mode === 'header-only') {
-    const header = theme.fg('toolTitle', theme.bold(toolName))
-    const args = keyArgs.length > 0 ? ` ${theme.fg('accent', keyArgs)}` : ''
-    let status = ''
-    if (context.isError) {
-      status = ` ${theme.fg('error', '\u2717')}`
-    } else if (context.isPartial) {
-      status = ` ${theme.fg('warning', '\u2026')}`
-    }
-    return new Text(`${header}${args}${status}`, 0, 0)
+): Component {
+  const header = theme.fg('toolTitle', theme.bold(toolName))
+  const args = keyArgs.length > 0 ? ` ${theme.fg('accent', keyArgs)}` : ''
+  let status = ''
+  if (context.isError) {
+    status = ` ${theme.fg('error', '\u2717')}`
+  } else if (context.isPartial) {
+    status = ` ${theme.fg('warning', '\u2026')}`
   }
+  return new Text(`${header}${args}${status}`, 0, 0)
+}
 
-  // mode === 'hidden'
+function renderHiddenToolHeader(
+  toolName: string,
+  theme: Theme,
+  context: CollapsedContext,
+): Component {
   let statusIcon: string
   if (context.isError) {
     statusIcon = theme.fg('error', '\u2717')
@@ -48,6 +44,29 @@ export function renderWithMode(
     statusIcon = theme.fg('success', '\u2713')
   }
   return new Text(`${statusIcon} ${theme.fg('toolTitle', toolName)}`, 0, 0)
+}
+
+function shouldRenderCollapsedResult(options: { expanded: boolean }): boolean {
+  return !options.expanded && getToolOutputMode() !== 'preview'
+}
+
+function renderEmptyToolResult(): Component {
+  return new Container()
+}
+
+export function renderToolCallWithMode(
+  toolName: string,
+  keyArgs: string,
+  theme: Theme,
+  context: RenderCallContext,
+): Component {
+  const mode = getToolOutputMode()
+
+  if (context.expanded || mode === 'preview' || mode === 'header-only') {
+    return renderToolHeader(toolName, keyArgs, theme, context)
+  }
+
+  return renderHiddenToolHeader(toolName, theme, context)
 }
 
 export function renderPlainTextFallback(
@@ -61,12 +80,24 @@ export function renderPlainTextFallback(
   return new Text(theme.fg('toolOutput', text), 0, 0)
 }
 
-export function renderCollapsedToolSummary(
-  toolName: string,
-  keyArgs: string,
-  options: { expanded: boolean; isPartial: boolean },
+export function renderToolResultWithMode(
+  result: AgentToolResult<unknown>,
+  options: { expanded: boolean },
   theme: Theme,
-  context: CollapsedContext,
+): Component {
+  return shouldRenderCollapsedResult(options)
+    ? renderEmptyToolResult()
+    : renderPlainTextFallback(result, theme)
+}
+
+export function renderCollapsedToolSummary(
+  _toolName: string,
+  _keyArgs: string,
+  options: { expanded: boolean },
+  _theme: Theme,
+  _context: CollapsedContext,
 ): Component | undefined {
-  return renderWithMode(toolName, keyArgs, options, theme, context)
+  return shouldRenderCollapsedResult(options)
+    ? renderEmptyToolResult()
+    : undefined
 }

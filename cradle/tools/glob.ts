@@ -8,8 +8,8 @@ import path from 'node:path'
 
 import { resolveSearchPath } from '../utils/helpers.js'
 import {
-  renderPlainTextFallback,
-  renderWithMode,
+  renderToolCallWithMode,
+  renderToolResultWithMode,
 } from '../utils/tool-render.js'
 import { optionalNumber, optionalString } from '../utils/typebox.js'
 
@@ -77,14 +77,9 @@ export const globTool = defineTool({
     )
   },
 
-  renderResult(result, options, theme, context) {
-    const pattern = context.args.pattern
-    const collapsed = renderWithMode('glob', pattern, options, theme, {
-      isError: context.isError,
-      isPartial: context.isPartial,
-    })
-    if (collapsed) return collapsed
-
-    return renderPlainTextFallback(result, theme)
+  renderCall(args, theme, context) {
+    return renderToolCallWithMode('glob', args.pattern, theme, context)
   },
+
+  renderResult: renderToolResultWithMode,
 })

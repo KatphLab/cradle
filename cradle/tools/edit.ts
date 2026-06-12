@@ -8,8 +8,8 @@ import path from 'node:path'
 import { assertPermission } from '../config/settings.js'
 import { normalizePath } from '../utils/helpers.js'
 import {
-  renderPlainTextFallback,
-  renderWithMode,
+  renderToolCallWithMode,
+  renderToolResultWithMode,
 } from '../utils/tool-render.js'
 
 /** @public */
@@ -57,14 +57,9 @@ export const editTool = defineTool({
     return piEdit.execute(toolCallId, parameters, signal, onUpdate, context)
   },
 
-  renderResult(result, options, theme, context) {
-    const filePath = context.args.path
-    const collapsed = renderWithMode('edit', filePath, options, theme, {
-      isError: context.isError,
-      isPartial: context.isPartial,
-    })
-    if (collapsed) return collapsed
-
-    return renderPlainTextFallback(result, theme)
+  renderCall(args, theme, context) {
+    return renderToolCallWithMode('edit', args.path, theme, context)
   },
+
+  renderResult: renderToolResultWithMode,
 })

@@ -105,69 +105,143 @@ function makeContext(args: Record<string, unknown>, isError = false) {
   }
 }
 
+function expectRendered(component: unknown): void {
+  expect(component).toBeDefined()
+}
+
+function expectEmptyRender(
+  component: { render(width: number): string[] } | undefined,
+): void {
+  expect(component).toBeDefined()
+  expect(component?.render(80)).toHaveLength(0)
+}
+
+function expectHiddenDefaultTool(
+  renderCall: () => unknown,
+  renderResult: () => { render(width: number): string[] } | undefined,
+): void {
+  expectRendered(renderCall())
+  expectEmptyRender(renderResult())
+}
+
 const collapsedOptions = { expanded: false, isPartial: false }
 const partialOptions = { expanded: false, isPartial: true }
 
 describe('tool output mode renderers', () => {
-  it('renders default tools in hidden mode', () => {
+  it('renders default tool calls and suppresses result bodies in hidden mode', () => {
     setToolOutputModeForTests('hidden')
 
-    expect(
-      bashTool.renderResult?.(
-        makeResult(),
-        collapsedOptions,
-        mockTheme,
-        makeContext({ command: 'echo hello' }),
-      ),
-    ).toBeDefined()
-    expect(
-      readTool.renderResult?.(
-        makeResult(),
-        collapsedOptions,
-        mockTheme,
-        makeContext({ path: 'README.md' }),
-      ),
-    ).toBeDefined()
-    expect(
-      editTool.renderResult?.(
-        makeResult(),
-        collapsedOptions,
-        mockTheme,
-        makeContext({ path: 'README.md' }),
-      ),
-    ).toBeDefined()
-    expect(
-      writeTool.renderResult?.(
-        makeResult(),
-        collapsedOptions,
-        mockTheme,
-        makeContext({ path: 'README.md' }),
-      ),
-    ).toBeDefined()
-    expect(
-      grepTool.renderResult?.(
-        makeResult(),
-        collapsedOptions,
-        mockTheme,
-        makeContext({ pattern: 'needle' }),
-      ),
-    ).toBeDefined()
-    expect(
-      globTool.renderResult?.(
-        makeResult(),
-        collapsedOptions,
-        mockTheme,
-        makeContext({ pattern: '**/*.ts' }),
-      ),
-    ).toBeDefined()
-    expect(
-      lsTool.renderResult?.(
-        makeResult(),
-        collapsedOptions,
-        mockTheme,
-        makeContext({ path: '.' }),
-      ),
-    ).toBeDefined()
+    expectHiddenDefaultTool(
+      () =>
+        bashTool.renderCall?.(
+          { command: 'echo hello', riskLevel: 'low', riskReason: 'test' },
+          mockTheme,
+          makeContext({ command: 'echo hello' }),
+        ),
+      () =>
+        bashTool.renderResult?.(
+          makeResult(),
+          collapsedOptions,
+          mockTheme,
+          makeContext({ command: 'echo hello' }),
+        ),
+    )
+
+    expectHiddenDefaultTool(
+      () =>
+        readTool.renderCall?.(
+          { path: 'README.md' },
+          mockTheme,
+          makeContext({ path: 'README.md' }),
+        ),
+      () =>
+        readTool.renderResult?.(
+          makeResult(),
+          collapsedOptions,
+          mockTheme,
+          makeContext({ path: 'README.md' }),
+        ),
+    )
+
+    expectHiddenDefaultTool(
+      () =>
+        editTool.renderCall?.(
+          { path: 'README.md', edits: [] },
+          mockTheme,
+          makeContext({ path: 'README.md' }),
+        ),
+      () =>
+        editTool.renderResult?.(
+          makeResult(),
+          collapsedOptions,
+          mockTheme,
+          makeContext({ path: 'README.md' }),
+        ),
+    )
+
+    expectHiddenDefaultTool(
+      () =>
+        writeTool.renderCall?.(
+          { path: 'README.md', content: 'content' },
+          mockTheme,
+          makeContext({ path: 'README.md' }),
+        ),
+      () =>
+        writeTool.renderResult?.(
+          makeResult(),
+          collapsedOptions,
+          mockTheme,
+          makeContext({ path: 'README.md' }),
+        ),
+    )
+
+    expectHiddenDefaultTool(
+      () =>
+        grepTool.renderCall?.(
+          { pattern: 'needle' },
+          mockTheme,
+          makeContext({ pattern: 'needle' }),
+        ),
+      () =>
+        grepTool.renderResult?.(
+          makeResult(),
+          collapsedOptions,
+          mockTheme,
+          makeContext({ pattern: 'needle' }),
+        ),
+    )
+
+    expectHiddenDefaultTool(
+      () =>
+        globTool.renderCall?.(
+          { pattern: '**/*.ts' },
+          mockTheme,
+          makeContext({ pattern: '**/*.ts' }),
+        ),
+      () =>
+        globTool.renderResult?.(
+          makeResult(),
+          collapsedOptions,
+          mockTheme,
+          makeContext({ pattern: '**/*.ts' }),
+        ),
+    )
+
+    expectHiddenDefaultTool(
+      () =>
+        lsTool.renderCall?.(
+          { path: '.' },
+          mockTheme,
+          makeContext({ path: '.' }),
+        ),
+      () =>
+        lsTool.renderResult?.(
+          makeResult(),
+          collapsedOptions,
+          mockTheme,
+          makeContext({ path: '.' }),
+        ),
+    )
   })
 
   it('renders default tools in preview mode', () => {

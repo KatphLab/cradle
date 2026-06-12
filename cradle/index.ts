@@ -46,6 +46,8 @@ export default function configureExtension(
     | 'sendUserMessage'
   >,
 ): void {
+  void initToolOutputModeCache()
+
   pi.registerTool(readTool)
   pi.registerTool(lsTool)
   pi.registerTool(grepTool)
@@ -69,8 +71,6 @@ export default function configureExtension(
 
   registerSettingsCommand(pi)
   registerStatsCommand(pi)
-
-  void initToolOutputModeCache()
 
   registerSpecCommand(pi, specModeState)
   registerOrchestratorCommand(pi, orchestratorModeState)
