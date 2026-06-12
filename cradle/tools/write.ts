@@ -9,8 +9,8 @@ import { assertPermission } from '../config/settings.js'
 import { validateAgent } from '../lib/subagents/validate.js'
 import { normalizePath } from '../utils/helpers.js'
 import {
-  renderPlainTextFallback,
-  renderWithMode,
+  renderToolCallWithMode,
+  renderToolResultWithMode,
 } from '../utils/tool-render.js'
 
 /** @public */
@@ -67,14 +67,9 @@ export const writeTool = defineTool({
     return piWrite.execute(toolCallId, parameters, signal, onUpdate, context)
   },
 
-  renderResult(result, options, theme, context) {
-    const filePath = context.args.path
-    const collapsed = renderWithMode('write', filePath, options, theme, {
-      isError: context.isError,
-      isPartial: context.isPartial,
-    })
-    if (collapsed) return collapsed
-
-    return renderPlainTextFallback(result, theme)
+  renderCall(args, theme, context) {
+    return renderToolCallWithMode('write', args.path, theme, context)
   },
+
+  renderResult: renderToolResultWithMode,
 })

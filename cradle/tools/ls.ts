@@ -9,8 +9,8 @@ import path from 'node:path'
 import { assertPermission } from '../config/settings.js'
 import { normalizePath } from '../utils/helpers.js'
 import {
-  renderPlainTextFallback,
-  renderWithMode,
+  renderToolCallWithMode,
+  renderToolResultWithMode,
 } from '../utils/tool-render.js'
 import { optionalNumber } from '../utils/typebox.js'
 
@@ -83,14 +83,9 @@ export const lsTool = defineTool({
     )
   },
 
-  renderResult(result, options, theme, context) {
-    const directoryPath = context.args.path
-    const collapsed = renderWithMode('ls', directoryPath, options, theme, {
-      isError: context.isError,
-      isPartial: context.isPartial,
-    })
-    if (collapsed) return collapsed
-
-    return renderPlainTextFallback(result, theme)
+  renderCall(args, theme, context) {
+    return renderToolCallWithMode('ls', args.path, theme, context)
   },
+
+  renderResult: renderToolResultWithMode,
 })

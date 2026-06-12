@@ -11,8 +11,8 @@ import {
   type RiskLevel,
 } from '../config/shell-risk.js'
 import {
-  renderPlainTextFallback,
-  renderWithMode,
+  renderToolCallWithMode,
+  renderToolResultWithMode,
 } from '../utils/tool-render.js'
 
 function resolveEffectiveRisk(
@@ -138,15 +138,14 @@ export const bashTool = defineTool({
     )
   },
 
-  renderResult(result, options, theme, context) {
-    const command = context.args.command
-    const keyArgs = `$ ${command.slice(0, 60)}`
-    const collapsed = renderWithMode('bash', keyArgs, options, theme, {
-      isError: context.isError,
-      isPartial: context.isPartial,
-    })
-    if (collapsed) return collapsed
-
-    return renderPlainTextFallback(result, theme)
+  renderCall(args, theme, context) {
+    return renderToolCallWithMode(
+      'bash',
+      `$ ${args.command.slice(0, 60)}`,
+      theme,
+      context,
+    )
   },
+
+  renderResult: renderToolResultWithMode,
 })

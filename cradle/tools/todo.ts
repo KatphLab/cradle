@@ -14,7 +14,11 @@ import {
   type TodoDetails,
   type TodoItem,
 } from '../utils/todo-state.js'
-import { renderPlainTextFallback } from '../utils/tool-render.js'
+import {
+  renderPlainTextFallback,
+  renderPreviewTextFallback,
+  shouldRenderFullToolResult,
+} from '../utils/tool-render.js'
 
 export interface TodoToolTodo {
   id: number
@@ -152,8 +156,12 @@ export const todoTool = defineTool({
   renderResult(result, options, theme, context) {
     const mode = getToolOutputMode()
 
-    if (options.expanded || mode === 'preview') {
+    if (shouldRenderFullToolResult(options)) {
       return renderPlainTextFallback(result, theme)
+    }
+
+    if (mode === 'preview') {
+      return renderPreviewTextFallback(result, theme)
     }
 
     if (mode === 'header-only') {

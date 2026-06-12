@@ -29,10 +29,11 @@ export interface ProjectSettings {
   permissions?: DirectoryPermission[]
 }
 
-export type ToolOutputMode = 'preview' | 'header-only' | 'hidden'
+export type ToolOutputMode = 'preview' | 'full' | 'header-only' | 'hidden'
 
 export const TOOL_OUTPUT_MODES: readonly ToolOutputMode[] = [
   'preview',
+  'full',
   'header-only',
   'hidden',
 ] as const
@@ -190,7 +191,12 @@ function normalizeApiKeys(value: unknown) {
 }
 
 function isToolOutputMode(value: unknown): value is ToolOutputMode {
-  return value === 'preview' || value === 'header-only' || value === 'hidden'
+  return (
+    value === 'preview' ||
+    value === 'full' ||
+    value === 'header-only' ||
+    value === 'hidden'
+  )
 }
 
 function normalizeToolOutputMode(raw: unknown): ToolOutputMode | undefined {
