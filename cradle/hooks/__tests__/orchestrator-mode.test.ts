@@ -1,18 +1,10 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ORCHESTRATOR_MODE_TOOLS } from '../../utils/orchestrator-state.js'
 import { registerOrchestratorModeHook } from '../orchestrator-mode.js'
 
 const ALL_TOOL_NAMES = ['read', 'write', 'bash']
-const ORCHESTRATOR_MODE_TOOLS = [
-  'read',
-  'glob',
-  'grep',
-  'ls',
-  'discover-agents',
-  'subagent',
-  'todo',
-]
 const DECISION_STOP_LINE = 'CRADLE_ORCHESTRATOR_DECISION: STOP'
 const DECISION_CONTINUE_LINE = 'CRADLE_ORCHESTRATOR_DECISION: CONTINUE'
 
