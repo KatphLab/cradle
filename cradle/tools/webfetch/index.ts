@@ -8,6 +8,7 @@ import {
   buildSubagentResult,
   executeToolSubagent,
 } from '../../utils/subagent-tool-helpers.js'
+import { renderCollapsedToolSummary } from '../../utils/tool-render.js'
 import { createExaProvider } from './providers/exa.js'
 import { createFirecrawlProvider } from './providers/firecrawl.js'
 import { createJinaProvider } from './providers/jina.js'
@@ -347,8 +348,16 @@ export const webFetchInternalTool = defineTool({
     )
   },
 
-  renderResult(result, { expanded }, theme) {
-    return renderWebFetchResult(result, expanded, theme)
+  renderResult(result, options, theme, context) {
+    const summary = renderCollapsedToolSummary(
+      'web_fetch',
+      '',
+      options,
+      theme,
+      context,
+    )
+    if (summary) return summary
+    return renderWebFetchResult(result, options.expanded, theme)
   },
 })
 

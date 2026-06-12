@@ -2,6 +2,7 @@ import type { Input, SelectList } from '@earendil-works/pi-tui'
 import type {
   DirectoryPermission,
   SubagentModels,
+  ToolOutputMode,
 } from '../../config/settings.js'
 import type { EditorTheme } from './constants.js'
 
@@ -9,6 +10,7 @@ export interface CradleSettingsResult {
   permissions: DirectoryPermission[]
   reminderTokenThreshold: number
   displaySystemReminder: boolean
+  toolOutputMode: ToolOutputMode
   subagentModels: SubagentModels
   advisorModel: string | undefined
   compactionModel: string | undefined
@@ -28,6 +30,7 @@ export interface EditorLike {
   getRows(): DirectoryPermission[]
   getReminderTokenThreshold(): number
   getDisplaySystemReminder(): boolean
+  getToolOutputMode(): ToolOutputMode
   getSubagentModels(): SubagentModels
   getCompactionModel(): string | undefined
   getFirecrawlApiKey(): string | undefined
@@ -47,6 +50,7 @@ export interface EditorLike {
   suggestions: string[]
   suggestionIndex: number
   displaySystemReminder: boolean
+  toolOutputMode: ToolOutputMode
 
   // ── callbacks ─────────────────────────────────────────────
   onSave?: (result: CradleSettingsResult) => void
@@ -81,6 +85,7 @@ export interface EditorLike {
   // ── initial snapshot values ───────────────────────────────
   readonly initialTokenThreshold: number
   readonly initialDisplaySystemReminder: boolean
+  readonly initialToolOutputMode: ToolOutputMode
   readonly initialSubagentModels: SubagentModels
   readonly initialAdvisorModel: string | undefined
   readonly initialCompactionModel: string | undefined

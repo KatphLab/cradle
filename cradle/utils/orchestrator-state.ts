@@ -9,6 +9,9 @@ export const ORCHESTRATOR_MODE_TOOLS = [
   'discover-agents',
   'subagent',
   'todo',
+  'iterative_retrieval',
+  'webfetch',
+  'websearch',
 ]
 
 export interface OrchestratorModeState {

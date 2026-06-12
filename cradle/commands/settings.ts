@@ -97,6 +97,7 @@ export function registerSettingsCommand(
       const globalToSave: GlobalSettings = {
         reminderTokenThreshold: result.reminderTokenThreshold,
         displaySystemReminder: result.displaySystemReminder,
+        toolOutputMode: result.toolOutputMode,
         subagentModels: result.subagentModels,
       }
       if (result.advisorModel !== undefined) {

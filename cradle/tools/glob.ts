@@ -7,6 +7,10 @@ import { glob, stat } from 'node:fs/promises'
 import path from 'node:path'
 
 import { resolveSearchPath } from '../utils/helpers.js'
+import {
+  renderPlainTextFallback,
+  renderWithMode,
+} from '../utils/tool-render.js'
 import { optionalNumber, optionalString } from '../utils/typebox.js'
 
 /** @public */
@@ -71,5 +75,16 @@ export const globTool = defineTool({
       onUpdate,
       context,
     )
+  },
+
+  renderResult(result, options, theme, context) {
+    const pattern = context.args.pattern
+    const collapsed = renderWithMode('glob', pattern, options, theme, {
+      isError: context.isError,
+      isPartial: context.isPartial,
+    })
+    if (collapsed) return collapsed
+
+    return renderPlainTextFallback(result, theme)
   },
 })

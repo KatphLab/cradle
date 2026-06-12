@@ -6,6 +6,7 @@ import type {
   GlobalSettings,
   ProjectSettings,
   SubagentModels,
+  ToolOutputMode,
 } from '../../config/settings.js'
 import { createApiKeyInput, getApiKeyValue } from './api-keys.js'
 import type { EditorTheme } from './constants.js'
@@ -30,6 +31,7 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
   readonly tokenThresholdInput: Input
   readonly subagentModels: SubagentModels
   displaySystemReminder: boolean
+  toolOutputMode: ToolOutputMode
   advisorModel: string | undefined
   compactionModel: string | undefined
   firecrawlApiKey: string | undefined
@@ -52,6 +54,7 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
    */
   readonly initialTokenThreshold: number
   readonly initialDisplaySystemReminder: boolean
+  readonly initialToolOutputMode: ToolOutputMode
   readonly availableModels: string[]
   readonly initialSubagentModels: SubagentModels
   readonly initialAdvisorModel: string | undefined
@@ -94,9 +97,11 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
     ;({
       tokenThreshold: this.initialTokenThreshold,
       displaySystemReminder: this.displaySystemReminder,
+      toolOutputMode: this.toolOutputMode,
       subagentModels: this.subagentModels,
       initialSubagentModels: this.initialSubagentModels,
       initialDisplaySystemReminder: this.initialDisplaySystemReminder,
+      initialToolOutputMode: this.initialToolOutputMode,
       advisorModel: this.advisorModel,
       initialAdvisorModel: this.initialAdvisorModel,
       compactionModel: this.compactionModel,
@@ -140,6 +145,9 @@ export class CradleSettingsEditor implements Component, Focusable, EditorLike {
   }
   getDisplaySystemReminder(): boolean {
     return this.displaySystemReminder
+  }
+  getToolOutputMode(): ToolOutputMode {
+    return this.toolOutputMode
   }
   getSubagentModels(): SubagentModels {
     return { ...this.subagentModels }

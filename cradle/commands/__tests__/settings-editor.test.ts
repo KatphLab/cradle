@@ -73,28 +73,31 @@ describe('CradleSettingsEditor — input', () => {
     down()
     expect(editor.getSelectedRow()).toBe(3) // token threshold
     down()
-    expect(editor.getSelectedRow()).toBe(4) // display system reminder
+    expect(editor.getSelectedRow()).toBe(4) // tool output mode
     down()
-    expect(editor.getSelectedRow()).toBe(5) // low model
+    expect(editor.getSelectedRow()).toBe(5) // display system reminder
     down()
-    expect(editor.getSelectedRow()).toBe(6) // medium
+    expect(editor.getSelectedRow()).toBe(6) // low model
     down()
-    expect(editor.getSelectedRow()).toBe(7) // high
+    expect(editor.getSelectedRow()).toBe(7) // medium
     down()
-    expect(editor.getSelectedRow()).toBe(8) // advisor
+    expect(editor.getSelectedRow()).toBe(8) // high
     down()
-    expect(editor.getSelectedRow()).toBe(9) // compaction model
+    expect(editor.getSelectedRow()).toBe(9) // advisor
     down()
-    expect(editor.getSelectedRow()).toBe(10) // firecrawl API key
+    expect(editor.getSelectedRow()).toBe(10) // compaction model
     down()
-    expect(editor.getSelectedRow()).toBe(11) // tavily API key
+    expect(editor.getSelectedRow()).toBe(11) // firecrawl API key
     down()
-    expect(editor.getSelectedRow()).toBe(12) // exa API key
+    expect(editor.getSelectedRow()).toBe(12) // tavily API key
     down()
-    expect(editor.getSelectedRow()).toBe(13) // jina API key
+    expect(editor.getSelectedRow()).toBe(13) // exa API key
     down()
-    expect(editor.getSelectedRow()).toBe(13) // stops at bottom
+    expect(editor.getSelectedRow()).toBe(14) // jina API key
+    down()
+    expect(editor.getSelectedRow()).toBe(14) // stops at bottom
 
+    up()
     up()
     up()
     up()
@@ -213,6 +216,7 @@ describe('CradleSettingsEditor — keys', () => {
       permissions: [],
       reminderTokenThreshold: 6000,
       displaySystemReminder: true,
+      toolOutputMode: 'preview',
       subagentModels: {},
       advisorModel: undefined,
       compactionModel: undefined,
@@ -313,6 +317,7 @@ describe('CradleSettingsEditor — model select list', () => {
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
+    editor.handleInput('\u001B[B')
     editor.handleInput('\r')
     expect(editor.getSelectList()).toBeDefined()
   })
@@ -323,6 +328,7 @@ describe('CradleSettingsEditor — model select list', () => {
       { id: 'b', name: 'B', provider: 'test' },
     ])
     editor.tuiRequestRender = vi.fn()
+    editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
@@ -357,7 +363,8 @@ describe('CradleSettingsEditor — model select list', () => {
       { id: 'b', name: 'B', provider: 'test' },
     ])
     editor.tuiRequestRender = vi.fn()
-    // Navigate down to advisor model row (row 6 with empty permissions)
+    // Navigate down to advisor model row (row 7 with empty permissions)
+    editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
@@ -374,7 +381,8 @@ describe('CradleSettingsEditor — model select list', () => {
       { id: 'b', name: 'B', provider: 'test' },
     ])
     editor.tuiRequestRender = vi.fn()
-    // Navigate down to advisor model row (row 6 with empty permissions)
+    // Navigate down to advisor model row (row 7 with empty permissions)
+    editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
@@ -397,6 +405,7 @@ describe('CradleSettingsEditor — model select list', () => {
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
+    editor.handleInput('\u001B[B')
     editor.handleInput('\r')
     expect(editor.getSelectList()).toBeDefined()
     editor.handleInput('\u001B')
@@ -410,6 +419,7 @@ describe('CradleSettingsEditor — model select list', () => {
       { id: 'b', name: 'B', provider: 'test' },
     ])
     editor.tuiRequestRender = vi.fn()
+    editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
@@ -433,6 +443,7 @@ describe('CradleSettingsEditor — model select list', () => {
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
+    editor.handleInput('\u001B[B')
     editor.handleInput('\r')
     const lines = editor.render(80)
     expect(lines.some((line) => line.includes('A') || line.includes('B'))).toBe(
@@ -453,6 +464,7 @@ describe('CradleSettingsEditor — model select list', () => {
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
+    editor.handleInput('\u001B[B')
     editor.handleInput('\r')
     const lines = editor.render(80)
     expect(lines.some((line) => line.includes('A') || line.includes('B'))).toBe(
@@ -466,6 +478,7 @@ describe('CradleSettingsEditor — system reminder settings', () => {
     const editor = makeEditor()
     expect(editor.getDisplaySystemReminder()).toBe(true)
 
+    editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
     editor.handleInput('\u001B[B')
     editor.handleInput(' ')
@@ -495,6 +508,7 @@ describe('CradleSettingsEditor — system reminder settings', () => {
       permissions: [],
       reminderTokenThreshold: 50_000,
       displaySystemReminder: true,
+      toolOutputMode: 'preview',
       subagentModels: {},
       advisorModel: undefined,
       compactionModel: undefined,
@@ -520,8 +534,8 @@ describe('CradleSettingsEditor — exa API key', () => {
   it('detects dirty on key change', () => {
     const editor = makeEditor({}, { exaApiKey: 'old-key' })
     expect(editor.isDirty()).toBe(false)
-    // Navigate to exa API key row (rows.length + 10 = 10)
-    for (let index = 0; index < 10; index++) {
+    // Navigate to exa API key row (rows.length + 11 = 11)
+    for (let index = 0; index < 11; index++) {
       editor.handleInput('\u001B[B')
     }
     editor.handleInput('n')
@@ -533,7 +547,7 @@ describe('CradleSettingsEditor — exa API key', () => {
     const editor = makeEditor()
     editor.onSave = saveSpy
     // Navigate to exa API key row and type
-    for (let index = 0; index < 10; index++) {
+    for (let index = 0; index < 11; index++) {
       editor.handleInput('\u001B[B')
     }
     editor.handleInput('e')

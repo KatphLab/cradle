@@ -3,6 +3,7 @@ import type { Input, SelectList } from '@earendil-works/pi-tui'
 import type {
   DirectoryPermission,
   SubagentModels,
+  ToolOutputMode,
 } from '../../config/settings.js'
 
 export interface EditorTheme {
@@ -26,6 +27,7 @@ export interface EditorState {
   readonly jinaApiKey: string | undefined
   readonly subagentModels: SubagentModels
   readonly displaySystemReminder: boolean
+  readonly toolOutputMode: ToolOutputMode
   readonly advisorModel: string | undefined
   readonly compactionModel: string | undefined
   readonly modelDisplayNames: Map<string, string>
@@ -34,6 +36,7 @@ export interface EditorState {
   readonly suggestions: string[]
   readonly suggestionIndex: number
   isDirty(): boolean
+  getToolOutputMode(): ToolOutputMode
   getSelectList(): SelectList | undefined
 }
 
@@ -56,4 +59,5 @@ export const TIER_LABELS: Record<'low' | 'medium' | 'high', string> = {
 }
 export const ADVISOR_MODEL_LABEL = 'Advisor Model'
 export const COMPACTION_MODEL_LABEL = 'Compaction Model'
+export const TOOL_OUTPUT_MODE_LABEL = 'Tool Output Mode'
 export const SEARCH_API_KEYS_LABEL = 'Search API Keys'

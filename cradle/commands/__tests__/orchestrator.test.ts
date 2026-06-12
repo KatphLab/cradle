@@ -4,6 +4,7 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ORCHESTRATOR_MODE_TOOLS } from '../../utils/orchestrator-state.js'
 import {
   registerOrchestratorCommand,
   setOrchestratorModeEnabled,
@@ -12,15 +13,6 @@ import {
 type ToolInfo = ReturnType<ExtensionAPI['getAllTools']>[number]
 
 const ALL_TOOL_NAMES = ['read', 'write']
-const ORCHESTRATOR_MODE_TOOLS = [
-  'read',
-  'glob',
-  'grep',
-  'ls',
-  'discover-agents',
-  'subagent',
-  'todo',
-]
 
 function createToolInfo(name: string): ToolInfo {
   return {
