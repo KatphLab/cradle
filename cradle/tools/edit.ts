@@ -7,6 +7,10 @@ import path from 'node:path'
 
 import { assertPermission } from '../config/settings.js'
 import { normalizePath } from '../utils/helpers.js'
+import {
+  renderPlainTextFallback,
+  renderWithMode,
+} from '../utils/tool-render.js'
 
 /** @public */
 export const editTool = defineTool({
@@ -51,5 +55,16 @@ export const editTool = defineTool({
 
     const piEdit = createEditToolDefinition(context.cwd)
     return piEdit.execute(toolCallId, parameters, signal, onUpdate, context)
+  },
+
+  renderResult(result, options, theme, context) {
+    const filePath = context.args.path
+    const collapsed = renderWithMode('edit', filePath, options, theme, {
+      isError: context.isError,
+      isPartial: context.isPartial,
+    })
+    if (collapsed) return collapsed
+
+    return renderPlainTextFallback(result, theme)
   },
 })

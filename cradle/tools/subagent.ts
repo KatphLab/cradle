@@ -1,6 +1,8 @@
 import { defineTool } from '@earendil-works/pi-coding-agent'
+
 import { discoverAgents } from '../lib/subagents/agents.js'
 import type { AgentConfig } from '../lib/subagents/types.js'
+import { renderCollapsedToolSummary } from '../utils/tool-render.js'
 import {
   handleChainMode,
   handleParallelMode,
@@ -98,7 +100,15 @@ export const subagentTool = defineTool({
     return buildRenderCall(args, theme)
   },
 
-  renderResult(result, { expanded }, theme) {
-    return buildRenderResult(result, expanded, theme)
+  renderResult(result, options, theme, context) {
+    const summary = renderCollapsedToolSummary(
+      'subagent',
+      '',
+      options,
+      theme,
+      context,
+    )
+    if (summary) return summary
+    return buildRenderResult(result, options.expanded, theme)
   },
 })

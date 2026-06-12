@@ -4,6 +4,7 @@ import { registerOrchestratorCommand } from './commands/orchestrator.js'
 import { registerSettingsCommand } from './commands/settings.js'
 import { registerSpecCommand } from './commands/spec.js'
 import { registerStatsCommand } from './commands/stats.js'
+import { initToolOutputModeCache } from './config/settings.js'
 import { registerCompactionHook } from './hooks/compaction.js'
 import { registerOrchestratorModeHook } from './hooks/orchestrator-mode.js'
 import { registerShellHook } from './hooks/shell.js'
@@ -68,6 +69,9 @@ export default function configureExtension(
 
   registerSettingsCommand(pi)
   registerStatsCommand(pi)
+
+  void initToolOutputModeCache()
+
   registerSpecCommand(pi, specModeState)
   registerOrchestratorCommand(pi, orchestratorModeState)
   registerShellHook(pi)

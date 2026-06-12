@@ -2,8 +2,11 @@ import { Type } from '@earendil-works/pi-ai'
 import {
   buildSessionContext,
   defineTool,
+  type Theme,
 } from '@earendil-works/pi-coding-agent'
+import { Text } from '@earendil-works/pi-tui'
 
+import { getToolOutputMode } from '../config/settings.js'
 import {
   computeTodoDeltas,
   formatTodoList,
@@ -11,6 +14,7 @@ import {
   type TodoDetails,
   type TodoItem,
 } from '../utils/todo-state.js'
+import { renderPlainTextFallback } from '../utils/tool-render.js'
 
 export interface TodoToolTodo {
   id: number
@@ -48,6 +52,60 @@ function toTodoItems(parameters: TodoToolParameters): TodoItem[] {
       status: todo.status,
     }))
     .toSorted((a, b) => a.id - b.id)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function getTodoCount(details: unknown): number {
+  if (!isRecord(details)) return 0
+  const todos = details['todos']
+  return Array.isArray(todos) ? todos.length : 0
+}
+
+function getTodoStatusText(
+  isError: boolean | undefined,
+  isPartial: boolean,
+  theme: Theme,
+): string {
+  if (isError === true) return theme.fg('error', '✗')
+  if (isPartial) return theme.fg('warning', '…')
+  return ''
+}
+
+function getTodoHiddenStatusIcon(
+  isError: boolean | undefined,
+  isPartial: boolean,
+  theme: Theme,
+): string {
+  const status = getTodoStatusText(isError, isPartial, theme)
+  return status.length > 0 ? status : theme.fg('success', '✓')
+}
+
+function formatTodoHeaderOnly(
+  details: unknown,
+  isError: boolean,
+  isPartial: boolean,
+  theme: Theme,
+): Text {
+  const countLabel = theme.fg(
+    'accent',
+    `${String(getTodoCount(details))} items`,
+  )
+  const status = getTodoStatusText(isError, isPartial, theme)
+  const header = `${theme.fg('toolTitle', theme.bold('todo'))} ${countLabel}`
+  const finalText = status.length > 0 ? `${header} ${status}` : header
+  return new Text(finalText, 0, 0)
+}
+
+function formatTodoHidden(
+  isError: boolean,
+  isPartial: boolean,
+  theme: Theme,
+): Text {
+  const icon = getTodoHiddenStatusIcon(isError, isPartial, theme)
+  return new Text(`${icon} ${theme.fg('toolTitle', 'todo')}`, 0, 0)
 }
 
 /** @public */
@@ -89,5 +147,24 @@ export const todoTool = defineTool({
       content: [{ type: 'text', text: formatTodoList(currentTodos) }],
       details: { todos: currentTodos, changed },
     })
+  },
+
+  renderResult(result, options, theme, context) {
+    const mode = getToolOutputMode()
+
+    if (options.expanded || mode === 'preview') {
+      return renderPlainTextFallback(result, theme)
+    }
+
+    if (mode === 'header-only') {
+      return formatTodoHeaderOnly(
+        result.details,
+        context.isError,
+        options.isPartial,
+        theme,
+      )
+    }
+
+    return formatTodoHidden(context.isError, options.isPartial, theme)
   },
 })

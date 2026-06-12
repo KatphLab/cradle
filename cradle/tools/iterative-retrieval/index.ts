@@ -12,6 +12,7 @@ import {
   executeToolSubagent,
   getSubagentFailureText,
 } from '../../utils/subagent-tool-helpers.js'
+import { renderCollapsedToolSummary } from '../../utils/tool-render.js'
 import { buildRenderCall, renderIterativeRetrievalResult } from './render.js'
 import {
   DEFAULT_LIMIT,
@@ -254,7 +255,15 @@ export const iterativeRetrievalTool = defineTool({
     return buildRenderCall(args, theme)
   },
 
-  renderResult(result, { expanded }, theme) {
-    return renderIterativeRetrievalResult(result, expanded, theme)
+  renderResult(result, options, theme, context) {
+    const summary = renderCollapsedToolSummary(
+      'iterative_retrieval',
+      '',
+      options,
+      theme,
+      context,
+    )
+    if (summary) return summary
+    return renderIterativeRetrievalResult(result, options.expanded, theme)
   },
 })

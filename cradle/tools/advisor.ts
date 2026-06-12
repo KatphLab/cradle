@@ -2,6 +2,7 @@ import { defineTool } from '@earendil-works/pi-coding-agent'
 import { Text } from '@earendil-works/pi-tui'
 import { Type, type Static } from 'typebox'
 import { getOptionalString, isRecord } from '../utils/helpers.js'
+import { renderCollapsedToolSummary } from '../utils/tool-render.js'
 import {
   buildAdvisorRenderCall,
   buildAdvisorRenderResult,
@@ -152,7 +153,15 @@ export const advisorTool = defineTool({
     return buildAdvisorRenderCall(parameters, theme)
   },
 
-  renderResult(result, { expanded }, theme) {
-    return buildAdvisorRenderResult(result, expanded, theme)
+  renderResult(result, options, theme, context) {
+    const summary = renderCollapsedToolSummary(
+      'advisor',
+      '',
+      options,
+      theme,
+      context,
+    )
+    if (summary) return summary
+    return buildAdvisorRenderResult(result, options.expanded, theme)
   },
 })

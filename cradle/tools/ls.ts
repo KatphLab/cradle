@@ -8,6 +8,10 @@ import path from 'node:path'
 
 import { assertPermission } from '../config/settings.js'
 import { normalizePath } from '../utils/helpers.js'
+import {
+  renderPlainTextFallback,
+  renderWithMode,
+} from '../utils/tool-render.js'
 import { optionalNumber } from '../utils/typebox.js'
 
 function shouldIgnore(entry: string, patterns: string[]): boolean {
@@ -77,5 +81,16 @@ export const lsTool = defineTool({
       onUpdate,
       context,
     )
+  },
+
+  renderResult(result, options, theme, context) {
+    const directoryPath = context.args.path
+    const collapsed = renderWithMode('ls', directoryPath, options, theme, {
+      isError: context.isError,
+      isPartial: context.isPartial,
+    })
+    if (collapsed) return collapsed
+
+    return renderPlainTextFallback(result, theme)
   },
 })

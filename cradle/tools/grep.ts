@@ -5,6 +5,10 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import { resolveSearchPath } from '../utils/helpers.js'
 import {
+  renderPlainTextFallback,
+  renderWithMode,
+} from '../utils/tool-render.js'
+import {
   optionalBoolean,
   optionalNumber,
   optionalString,
@@ -38,5 +42,16 @@ export const grepTool = defineTool({
 
     const piGrep = createGrepToolDefinition(context.cwd)
     return piGrep.execute(toolCallId, parameters, signal, onUpdate, context)
+  },
+
+  renderResult(result, options, theme, context) {
+    const pattern = context.args.pattern
+    const collapsed = renderWithMode('grep', pattern, options, theme, {
+      isError: context.isError,
+      isPartial: context.isPartial,
+    })
+    if (collapsed) return collapsed
+
+    return renderPlainTextFallback(result, theme)
   },
 })

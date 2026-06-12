@@ -3,6 +3,7 @@ import { Key, matchesKey } from '@earendil-works/pi-tui'
 import {
   MAX_REMINDER_TOKEN_THRESHOLD,
   MIN_REMINDER_TOKEN_THRESHOLD,
+  TOOL_OUTPUT_MODES,
 } from '../../config/settings.js'
 import { API_KEY_EXTRA_ROW_COUNT, API_KEY_FIELDS } from './api-keys.js'
 import {
@@ -28,6 +29,7 @@ function tryHandleSave(editor: EditorLike, data: string): boolean {
       permissions: editor.getRows(),
       reminderTokenThreshold: clampedTokenThreshold,
       displaySystemReminder: editor.getDisplaySystemReminder(),
+      toolOutputMode: editor.getToolOutputMode(),
       subagentModels: editor.getSubagentModels(),
       advisorModel: editor.advisorModel,
       compactionModel: editor.compactionModel,
@@ -125,7 +127,7 @@ function tryHandleNavigation(editor: EditorLike, data: string): boolean {
 }
 
 function moveDown(editor: EditorLike): boolean {
-  const maxRow = editor.rows.length + 7 + API_KEY_EXTRA_ROW_COUNT
+  const maxRow = editor.rows.length + 8 + API_KEY_EXTRA_ROW_COUNT
   if (editor.selectedRow < maxRow) {
     editor.selectedRow++
     const isNowOnDataRow = editor.selectedRow < editor.rows.length
@@ -170,6 +172,17 @@ function tryHandleCancel(editor: EditorLike, data: string): boolean {
   return false
 }
 
+function cycleToolOutputMode(editor: EditorLike): boolean {
+  const currentIndex = TOOL_OUTPUT_MODES.indexOf(editor.toolOutputMode)
+  const nextMode =
+    TOOL_OUTPUT_MODES[(currentIndex + 1) % TOOL_OUTPUT_MODES.length]
+  if (nextMode === undefined) return false
+  editor.toolOutputMode = nextMode
+  editor.dirty = true
+  editor.tuiRequestRender?.()
+  return true
+}
+
 function tryHandleToggle(editor: EditorLike, data: string): boolean {
   if (!matchesKey(data, Key.space) && !matchesKey(data, Key.enter)) {
     return false
@@ -184,6 +197,9 @@ function tryHandleToggle(editor: EditorLike, data: string): boolean {
     return true
   }
   if (editor.selectedRow === editor.rows.length + 2) {
+    return cycleToolOutputMode(editor)
+  }
+  if (editor.selectedRow === editor.rows.length + 3) {
     editor.displaySystemReminder = !editor.displaySystemReminder
     editor.dirty = true
     editor.tuiRequestRender?.()
@@ -193,7 +209,7 @@ function tryHandleToggle(editor: EditorLike, data: string): boolean {
 }
 
 function tryHandleModelToggle(editor: EditorLike): boolean {
-  const relativeRow = editor.selectedRow - (editor.rows.length + 3)
+  const relativeRow = editor.selectedRow - (editor.rows.length + 4)
   if (relativeRow >= 0 && relativeRow <= 2) {
     openModelSelect(editor, getTierFromRow(editor, editor.selectedRow))
     editor.tuiRequestRender?.()
@@ -216,7 +232,7 @@ function getTierFromRow(
   editor: EditorLike,
   rowIndex: number,
 ): 'low' | 'medium' | 'high' {
-  const offset = rowIndex - (editor.rows.length + 3)
+  const offset = rowIndex - (editor.rows.length + 4)
   const tiers = ['low', 'medium', 'high'] as const
   return tiers[offset] ?? 'low'
 }

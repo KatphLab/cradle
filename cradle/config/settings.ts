@@ -29,9 +29,20 @@ export interface ProjectSettings {
   permissions?: DirectoryPermission[]
 }
 
+export type ToolOutputMode = 'preview' | 'header-only' | 'hidden'
+
+export const TOOL_OUTPUT_MODES: readonly ToolOutputMode[] = [
+  'preview',
+  'header-only',
+  'hidden',
+] as const
+
+export const DEFAULT_TOOL_OUTPUT_MODE: ToolOutputMode = 'preview'
+
 export interface GlobalSettings {
   reminderTokenThreshold?: number
   displaySystemReminder?: boolean
+  toolOutputMode?: ToolOutputMode
   subagentModels?: SubagentModels
   advisorModel?: string
   compactionModel?: string
@@ -178,6 +189,14 @@ function normalizeApiKeys(value: unknown) {
   }
 }
 
+function isToolOutputMode(value: unknown): value is ToolOutputMode {
+  return value === 'preview' || value === 'header-only' || value === 'hidden'
+}
+
+function normalizeToolOutputMode(raw: unknown): ToolOutputMode | undefined {
+  return isToolOutputMode(raw) ? raw : undefined
+}
+
 function normalizeGlobalSettings(value: unknown): GlobalSettings {
   if (!isRecord(value)) return {}
 
@@ -187,6 +206,7 @@ function normalizeGlobalSettings(value: unknown): GlobalSettings {
   const displaySystemReminder = normalizeDisplaySystemReminder(
     value['displaySystemReminder'],
   )
+  const toolOutputMode = normalizeToolOutputMode(value['toolOutputMode'])
 
   const rawSubagentModels = value['subagentModels']
   const subagentModels = isSubagentModels(rawSubagentModels)
@@ -200,11 +220,24 @@ function normalizeGlobalSettings(value: unknown): GlobalSettings {
   return {
     ...(reminderTokenThreshold !== undefined && { reminderTokenThreshold }),
     ...(displaySystemReminder !== undefined && { displaySystemReminder }),
+    ...(toolOutputMode !== undefined && { toolOutputMode }),
     ...(subagentModels !== undefined && { subagentModels }),
     ...(advisorModel !== undefined && { advisorModel }),
     ...(compactionModel !== undefined && { compactionModel }),
     ...apiKeys,
   }
+}
+
+let cachedToolOutputMode: ToolOutputMode = DEFAULT_TOOL_OUTPUT_MODE
+
+/** Synchronous accessor for the cached tool output mode. Reads from global settings once at startup. */
+export function getToolOutputMode(): ToolOutputMode {
+  return cachedToolOutputMode
+}
+
+/** @internal Test helper for render-only unit tests. */
+export function setToolOutputModeForTests(mode: ToolOutputMode): void {
+  cachedToolOutputMode = mode
 }
 
 /** @public */
@@ -240,6 +273,12 @@ export async function loadCradleSettings(
     loadGlobalSettings(),
   ])
   return { ...global, ...project }
+}
+
+/** Load global settings and warm the tool output mode cache. Call once at startup. */
+export async function initToolOutputModeCache(): Promise<void> {
+  const settings = await loadGlobalSettings()
+  cachedToolOutputMode = settings.toolOutputMode ?? DEFAULT_TOOL_OUTPUT_MODE
 }
 
 function getEarendilWorksDirectories(): string[] {
