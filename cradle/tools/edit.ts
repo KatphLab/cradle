@@ -26,6 +26,7 @@ export const editTool = defineTool({
     'Use multiple edits[] entries for separate changes in one file, and merge nearby or touching changes into one entry.',
     'The edit matcher tolerates trailing whitespace and common Unicode quote, dash, and space differences, so do not fall back to write just because exact formatting is uncertain.',
   ],
+  renderShell: 'default',
   parameters: Type.Object({
     path: Type.String({
       description: 'Path to the existing file to edit (relative or absolute)',

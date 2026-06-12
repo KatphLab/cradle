@@ -7,7 +7,10 @@ import {
   buildSubagentResult,
   executeToolSubagent,
 } from '../../utils/subagent-tool-helpers.js'
-import { renderCollapsedToolSummary } from '../../utils/tool-render.js'
+import {
+  renderCollapsedToolSummary,
+  shouldRenderFullToolResult,
+} from '../../utils/tool-render.js'
 import { createExaSearchProvider } from './providers/exa.js'
 import { createFirecrawlSearchProvider } from './providers/firecrawl.js'
 import { createTavilySearchProvider } from './providers/tavily.js'
@@ -159,7 +162,11 @@ export const webSearchInternalTool = defineTool({
       context,
     )
     if (summary) return summary
-    return renderWebSearchResult(result, options.expanded, theme)
+    return renderWebSearchResult(
+      result,
+      shouldRenderFullToolResult(options),
+      theme,
+    )
   },
 })
 
