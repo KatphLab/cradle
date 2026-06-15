@@ -82,13 +82,7 @@ function buildPiArgs(
   task: string,
   resolvedModel: string | undefined,
 ): string[] {
-  const args: string[] = [
-    '--mode',
-    'json',
-    '-p',
-    '--no-session',
-    '--no-context-files',
-  ]
+  const args: string[] = ['--mode', 'json', '-p', '--no-context-files']
   if (resolvedModel) args.push('--model', resolvedModel)
   if (agent.tools && agent.tools.length > 0)
     args.push('--tools', agent.tools.join(','))
