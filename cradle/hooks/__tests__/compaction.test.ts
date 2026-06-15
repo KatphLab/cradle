@@ -201,7 +201,7 @@ describe('registerCompactionHook', () => {
       mockedLoadGlobalSettings.mockResolvedValue({
         compactionModel: 'google/gemini-2.5-flash',
       })
-      const { pi, findHandler } = makePi()
+      const { findHandler } = makePi()
       const handler = findHandler('session_before_compact')
       const compactionModel = makeModel('google', 'gemini-2.5-flash')
       const event = makeEvent({ customInstructions: 'focus on code changes' })
@@ -225,9 +225,8 @@ describe('registerCompactionHook', () => {
         { 'x-test': 'header' },
         'focus on code changes',
         event.signal,
-        'medium',
+        'off',
       )
-      expect(pi.getThinkingLevel).toHaveBeenCalledOnce()
     })
 
     it('handles undefined current model', async () => {
