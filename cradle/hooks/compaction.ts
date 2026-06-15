@@ -11,9 +11,7 @@ function getModelRef(
 }
 
 /** @public */
-export function registerCompactionHook(
-  pi: Pick<ExtensionAPI, 'getThinkingLevel' | 'on'>,
-): void {
+export function registerCompactionHook(pi: Pick<ExtensionAPI, 'on'>): void {
   pi.on('session_before_compact', async (event, context) => {
     const settings = await loadGlobalSettings()
     const targetModelRaw = settings.compactionModel
@@ -62,7 +60,7 @@ export function registerCompactionHook(
       auth.headers,
       event.customInstructions,
       event.signal,
-      pi.getThinkingLevel(),
+      'off',
     )
 
     return { compaction }

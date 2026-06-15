@@ -215,7 +215,6 @@ describe('runSingleAgent', () => {
       '--mode',
       'json',
       '-p',
-      '--no-session',
       '--no-context-files',
       '--tools',
       'read,write',
@@ -307,21 +306,12 @@ describe('runSingleAgent', () => {
       '--mode',
       'json',
       '-p',
-      '--no-session',
       '--no-context-files',
       'Task: do work',
     ])
     expect(spawn).toHaveBeenCalledWith(
       'pi-bin',
-      [
-        'run',
-        '--mode',
-        'json',
-        '-p',
-        '--no-session',
-        '--no-context-files',
-        'Task: do work',
-      ],
+      ['run', '--mode', 'json', '-p', '--no-context-files', 'Task: do work'],
       expect.objectContaining({ cwd: '/repo' }),
     )
     expect(result).toMatchObject({
