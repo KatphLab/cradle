@@ -113,7 +113,13 @@ describe('registerSystemReminderHook', () => {
       'Some system prompt without reminder tags',
     )
     expect(result?.message?.content).toContain(
-      'Always use the todo tool to break tasks into concrete steps and track progress.',
+      "Before any file edit or write, quote the user's exact words that asked for that change.",
+    )
+    expect(result?.message?.content).toContain(
+      'The todo list tracks only what the user explicitly asked for; it is not your private implementation plan.',
+    )
+    expect(result?.message?.content).toContain(
+      'If you are stuck, unsure, or about to overreach beyond the explicit request, ask the advisor or user before acting.',
     )
   })
 
