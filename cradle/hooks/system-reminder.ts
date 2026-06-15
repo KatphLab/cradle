@@ -17,7 +17,7 @@ const SYSTEM_REMINDER_TOKEN_LIMIT = 500
 export const CONTINUE_AFTER_REMINDER_PROMPT =
   "You have been working for too long. Re-read and quote the user's original request before continuing. If you are stuck, unsure, or about to take an action the user did not explicitly request, ask the user or advisor first. Otherwise, continue with only the requested work."
 
-const DEFAULT_SYSTEM_REMINDER = [
+export const DEFAULT_SYSTEM_REMINDER = [
   "Before any file edit or write, quote the user's exact words that asked for that change. If you cannot quote them, stop and ask first.",
   'The todo list tracks only your private implementation plan. Do not use it to respond to system reminder, check actual user message.',
   "Before acting, separate the user's request from your plan. If an action was not explicitly requested, stop and ask first.",
