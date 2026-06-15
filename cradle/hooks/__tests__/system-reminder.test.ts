@@ -19,6 +19,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {
   CONTINUE_AFTER_REMINDER_PROMPT,
+  DEFAULT_SYSTEM_REMINDER,
   registerSystemReminderHook,
 } from '../system-reminder.js'
 import {
@@ -112,9 +113,7 @@ describe('registerSystemReminderHook', () => {
     expect(result?.systemPrompt).toBe(
       'Some system prompt without reminder tags',
     )
-    expect(result?.message?.content).toContain(
-      'Always use the todo tool to break tasks into concrete steps and track progress.',
-    )
+    expect(result?.message?.content).toContain(DEFAULT_SYSTEM_REMINDER[0])
   })
 
   it('removes stale reminders from context', async () => {
