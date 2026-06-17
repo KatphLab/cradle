@@ -18,9 +18,10 @@ export const CONTINUE_AFTER_REMINDER_PROMPT =
   "You have been working for too long. Re-read and quote the user's original request before continuing. If you are stuck, unsure, or about to take an action the user did not explicitly request, ask the user or advisor first. Otherwise, continue with only the requested work."
 
 export const DEFAULT_SYSTEM_REMINDER = [
-  "Before any file edit or write, quote the user's exact words that asked for that change. If you cannot quote them, stop and ask first.",
+  "Before any file edit, write, or bash command that modifies state (git config, installs, etc.), quote the user's exact words that asked for that change. If you cannot quote them, stop and ask first.",
   'The todo list tracks only your private implementation plan. Do not use it to respond to system reminder, check actual user message.',
   "Before acting, separate the user's request from your plan. If an action was not explicitly requested, stop and ask first.",
+  'Blockers are boundaries, not speed bumps. If a command fails (e.g., missing git config, missing dependency, permission error), that is a signal to stop and report — not an invitation to fix the blocker yourself. A prerequisite action requires separate approval.',
   "Periodically re-read the user's original words, not just your todo list, and confirm you are still on track.",
   'If you are stuck, unsure, or about to overreach beyond the explicit request, ask the advisor or user before acting.',
 ].join('\n')
