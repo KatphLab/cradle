@@ -260,13 +260,28 @@ export function isFailedResult(result: SingleResult): boolean {
   )
 }
 
+function formatSessionHint(result: SingleResult): string {
+  const session = result.session
+  if (session === undefined) return ''
+  return [
+    '',
+    'Subagent session:',
+    `- id: ${session.id}`,
+    `- cwd: ${session.cwd}`,
+    `- inspect: ${session.inspectCommand}`,
+    `- continue: ${session.continueHint}`,
+  ].join('\n')
+}
+
 export function getResultOutput(result: SingleResult): string {
+  let output = ''
   if (isFailedResult(result)) {
-    if (result.errorMessage) return result.errorMessage
-    if (result.stderr) return result.stderr
+    output = result.errorMessage ?? result.stderr
   }
-  const output = getFinalOutput(result.messages)
-  return output || '(no output)'
+  if (!output) output = getFinalOutput(result.messages)
+  const sessionHint = isFailedResult(result) ? formatSessionHint(result) : ''
+  const outputText = output.length > 0 ? output : '(no output)'
+  return `${outputText}${sessionHint}`
 }
 
 export function truncateParallelOutput(output: string): string {

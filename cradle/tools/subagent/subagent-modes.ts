@@ -38,6 +38,9 @@ const ChainTaskParameter = Type.String({
 const CwdParameter = Type.String({
   description: 'Working directory for the agent process',
 })
+const SessionIdParameter = Type.String({
+  description: 'Existing subagent session id to continue',
+})
 
 const TaskItem = Type.Object(
   {
@@ -65,6 +68,7 @@ export const SubagentParameters = Type.Object(
     task: Type.Optional(TaskParameter),
     complexity: Type.Optional(ComplexitySchema),
     cwd: Type.Optional(CwdParameter),
+    sessionId: Type.Optional(SessionIdParameter),
     tasks: Type.Optional(
       Type.Array(TaskItem, {
         description:
@@ -89,6 +93,7 @@ export interface SingleModeParameters {
   task: string
   complexity: TaskComplexity
   cwd?: string
+  sessionId?: string
 }
 
 export interface ParallelModeParameters {
@@ -113,7 +118,8 @@ function hasSingleModeFields(parameters: SubagentToolParameters): boolean {
     parameters.agent !== undefined ||
     parameters.task !== undefined ||
     parameters.complexity !== undefined ||
-    parameters.cwd !== undefined
+    parameters.cwd !== undefined ||
+    parameters.sessionId !== undefined
   )
 }
 
@@ -143,6 +149,9 @@ export function toSingleMode(
 
   const singleParameters: SingleModeParameters = { agent, task, complexity }
   if (parameters.cwd !== undefined) singleParameters.cwd = parameters.cwd
+  if (parameters.sessionId !== undefined) {
+    singleParameters.sessionId = parameters.sessionId
+  }
   return singleParameters
 }
 
@@ -208,6 +217,7 @@ export async function handleSingleMode(
     agentName,
     task,
     cwd: parameters.cwd,
+    sessionId: parameters.sessionId,
     step: undefined,
     signal,
     onUpdate,
@@ -278,6 +288,7 @@ export async function handleChainMode(
       agentName: step.agent,
       task: taskWithContext,
       cwd: step.cwd,
+      sessionId: undefined,
       step: index + 1,
       signal,
       onUpdate: chainUpdate,
@@ -446,6 +457,7 @@ export async function handleParallelMode(
         agentName: t.agent,
         task: t.task,
         cwd: t.cwd,
+        sessionId: undefined,
         step: undefined,
         signal,
         onUpdate: (partial) => {

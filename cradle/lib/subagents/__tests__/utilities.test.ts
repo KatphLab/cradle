@@ -388,6 +388,21 @@ describe('subagent utilities', () => {
       expect(
         getResultOutput(makeResult({ exitCode: 1, stderr: 'stderr text' })),
       ).toBe('stderr text')
+      expect(
+        getResultOutput(
+          makeResult({
+            exitCode: 1,
+            stderr: 'stderr text',
+            session: {
+              id: 'session-1',
+              cwd: '/repo',
+              inspectCommand: 'pi --session session-1',
+              continueHint:
+                'Call subagent again with agent "agent-one" and sessionId "session-1".',
+            },
+          }),
+        ),
+      ).toContain('Subagent session:\n- id: session-1')
     })
 
     it('returns final assistant output or fallback text', () => {

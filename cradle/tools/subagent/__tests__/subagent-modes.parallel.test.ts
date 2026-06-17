@@ -164,6 +164,7 @@ describe('handleParallelMode', () => {
         agentName: 'writer',
         task: 'write',
         cwd: '/one',
+        sessionId: undefined,
         step: undefined,
       }),
     )

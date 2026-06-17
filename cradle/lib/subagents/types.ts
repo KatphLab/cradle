@@ -29,6 +29,15 @@ export interface UsageStats {
   turns: number
 }
 
+export interface SubagentSessionInfo {
+  id: string
+  cwd: string
+  inspectCommand: string
+  continueHint: string
+  file?: string
+  name?: string
+}
+
 export interface SingleResult {
   agent: string
   agentSource: AgentSource | 'unknown'
@@ -40,6 +49,7 @@ export interface SingleResult {
   model?: string
   stopReason?: string
   errorMessage?: string
+  session?: SubagentSessionInfo
   step?: number
 }
 

@@ -5,10 +5,21 @@ import type { AgentToolResult } from '@earendil-works/pi-agent-core'
 import type { Message, Usage } from '@earendil-works/pi-ai'
 
 import type { GlobalSettings } from '../../config/settings.js'
+import {
+  applySessionFile,
+  createRunId,
+  createSessionId,
+  createSubagentSessionInfo,
+  getRunStatus,
+  getSessionMode,
+  recordRunStatus,
+  type PiSessionMode,
+} from './session-info.js'
 import type {
   AgentConfig,
   SingleResult,
   SubagentDetails,
+  SubagentSessionInfo,
   TaskComplexity,
   UsageStats,
 } from './types.js'
@@ -30,6 +41,12 @@ interface PiMessageEvent {
   message: Message
 }
 
+interface PiSessionHeader {
+  type: 'session'
+  id: string
+  cwd: string
+}
+
 interface TemporaryPromptState {
   directory?: string
   filePath?: string
@@ -49,6 +66,7 @@ export interface RunSingleAgentOptions {
   agentName: string
   task: string
   cwd: string | undefined
+  sessionId: string | undefined
   step: number | undefined
   signal: AbortSignal | undefined
   onUpdate: OnUpdateCallback | undefined
@@ -81,8 +99,15 @@ function buildPiArgs(
   agent: AgentConfig,
   task: string,
   resolvedModel: string | undefined,
+  session: SubagentSessionInfo,
+  sessionMode: PiSessionMode,
 ): string[] {
   const args: string[] = ['--mode', 'json', '-p', '--no-context-files']
+  if (sessionMode === 'resume') {
+    args.push('--session', session.id)
+  } else {
+    args.push('--session-id', session.id, '--name', session.name ?? session.id)
+  }
   if (resolvedModel) args.push('--model', resolvedModel)
   if (agent.tools && agent.tools.length > 0)
     args.push('--tools', agent.tools.join(','))
@@ -95,6 +120,7 @@ function createInitialResult(
   task: string,
   step: number | undefined,
   resolvedModel: string | undefined,
+  session: SubagentSessionInfo,
 ): SingleResult {
   const result: SingleResult = {
     agent: agent.name,
@@ -104,6 +130,7 @@ function createInitialResult(
     messages: [],
     stderr: '',
     usage: createEmptyUsage(),
+    session,
   }
   if (resolvedModel !== undefined) {
     result.model = resolvedModel
@@ -269,6 +296,17 @@ function parsePiMessageEvent(line: string): PiMessageEvent | undefined {
   return { type, message }
 }
 
+function parsePiSessionHeader(line: string): PiSessionHeader | undefined {
+  const event = parseJsonObjectLine(line)
+  if (event === undefined) return undefined
+  if (event['type'] !== 'session') return undefined
+  const id = event['id']
+  const cwd = event['cwd']
+  if (typeof id !== 'string') return undefined
+  if (typeof cwd !== 'string') return undefined
+  return { type: 'session', id, cwd }
+}
+
 function applyUsage(result: SingleResult, usage: Usage): void {
   result.usage.input += usage.input
   result.usage.output += usage.output
@@ -303,6 +341,15 @@ function processStdoutLine(
   result: SingleResult,
   emitUpdate: () => void,
 ): void {
+  const sessionHeader = parsePiSessionHeader(line)
+  if (sessionHeader !== undefined && result.session !== undefined) {
+    result.session.id = sessionHeader.id
+    result.session.cwd = sessionHeader.cwd
+    result.session.inspectCommand = `pi --session ${sessionHeader.id}`
+    result.session.continueHint = `Call subagent again with agent "${result.agent}" and sessionId "${sessionHeader.id}".`
+    return
+  }
+
   const event = parsePiMessageEvent(line)
   if (event === undefined) return
 
@@ -462,12 +509,29 @@ export async function runSingleAgent(
   }
 
   const resolvedModel = resolveModel(options.complexity, options.settings)
-  const args = buildPiArgs(agent, options.task, resolvedModel)
+  const runId = createRunId()
+  const sessionId = createSessionId(options.sessionId)
+  const sessionMode = getSessionMode(options.sessionId)
+  const session = createSubagentSessionInfo(
+    agent.name,
+    options.task,
+    options.cwd ?? options.defaultCwd,
+    sessionId,
+    sessionMode,
+  )
+  const args = buildPiArgs(
+    agent,
+    options.task,
+    resolvedModel,
+    session,
+    sessionMode,
+  )
   const currentResult = createInitialResult(
     agent,
     options.task,
     options.step,
     resolvedModel,
+    session,
   )
   const emitUpdate = createUpdateEmitter(
     currentResult,
@@ -477,6 +541,7 @@ export async function runSingleAgent(
   let temporaryPrompt: TemporaryPromptState = {}
 
   try {
+    await recordRunStatus(runId, currentResult, 'running')
     temporaryPrompt = await appendSystemPromptFile(agent, args)
     const exitCode = await runAgentProcess({
       args,
@@ -487,6 +552,8 @@ export async function runSingleAgent(
     })
 
     currentResult.exitCode = exitCode
+    await applySessionFile(currentResult)
+    await recordRunStatus(runId, currentResult, getRunStatus(currentResult))
     return currentResult
   } finally {
     cleanupTemporaryFiles(temporaryPrompt.filePath, temporaryPrompt.directory)

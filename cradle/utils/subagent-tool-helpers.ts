@@ -43,6 +43,7 @@ export async function executeToolSubagent(
     agentName,
     task,
     cwd: undefined,
+    sessionId: undefined,
     step: undefined,
     signal,
     onUpdate: undefined,

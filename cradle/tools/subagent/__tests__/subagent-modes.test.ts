@@ -69,6 +69,7 @@ describe('handleSingleMode', () => {
         agentName: 'writer',
         task: 'write',
         cwd: '/work',
+        sessionId: undefined,
         step: undefined,
         signal,
         onUpdate,
@@ -161,6 +162,7 @@ describe('handleChainMode', () => {
         agentName: 'writer',
         task: 'draft',
         cwd: '/draft',
+        sessionId: undefined,
         step: 1,
       }),
     )
@@ -170,6 +172,7 @@ describe('handleChainMode', () => {
         agentName: 'reviewer',
         task: 'review draft output',
         cwd: '/review',
+        sessionId: undefined,
         step: 2,
       }),
     )
