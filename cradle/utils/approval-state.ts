@@ -292,11 +292,20 @@ function hasApprovalPhrase(text: string): boolean {
 
 function handleUserMessage(message: AgentMessage, state: ApprovalState): void {
   const text = extractUserText(message)
-  if (!hasApprovalPhrase(text)) return
+  const hasTag = hasApprovalPhrase(text)
 
+  // User message without approval tag -> clear any pending proposal
+  // to prevent stale approvals from hijacking later turns.
   if (state.pending !== undefined) {
-    promotePendingToApproved(state)
-  } else if (state.approved?.pendingAmendment !== undefined) {
+    if (hasTag) {
+      promotePendingToApproved(state)
+    } else {
+      state.pending = undefined
+    }
+  }
+
+  // Also handle approving a pending amendment on an already-approved proposal
+  if (hasTag && state.approved?.pendingAmendment !== undefined) {
     promoteApprovedAmendment(state)
   }
 }
