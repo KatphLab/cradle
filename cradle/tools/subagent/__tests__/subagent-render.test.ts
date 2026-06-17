@@ -154,6 +154,18 @@ describe('buildRenderCall', () => {
       '<dim>Implement a focused unit test</dim>',
     )
 
+    const resumeRendered = buildRenderCall(
+      {
+        agent: 'coder',
+        task: 'Continue debugging',
+        complexity: 'low',
+        sessionId: 'session-1',
+      },
+      theme,
+    )
+    expect(textOf(resumeRendered)).toContain('<accent>coder</accent>')
+    expect(textOf(resumeRendered)).toContain('<dim>Continue debugging</dim>')
+
     const emptyRendered = buildRenderCall(
       { agent: 'unknown', task: '', complexity: 'low' },
       theme,

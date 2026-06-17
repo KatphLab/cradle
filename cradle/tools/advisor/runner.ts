@@ -64,6 +64,7 @@ export async function runAdvisor(parameters: {
     agentName: 'advisor',
     task: userMessage,
     cwd: parameters.cwd,
+    sessionId: undefined,
     step: undefined,
     signal: parameters.signal,
     onUpdate: parameters.onUpdate,

@@ -169,6 +169,7 @@ export function makeOptions(
     agentName?: string
     cwd?: string
     defaultCwd?: string
+    sessionId?: string
     makeDetails?: (results: SingleResult[]) => SubagentDetails
     onUpdate?: OnUpdate
     signal?: AbortSignal
@@ -198,6 +199,7 @@ export function makeOptions(
     step: overrides.step,
     task: overrides.task ?? 'do work',
     complexity: overrides.complexity,
+    sessionId: overrides.sessionId,
     settings: overrides.settings,
   }
 }

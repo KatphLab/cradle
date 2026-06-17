@@ -125,6 +125,24 @@ function formatErrorMessage(errorMessage: string, theme: ThemeLike): string {
   return theme.fg('error', message)
 }
 
+function formatSessionLine(result: SingleResult, theme: ThemeLike): string {
+  const session = result.session
+  if (session === undefined) return ''
+  return theme.fg(
+    'muted',
+    `Session: ${session.id} · inspect: ${session.inspectCommand}`,
+  )
+}
+
+function addSessionLine(
+  container: Container,
+  result: SingleResult,
+  theme: ThemeLike,
+): void {
+  const sessionLine = formatSessionLine(result, theme)
+  if (sessionLine) container.addChild(new Text(sessionLine, 0, 0))
+}
+
 function addTaskSection(
   container: Container,
   task: string,
@@ -316,6 +334,7 @@ function addExpandedResultBlock(
   container.addChild(
     new Text(theme.fg('muted', 'Task: ') + theme.fg('dim', result.task), 0, 0),
   )
+  if (isFailedResult(result)) addSessionLine(container, result, theme)
   addToolCallItems(container, displayItems, theme)
   if (finalOutput) addMarkdownOutput(container, finalOutput, mdTheme)
   const taskUsage = formatUsageStats(result.usage, result.model)
@@ -331,6 +350,10 @@ function getCollapsedDisplayText(
   return renderDisplayItemsToText(displayItems, limit, false, theme)
 }
 
+function appendOptionalLine(text: string, line: string): string {
+  return line ? `${text}\n${line}` : text
+}
+
 function getChainCollapsedBlock(
   result: SingleResult,
   theme: ThemeLike,
@@ -338,7 +361,11 @@ function getChainCollapsedBlock(
   const displayItems = getDisplayItems(result.messages)
   const heading = getChainStepHeading(result, theme)
   const output = getCollapsedDisplayText(displayItems, 5, theme)
-  return `\n\n${heading}\n${output}`
+  const text = `\n\n${heading}\n${output}`
+  const sessionLine = isFailedResult(result)
+    ? formatSessionLine(result, theme)
+    : ''
+  return appendOptionalLine(text, sessionLine)
 }
 
 function getParallelCollapsedOutput(
@@ -362,7 +389,11 @@ function getParallelCollapsedBlock(
   const agent = theme.fg('accent', result.agent)
   const icon = getParallelCollapsedIcon(result, theme)
   const output = getParallelCollapsedOutput(result, displayItems, theme)
-  return `\n\n${prefix}${agent} ${icon}\n${output}`
+  const text = `\n\n${prefix}${agent} ${icon}\n${output}`
+  const sessionLine = isFailedResult(result)
+    ? formatSessionLine(result, theme)
+    : ''
+  return appendOptionalLine(text, sessionLine)
 }
 
 export function buildSingleResultExpanded(
@@ -381,6 +412,7 @@ export function buildSingleResultExpanded(
       new Text(formatErrorMessage(result.errorMessage, theme), 0, 0),
     )
   }
+  if (isError) addSessionLine(container, result, theme)
   addTaskSection(container, result.task, theme)
   addExpandedOutput(container, displayItems, finalOutput, theme, mdTheme)
   addUsageLine(container, result.usage, theme, result.model)
@@ -397,6 +429,8 @@ export function buildSingleResultCollapsed(
   let text = getSingleResultHeader(result, theme)
   if (isError && result.errorMessage) {
     text += `\n${formatErrorMessage(result.errorMessage, theme)}`
+    const sessionLine = formatSessionLine(result, theme)
+    if (sessionLine) text += `\n${sessionLine}`
   } else if (displayItems.length === 0) {
     text += `\n${theme.fg('muted', '(no output)')}`
   } else {

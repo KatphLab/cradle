@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import type { Message } from '@earendil-works/pi-ai'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { appendSubagentRunRecord } from '../run-index.js'
 import { runSingleAgent } from '../runner.js'
 import {
   createAssistantMessage,
@@ -59,6 +60,25 @@ function findFinalOutput(
 
 vi.mock('node:child_process', () => ({
   spawn: vi.fn(),
+}))
+
+vi.mock('node:crypto', () => ({
+  randomUUID: vi.fn(() => 'session-id'),
+}))
+
+vi.mock('@earendil-works/pi-coding-agent', () => ({
+  SessionManager: {
+    list: vi.fn(() =>
+      Promise.resolve([
+        { id: 'session-id', path: '/repo/session-id.jsonl' },
+        { id: 'resume-session', path: '/repo/resume-session.jsonl' },
+      ]),
+    ),
+  },
+}))
+
+vi.mock('../run-index.js', () => ({
+  appendSubagentRunRecord: vi.fn(),
 }))
 
 vi.mock('node:fs', () => ({
@@ -216,6 +236,10 @@ describe('runSingleAgent', () => {
       'json',
       '-p',
       '--no-context-files',
+      '--session-id',
+      'session-id',
+      '--name',
+      'subagent:writer: implement feature',
       '--tools',
       'read,write',
       'Task: implement feature',
@@ -252,6 +276,12 @@ describe('runSingleAgent', () => {
         output: 25,
         turns: 1,
       },
+      session: {
+        id: 'session-id',
+        cwd: '/worktree',
+        file: '/repo/session-id.jsonl',
+        inspectCommand: 'pi --session session-id',
+      },
     })
     expect(result).not.toHaveProperty('errorMessage')
     expect(result.messages).toEqual([
@@ -268,6 +298,20 @@ describe('runSingleAgent', () => {
     ])
     expect(onUpdate.mock.calls.at(-1)?.[0].details.results).toHaveLength(1)
     expect(vi.mocked(getFinalOutput)).toHaveBeenCalled()
+    expect(appendSubagentRunRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: 'session-id',
+        sessionId: 'session-id',
+        status: 'running',
+      }),
+    )
+    expect(appendSubagentRunRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        exitCode: 7,
+        sessionFile: '/repo/session-id.jsonl',
+        status: 'failed',
+      }),
+    )
     expect(fs.unlinkSync).toHaveBeenCalledWith(temporaryPromptFilePath)
     expect(fs.rmdirSync).toHaveBeenCalledWith(temporaryPromptDirectory)
   })
@@ -307,11 +351,26 @@ describe('runSingleAgent', () => {
       'json',
       '-p',
       '--no-context-files',
+      '--session-id',
+      'session-id',
+      '--name',
+      'subagent:writer: do work',
       'Task: do work',
     ])
     expect(spawn).toHaveBeenCalledWith(
       'pi-bin',
-      ['run', '--mode', 'json', '-p', '--no-context-files', 'Task: do work'],
+      [
+        'run',
+        '--mode',
+        'json',
+        '-p',
+        '--no-context-files',
+        '--session-id',
+        'session-id',
+        '--name',
+        'subagent:writer: do work',
+        'Task: do work',
+      ],
       expect.objectContaining({ cwd: '/repo' }),
     )
     expect(result).toMatchObject({

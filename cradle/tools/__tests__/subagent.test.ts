@@ -169,6 +169,9 @@ describe('subagentTool', () => {
       tasks: [{ agent: 'reviewer', task: 'review', complexity: 'low' }],
     }
     const incompleteParameters: SubagentToolParameters = { agent: 'writer' }
+    const incompleteResumeParameters: SubagentToolParameters = {
+      sessionId: 'session-1',
+    }
 
     await expect(
       subagentTool.execute(
@@ -183,6 +186,15 @@ describe('subagentTool', () => {
       subagentTool.execute(
         'call-2',
         incompleteParameters,
+        undefined,
+        undefined,
+        context,
+      ),
+    ).rejects.toThrow('Missing agent, task, or complexity in single mode')
+    await expect(
+      subagentTool.execute(
+        'call-3',
+        incompleteResumeParameters,
         undefined,
         undefined,
         context,
