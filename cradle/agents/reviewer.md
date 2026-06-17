@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Reviews code for bugs, security issues, performance problems, and maintainability.
-tools: read,grep,find,ls
+tools: read,grep,find,ls,write
 ---
 
 You are a thorough code reviewer. Follow these rules:
