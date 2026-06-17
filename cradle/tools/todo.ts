@@ -6,7 +6,6 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import { Text } from '@earendil-works/pi-tui'
 
-import { getToolOutputMode } from '../config/settings.js'
 import {
   computeTodoDeltas,
   formatTodoList,
@@ -14,11 +13,8 @@ import {
   type TodoDetails,
   type TodoItem,
 } from '../utils/todo-state.js'
-import {
-  renderPlainTextFallback,
-  renderPreviewTextFallback,
-  shouldRenderFullToolResult,
-} from '../utils/tool-render.js'
+import { createModeRenderResult } from '../utils/tool-render.js'
+import { isPlainRecord } from '../utils/type-guards.js'
 
 export interface TodoToolTodo {
   id: number
@@ -58,12 +54,8 @@ function toTodoItems(parameters: TodoToolParameters): TodoItem[] {
     .toSorted((a, b) => a.id - b.id)
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
 function getTodoCount(details: unknown): number {
-  if (!isRecord(details)) return 0
+  if (!isPlainRecord(details)) return 0
   const todos = details['todos']
   return Array.isArray(todos) ? todos.length : 0
 }
@@ -153,26 +145,8 @@ export const todoTool = defineTool({
     })
   },
 
-  renderResult(result, options, theme, context) {
-    const mode = getToolOutputMode()
-
-    if (shouldRenderFullToolResult(options)) {
-      return renderPlainTextFallback(result, theme)
-    }
-
-    if (mode === 'preview') {
-      return renderPreviewTextFallback(result, theme)
-    }
-
-    if (mode === 'header-only') {
-      return formatTodoHeaderOnly(
-        result.details,
-        context.isError,
-        options.isPartial,
-        theme,
-      )
-    }
-
-    return formatTodoHidden(context.isError, options.isPartial, theme)
-  },
+  renderResult: createModeRenderResult<TodoDetails>({
+    formatHeader: formatTodoHeaderOnly,
+    formatHidden: formatTodoHidden,
+  }),
 })
