@@ -11,6 +11,7 @@ import {
   type GlobalSettings,
 } from '../config/settings.js'
 import { formatTodoReminder, reconstructTodos } from '../utils/todo-state.js'
+import { isCradleSubagentProcess } from '../utils/tool.js'
 
 const SYSTEM_REMINDER_TYPE = 'cradle-system-reminder'
 const SYSTEM_REMINDER_TOKEN_LIMIT = 500
@@ -216,6 +217,7 @@ function handleMessageUpdate(
   pi: Pick<SystemReminderPi, 'sendUserMessage'>,
   state: SystemReminderState,
 ): void {
+  if (isCradleSubagentProcess()) return
   if (event.message.role !== 'assistant') return
 
   const assistantEvent = event.assistantMessageEvent

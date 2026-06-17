@@ -423,6 +423,44 @@ describe('registerSystemReminderHook', () => {
     })
   })
 
+  it('does not abort mid-thought when running as a subagent', async () => {
+    vi.stubEnv('CRADLE_SUBAGENT', '1')
+    await writeCradleSettings(tempRoot, { reminderTokenThreshold: 500 })
+
+    const handlers: RegisteredHandler[] = []
+    const sendUserMessage = vi.fn<ExtensionAPI['sendUserMessage']>()
+    registerSystemReminderHook(createPi(handlers, sendUserMessage))
+
+    const notify = vi.fn()
+    const sessionHandler = getSessionStartHandler(handlers)
+    await sessionHandler({}, { cwd: tempRoot, ui: { notify } })
+
+    const beforeHandler = getBeforeAgentStartHandler(handlers)
+    await beforeHandler(
+      {
+        systemPrompt:
+          '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
+      },
+      { cwd: tempRoot, ui: { notify } },
+    )
+
+    const abort = vi.fn()
+    const updateHandler = getMessageUpdateHandler(handlers)
+    await updateHandler(
+      {
+        message: createAssistantMessage('thinking'),
+        assistantMessageEvent: {
+          delta: 'x'.repeat(2000),
+          type: 'thinking_delta',
+        },
+      },
+      { abort, cwd: tempRoot, isIdle: () => false },
+    )
+
+    expect(abort).not.toHaveBeenCalled()
+    expect(sendUserMessage).not.toHaveBeenCalled()
+  })
+
   it('strips system reminder tags from the system prompt', async () => {
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))

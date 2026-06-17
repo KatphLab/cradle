@@ -10,7 +10,7 @@ const HIDDEN_TOOLS = new Set<string>([
 ])
 
 /** Check if the current process is running as a cradle subagent. */
-function isCradleSubagentProcess(): boolean {
+export function isCradleSubagentProcess(): boolean {
   return process.env[CRADLE_SUBAGENT_ENV] === '1'
 }
 
