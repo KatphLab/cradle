@@ -16,10 +16,6 @@ import type {
 } from '../../utils/approval-state.js'
 import { approvalTool, type ApprovalToolParameters } from '../approval.js'
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function executeApproval(
   parameters: ApprovalToolParameters,
   entries: SessionEntry[] = [],
@@ -113,10 +109,6 @@ function lastId(entries: SessionEntry[]): string | null {
   return entries.at(-1)?.id ?? null
 }
 
-// ---------------------------------------------------------------------------
-// proposal
-// ---------------------------------------------------------------------------
-
 describe('approvalTool — proposal action', () => {
   it('records proposal details with file scopes only', async () => {
     const result = await executeApproval({
@@ -198,10 +190,6 @@ describe('approvalTool — proposal action', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// amendment
-// ---------------------------------------------------------------------------
-
 describe('approvalTool — amendment action', () => {
   it('records amendment details with file scopes', async () => {
     const result = await executeApproval({
@@ -251,10 +239,6 @@ describe('approvalTool — amendment action', () => {
     ).rejects.toThrow(/at least one file or bash scope/)
   })
 })
-
-// ---------------------------------------------------------------------------
-// complete
-// ---------------------------------------------------------------------------
 
 describe('approvalTool — complete action', () => {
   it('completes the currently approved proposal', async () => {
@@ -307,10 +291,6 @@ describe('approvalTool — complete action', () => {
     ).rejects.toThrow(/currently approved proposal is #1/)
   })
 })
-
-// ---------------------------------------------------------------------------
-// renderResult
-// ---------------------------------------------------------------------------
 
 function makeProposalResult(): AgentToolResult<ApprovalDetails> {
   return {

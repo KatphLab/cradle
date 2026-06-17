@@ -12,10 +12,6 @@ import {
   type FileScope,
 } from '../approval-state.js'
 
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
-
 function makeUserMessage(text: string): AgentMessage {
   return {
     role: 'user',
@@ -92,10 +88,6 @@ const proposalDetails: ApprovalDetails = {
   bashScopes: [bashScope],
 }
 
-// ---------------------------------------------------------------------------
-// isApprovalDetails
-// ---------------------------------------------------------------------------
-
 describe('isApprovalDetails', () => {
   it('accepts a valid proposal with file and bash scopes', () => {
     expect(isApprovalDetails(proposalDetails)).toBe(true)
@@ -143,10 +135,6 @@ describe('isApprovalDetails', () => {
     }
   })
 })
-
-// ---------------------------------------------------------------------------
-// reconstructApprovalState
-// ---------------------------------------------------------------------------
 
 describe('reconstructApprovalState', () => {
   it('returns an empty state for an empty message list', () => {
@@ -259,10 +247,6 @@ describe('reconstructApprovalState', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// isFileApproved
-// ---------------------------------------------------------------------------
-
 describe('isFileApproved', () => {
   it('returns true when the file path and operation match an approved scope', () => {
     const state = reconstructApprovalState([
@@ -283,10 +267,6 @@ describe('isFileApproved', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// isBashApproved
-// ---------------------------------------------------------------------------
-
 describe('isBashApproved', () => {
   it('returns true when the command matches an approved pattern within the approved risk tier', () => {
     const state = reconstructApprovalState([
@@ -306,10 +286,6 @@ describe('isBashApproved', () => {
     expect(isBashApproved(state, 'pnpm test', 'high')).toBe(false)
   })
 })
-
-// ---------------------------------------------------------------------------
-// formatApprovalReminder
-// ---------------------------------------------------------------------------
 
 describe('formatApprovalReminder', () => {
   it('includes approved file and bash scopes when an approval is active', () => {

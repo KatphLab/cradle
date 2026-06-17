@@ -40,8 +40,6 @@ function renderTaskPreview(task: string, limit: number): string {
   return task
 }
 
-// ---- renderCall ----
-
 function getCallText(args: Record<string, unknown>, theme: ThemeLike): string {
   const rawTask = args['task']
   const task = typeof rawTask === 'string' ? rawTask : ''
@@ -59,8 +57,6 @@ export function buildRenderCall(
 ): Text {
   return new Text(getCallText(args, theme), 0, 0)
 }
-
-// ---- renderResult helpers ----
 
 function getSuccessIcon(theme: ThemeLike): string {
   return theme.fg('success', '\u2713')
@@ -251,8 +247,6 @@ function buildExpandedContainer(
 
   return container
 }
-
-// ---- renderResult ----
 
 /** @public */
 export function renderIterativeRetrievalResult(

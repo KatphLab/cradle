@@ -28,10 +28,6 @@ export interface ApprovalToolParameters {
   reason?: string
 }
 
-// ---------------------------------------------------------------------------
-// Schema
-// ---------------------------------------------------------------------------
-
 const fileOperationSchema = Type.Union(
   [Type.Literal('edit'), Type.Literal('write')],
   { description: 'Kind of file operation included in the scope' },
@@ -105,10 +101,6 @@ const parametersSchema = Type.Object(
   },
   { additionalProperties: false },
 )
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function buildProposalDetails(
   parameters: ApprovalToolParameters,
@@ -257,10 +249,6 @@ function reconstructState(context: {
   const { messages } = buildSessionContext(entries, leafId)
   return reconstructApprovalState(messages)
 }
-
-// ---------------------------------------------------------------------------
-// Tool
-// ---------------------------------------------------------------------------
 
 /** @public */
 export const approvalTool = defineTool({

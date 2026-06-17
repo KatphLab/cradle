@@ -5,10 +5,6 @@ import { buildSessionContext } from '@earendil-works/pi-coding-agent'
 import { normalizePath } from './helpers.js'
 import { isRecord } from './type-guards.js'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 export type FileOperation = 'edit' | 'write'
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
@@ -73,10 +69,6 @@ export interface ApprovalState {
   approved: ApprovedProposal | undefined
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const VALID_FILE_OPERATIONS: ReadonlySet<string> = new Set(['edit', 'write'])
 const VALID_RISK_LEVELS: ReadonlySet<string> = new Set([
   'low',
@@ -99,10 +91,6 @@ const RISK_RANK: Readonly<Record<RiskLevel, number>> = {
   high: 3,
   critical: 4,
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function isFileOperation(value: string): value is FileOperation {
   return VALID_FILE_OPERATIONS.has(value)
@@ -140,10 +128,6 @@ function isBashScope(value: unknown): value is BashScope {
     isStringArray(value['allowedPaths'])
   )
 }
-
-// ---------------------------------------------------------------------------
-// Public: isApprovalDetails
-// ---------------------------------------------------------------------------
 
 function isProposalDetails(object: Record<string, unknown>): boolean {
   const fileScopes = object['fileScopes']
@@ -202,10 +186,6 @@ export function isApprovalDetails(value: unknown): value is ApprovalDetails {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Helpers for message scanning
-// ---------------------------------------------------------------------------
-
 function isTextBlock(block: unknown): block is { type: 'text'; text: string } {
   return (
     isRecord(block) &&
@@ -231,10 +211,6 @@ function isApprovalToolResult(
   if (message.isError) return false
   return true
 }
-
-// ---------------------------------------------------------------------------
-// State machine helpers
-// ---------------------------------------------------------------------------
 
 function handleProposal(details: ProposalDetails, state: ApprovalState): void {
   // Supersede any existing pending
@@ -349,10 +325,6 @@ function processMessage(message: AgentMessage, state: ApprovalState): void {
     handleUserMessage(message, state)
   }
 }
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
 
 export function reconstructApprovalState(
   messages: AgentMessage[],
