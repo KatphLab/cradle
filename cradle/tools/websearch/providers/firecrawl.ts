@@ -2,7 +2,7 @@ import {
   handleFirecrawlError,
   validateFirecrawlSuccess,
 } from '../../../utils/firecrawl.js'
-import { isRecord } from '../../../utils/helpers.js'
+import { isRecord } from '../../../utils/type-guards.js'
 import type { WebSearchProvider, WebSearchResponse } from '../types.js'
 import { fetchPostJson } from './helpers.js'
 

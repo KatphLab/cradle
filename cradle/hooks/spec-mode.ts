@@ -16,6 +16,7 @@ import {
   restoreSpecModeEnabled,
   type SpecModeState,
 } from '../utils/spec-state.js'
+import { isRecord } from '../utils/type-guards.js'
 
 const MUTATION_TOOLS = new Set(['bash', 'edit', 'write'])
 
@@ -28,10 +29,6 @@ function isSpecsPath(filePath: string, cwd: string): boolean {
     !path.isAbsolute(relative) &&
     resolved.endsWith('.md')
   )
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
 }
 
 function getStringProperty(value: unknown, key: string): string | undefined {

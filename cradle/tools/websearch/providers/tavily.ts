@@ -1,5 +1,5 @@
-import { isRecord } from '../../../utils/helpers.js'
 import { handleTavilyError } from '../../../utils/tavily.js'
+import { isRecord } from '../../../utils/type-guards.js'
 import type { WebSearchProvider, WebSearchResponse } from '../types.js'
 import { fetchPostJson } from './helpers.js'
 

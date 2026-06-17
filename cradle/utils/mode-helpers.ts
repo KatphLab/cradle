@@ -4,13 +4,10 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 
 import { filterMainAgentTools } from './tool.js'
+import { isRecord } from './type-guards.js'
 
 export interface ModeState {
   isEnabled: () => boolean
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
 }
 
 interface SessionEntryLike {

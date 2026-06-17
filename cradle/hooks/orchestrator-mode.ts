@@ -14,6 +14,7 @@ import {
   restoreOrchestratorModeEnabled,
   type OrchestratorModeState,
 } from '../utils/orchestrator-state.js'
+import { isRecord } from '../utils/type-guards.js'
 
 const MUTATION_TOOLS = new Set(['bash', 'edit', 'write'])
 const MAX_CONTINUATION_CYCLES = 2
@@ -91,10 +92,6 @@ function restoreTools(
     ORCHESTRATOR_MODE_TOOLS,
     updateOrchestratorStatus,
   )
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
 }
 
 function isMessageLike(value: unknown): value is MessageLike {

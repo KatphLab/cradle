@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import type { Message } from '@earendil-works/pi-ai'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { isRecord } from '../../../utils/type-guards.js'
 import { appendSubagentRunRecord } from '../run-index.js'
 import { runSingleAgent } from '../runner.js'
 import {
@@ -25,10 +26,6 @@ import {
   getPiInvocation,
   writePromptToTemporaryFile,
 } from '../utilities.js'
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
 
 function isChildProcess(value: unknown): value is ChildProcess {
   if (!isRecord(value)) return false
