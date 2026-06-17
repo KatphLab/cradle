@@ -267,8 +267,7 @@ export class SettingsRenderer {
 
     for (const field of API_KEY_FIELDS) {
       const isFocused =
-        this.editor.selectedRow ===
-        this.editor.rows.length + 1 + field.rowOffset
+        this.editor.selectedRow === this.editor.rows.length + field.rowOffset
       const prefix = isFocused ? '> ' : '  '
       const input = this.editor[field.inputKey]
       const currentValue = input.getValue()
