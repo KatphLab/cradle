@@ -7,6 +7,7 @@ import path from 'node:path'
 
 import { assertPermission } from '../config/settings.js'
 import { validateAgent } from '../lib/subagents/validate.js'
+import { checkFileBlocked } from '../utils/approval-state.js'
 import { normalizePath } from '../utils/helpers.js'
 import {
   renderToolCallWithMode,
@@ -36,6 +37,13 @@ export const writeTool = defineTool({
     }),
   }),
   async execute(toolCallId, parameters, signal, onUpdate, context) {
+    const blocked = checkFileBlocked(
+      context.sessionManager,
+      parameters.path,
+      'write',
+    )
+    if (blocked) return blocked
+
     const filePath = path.resolve(context.cwd, normalizePath(parameters.path))
     await assertPermission(filePath, context.cwd, 'write')
 

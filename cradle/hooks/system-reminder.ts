@@ -10,6 +10,10 @@ import {
   loadGlobalSettings,
   type GlobalSettings,
 } from '../config/settings.js'
+import {
+  formatApprovalReminder,
+  reconstructApprovalState,
+} from '../utils/approval-state.js'
 import { formatTodoReminder, reconstructTodos } from '../utils/todo-state.js'
 import { isCradleSubagentProcess } from '../utils/tool.js'
 
@@ -19,12 +23,9 @@ export const CONTINUE_AFTER_REMINDER_PROMPT =
   "You have been working for too long. Re-read and quote the user's original request before continuing. If you are stuck, unsure, or about to take an action the user did not explicitly request, ask the user or advisor first. Otherwise, continue with only the requested work."
 
 export const DEFAULT_SYSTEM_REMINDER = [
-  "Before any file edit, write, or bash command that modifies state (git config, installs, etc.), quote the user's exact words that asked for that change. If you cannot quote them, stop and ask first.",
-  'The todo list tracks only your private implementation plan. Do not use it to respond to system reminder, check actual user message.',
-  "Before acting, separate the user's request from your plan. If an action was not explicitly requested, stop and ask first.",
-  'Blockers are boundaries, not speed bumps. If a command fails (e.g., missing git config, missing dependency, permission error), that is a signal to stop and report — not an invitation to fix the blocker yourself. A prerequisite action requires separate approval.',
-  "Periodically re-read the user's original words, not just your todo list, and confirm you are still on track.",
-  'If you are stuck, unsure, or about to overreach beyond the explicit request, ask the advisor or user before acting.',
+  'The approval tool defines the user-approved scope for file edits, writes, and bash commands. Within an approved proposal, proceed without re-asking — the proposal is your authorization.',
+  'Anything outside the approved scope requires an amendment proposal and explicit user approval. Do not infer approvals from initial requests or conversation context.',
+  "If you encounter uncertainty, ambiguity, or a blocker you are not authorized to fix: stop immediately, tell the user what you've done so far, and ask whether to continue or change course.",
 ].join('\n')
 const REMINDER_CONTINUE_POLL_INTERVAL_MS = 25
 
@@ -40,6 +41,8 @@ interface SystemReminderState {
   sessionRevision: number
   cachedTodoReminder: string | undefined
   lastTodoMessageCount: number
+  cachedApprovalReminder: string | undefined
+  lastApprovalMessageCount: number
 }
 
 type ResettableSystemReminderState = Omit<
@@ -110,6 +113,8 @@ function createResettableSystemReminderState(): ResettableSystemReminderState {
     continuationScheduled: false,
     cachedTodoReminder: undefined,
     lastTodoMessageCount: 0,
+    cachedApprovalReminder: undefined,
+    lastApprovalMessageCount: 0,
   }
 }
 
@@ -165,6 +170,7 @@ function handleContext(
 
   // Cache updated task reminder for before_provider_request
   getTodoReminder(messages, state)
+  getApprovalReminder(messages, state)
 
   return { messages }
 }
@@ -208,6 +214,7 @@ function buildFullReminder(state: SystemReminderState): string | undefined {
   const parts: string[] = []
   if (state.cachedReminder) parts.push(state.cachedReminder)
   if (state.cachedTodoReminder) parts.push(state.cachedTodoReminder)
+  if (state.cachedApprovalReminder) parts.push(state.cachedApprovalReminder)
   return parts.length > 0 ? parts.join('\n\n') : undefined
 }
 
@@ -307,6 +314,19 @@ function getTodoReminder(
     : undefined
   state.lastTodoMessageCount = messages.length
   return state.cachedTodoReminder
+}
+
+function getApprovalReminder(
+  messages: AgentMessage[],
+  state: SystemReminderState,
+): string | undefined {
+  if (messages.length === state.lastApprovalMessageCount) {
+    return state.cachedApprovalReminder
+  }
+  const approvalState = reconstructApprovalState(messages)
+  state.cachedApprovalReminder = formatApprovalReminder(approvalState)
+  state.lastApprovalMessageCount = messages.length
+  return state.cachedApprovalReminder
 }
 
 function createSystemReminderDisplayMessage(
