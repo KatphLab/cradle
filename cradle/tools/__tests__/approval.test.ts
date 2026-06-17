@@ -133,8 +133,12 @@ describe('approvalTool — proposal action', () => {
       fileScopes: [fileEditScope],
       bashScopes: [],
     })
+    const text = firstTextContent(result)
     expect(result.content[0]).toMatchObject({ type: 'text' })
-    expect(firstTextContent(result)).toContain('Proposal #1')
+    expect(text).toContain('## Approval proposal #1')
+    expect(text).toContain('edit example')
+    expect(text).toContain('- edit `src/example.ts` — refactor helper')
+    expect(text).toContain('Confirm if you want me to proceed.')
   })
 
   it('records proposal details with bash scopes only', async () => {
@@ -150,7 +154,11 @@ describe('approvalTool — proposal action', () => {
       fileScopes: [],
       bashScopes: [bashScope],
     })
-    expect(firstTextContent(result)).toContain('Proposal #2')
+    const text = firstTextContent(result)
+    expect(text).toContain('## Approval proposal #2')
+    expect(text).toContain(
+      '- `pnpm test` (risk=medium, allowed paths: `coverage/`) — run unit tests',
+    )
   })
 
   it('records proposal with both file and bash scopes', async () => {
@@ -167,6 +175,9 @@ describe('approvalTool — proposal action', () => {
       fileScopes: [fileEditScope],
       bashScopes: [bashScope],
     })
+    const text = firstTextContent(result)
+    expect(text).toContain('### File operations')
+    expect(text).toContain('### Bash operations')
   })
 
   it('rejects proposal with no scopes at all', async () => {
@@ -204,7 +215,9 @@ describe('approvalTool — amendment action', () => {
       id: '1',
       fileScopes: [fileWriteScope],
     })
-    expect(firstTextContent(result)).toContain('Amendment #1')
+    const text = firstTextContent(result)
+    expect(text).toContain('## Approval amendment #1')
+    expect(text).toContain('- write `src/new.ts` — add new file')
   })
 
   it('records amendment details with bash scopes', async () => {
@@ -333,6 +346,18 @@ function makeTheme(): {
   }
 }
 
+function renderedText(component: unknown): string {
+  if (
+    typeof component === 'object' &&
+    component !== null &&
+    'text' in component &&
+    typeof component.text === 'string'
+  ) {
+    return component.text
+  }
+  throw new TypeError('Expected rendered Text component')
+}
+
 function makeContext(isError = false) {
   return {
     args: {},
@@ -366,7 +391,7 @@ describe('approvalTool — renderResult', () => {
     expect(result).toBeDefined()
   })
 
-  it('renders preview when collapsed in preview mode', () => {
+  it('renders full output when collapsed in preview mode', () => {
     setToolOutputModeForTests('preview')
     const renderResult = approvalTool.renderResult
     expect(renderResult).toBeDefined()
@@ -376,10 +401,10 @@ describe('approvalTool — renderResult', () => {
       makeTheme() as never,
       makeContext(),
     )
-    expect(result).toBeDefined()
+    expect(renderedText(result)).toContain('Proposal #1 recorded with 1 scope.')
   })
 
-  it('renders header-only with success icon when not error', () => {
+  it('renders full output in header-only mode', () => {
     setToolOutputModeForTests('header-only')
     const renderResult = approvalTool.renderResult
     expect(renderResult).toBeDefined()
@@ -389,10 +414,10 @@ describe('approvalTool — renderResult', () => {
       makeTheme() as never,
       makeContext(),
     )
-    expect(result).toBeDefined()
+    expect(renderedText(result)).toContain('Proposal #1 recorded with 1 scope.')
   })
 
-  it('renders header-only with error icon when error', () => {
+  it('renders full error output in header-only mode', () => {
     setToolOutputModeForTests('header-only')
     const renderResult = approvalTool.renderResult
     expect(renderResult).toBeDefined()
@@ -402,10 +427,10 @@ describe('approvalTool — renderResult', () => {
       makeTheme() as never,
       makeContext(true),
     )
-    expect(result).toBeDefined()
+    expect(renderedText(result)).toContain('Blocked')
   })
 
-  it('renders hidden with success icon when not error', () => {
+  it('renders full output in hidden mode', () => {
     setToolOutputModeForTests('hidden')
     const renderResult = approvalTool.renderResult
     expect(renderResult).toBeDefined()
@@ -415,10 +440,10 @@ describe('approvalTool — renderResult', () => {
       makeTheme() as never,
       makeContext(),
     )
-    expect(result).toBeDefined()
+    expect(renderedText(result)).toContain('Proposal #1 recorded with 1 scope.')
   })
 
-  it('renders hidden with error icon when error', () => {
+  it('renders full error output in hidden mode', () => {
     setToolOutputModeForTests('hidden')
     const renderResult = approvalTool.renderResult
     expect(renderResult).toBeDefined()
@@ -428,6 +453,6 @@ describe('approvalTool — renderResult', () => {
       makeTheme() as never,
       makeContext(true),
     )
-    expect(result).toBeDefined()
+    expect(renderedText(result)).toContain('Blocked')
   })
 })

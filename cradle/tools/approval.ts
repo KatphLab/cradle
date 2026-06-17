@@ -1,13 +1,12 @@
+import type { AgentToolResult } from '@earendil-works/pi-agent-core'
 import { Type } from '@earendil-works/pi-ai'
 import {
   buildSessionContext,
   defineTool,
-  type Theme,
 } from '@earendil-works/pi-coding-agent'
 import { Text } from '@earendil-works/pi-tui'
 
 import {
-  isApprovalDetails,
   reconstructApprovalState,
   type AmendmentDetails,
   type ApprovalDetails,
@@ -17,7 +16,6 @@ import {
   type FileScope,
   type ProposalDetails,
 } from '../utils/approval-state.js'
-import { createModeRenderResult } from '../utils/tool-render.js'
 
 type ApprovalToolAction = 'proposal' | 'amendment' | 'complete'
 
@@ -173,24 +171,79 @@ function countScopes(parameters: ApprovalToolParameters): number {
   )
 }
 
-function summarize(parameters: ApprovalToolParameters): string {
+function formatFileScopes(scopes: FileScope[]): string[] {
+  if (scopes.length === 0) return []
+
+  return [
+    '### File operations',
+    ...scopes.map(
+      (scope) => `- ${scope.operation} \`${scope.path}\` — ${scope.intent}`,
+    ),
+  ]
+}
+
+function formatBashScopes(scopes: BashScope[]): string[] {
+  if (scopes.length === 0) return []
+
+  return [
+    '### Bash operations',
+    ...scopes.map((scope) => {
+      const paths =
+        scope.allowedPaths.length === 0
+          ? 'none'
+          : scope.allowedPaths.map((path) => `\`${path}\``).join(', ')
+      return `- \`${scope.pattern}\` (risk=${scope.riskLevel}, allowed paths: ${paths}) — ${scope.intent}`
+    }),
+  ]
+}
+
+function formatRequestedScope(parameters: ApprovalToolParameters): string[] {
+  const sections = [
+    ...formatFileScopes(parameters.fileScopes ?? []),
+    ...formatBashScopes(parameters.bashScopes ?? []),
+  ]
+
+  if (sections.length === 0) return []
+  return ['', ...sections]
+}
+
+function formatApprovalResponse(parameters: ApprovalToolParameters): string {
   switch (parameters.action) {
     case 'proposal': {
-      const total = countScopes(parameters)
-      const label = total === 1 ? 'scope' : 'scopes'
-      return parameters.summary === undefined
-        ? `Proposal #${parameters.id} recorded with ${String(total)} ${label}.`
-        : `Proposal #${parameters.id}: ${parameters.summary} — recorded with ${String(total)} ${label}.`
+      const lines = [`## Approval proposal #${parameters.id}`]
+      if (parameters.summary !== undefined) lines.push('', parameters.summary)
+      lines.push(
+        '',
+        'I need approval for the following scope:',
+        ...formatRequestedScope(parameters),
+        '',
+        'Confirm if you want me to proceed.',
+      )
+      return lines.join('\n')
     }
     case 'amendment': {
-      const total = countScopes(parameters)
-      const label = total === 1 ? 'scope' : 'scopes'
-      return `Amendment #${parameters.id} recorded with ${String(total)} ${label}.`
+      return [
+        `## Approval amendment #${parameters.id}`,
+        '',
+        'I need approval for this additional scope:',
+        ...formatRequestedScope(parameters),
+        '',
+        'Confirm if you want me to proceed.',
+      ].join('\n')
     }
     case 'complete': {
       return `Proposal #${parameters.id} marked complete.`
     }
   }
+}
+
+function formatResultText(result: AgentToolResult<ApprovalDetails>): string {
+  return result.content
+    .filter(
+      (item): item is { type: 'text'; text: string } => item.type === 'text',
+    )
+    .map((item) => item.text)
+    .join('\n')
 }
 
 function reconstructState(context: {
@@ -203,20 +256,6 @@ function reconstructState(context: {
   const leafId = context.sessionManager.getLeafId()
   const { messages } = buildSessionContext(entries, leafId)
   return reconstructApprovalState(messages)
-}
-
-function formatHeader(details: unknown, isError: boolean, theme: Theme): Text {
-  const title = theme.fg('toolTitle', theme.bold('approval'))
-  if (isError) return new Text(`${title} ${theme.fg('error', '✗')}`, 0, 0)
-  if (isApprovalDetails(details)) {
-    return new Text(`${title} ${theme.fg('success', '✓')}`, 0, 0)
-  }
-  return new Text(`${title} ${theme.fg('warning', '…')}`, 0, 0)
-}
-
-function formatHidden(isError: boolean, theme: Theme): Text {
-  const icon = isError ? theme.fg('error', '✗') : theme.fg('success', '✓')
-  return new Text(`${icon} ${theme.fg('toolTitle', 'approval')}`, 0, 0)
 }
 
 // ---------------------------------------------------------------------------
@@ -271,14 +310,12 @@ export const approvalTool = defineTool({
 
     const details = buildDetails(parameters)
     return Promise.resolve({
-      content: [{ type: 'text', text: summarize(parameters) }],
+      content: [{ type: 'text', text: formatApprovalResponse(parameters) }],
       details,
     })
   },
 
-  renderResult: createModeRenderResult<ApprovalDetails>({
-    formatHeader: (details, isError, _isPartial, theme) =>
-      formatHeader(details, isError, theme),
-    formatHidden: (isError, _isPartial, theme) => formatHidden(isError, theme),
-  }),
+  renderResult(result, _options, theme) {
+    return new Text(theme.fg('toolOutput', formatResultText(result)), 0, 0)
+  },
 })

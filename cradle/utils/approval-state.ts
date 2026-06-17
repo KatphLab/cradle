@@ -295,8 +295,35 @@ function promotePendingToApproved(state: ApprovalState): void {
   state.pending = undefined
 }
 
+function promoteApprovedAmendment(state: ApprovalState): void {
+  const a = state.approved
+  if (a === undefined) return
+  const amend = a.pendingAmendment
+  if (amend === undefined) return
+
+  const mergedFileScopes = [...a.fileScopes, ...amend.fileScopes]
+  const mergedBashScopes = [...a.bashScopes, ...amend.bashScopes]
+
+  state.approved = {
+    id: a.id,
+    fileScopes: mergedFileScopes,
+    bashScopes: mergedBashScopes,
+  }
+}
+
 function hasApprovalPhrase(text: string): boolean {
   return APPROVAL_PHRASE_RE.test(text)
+}
+
+function handleUserMessage(message: AgentMessage, state: ApprovalState): void {
+  const text = extractUserText(message)
+  if (!hasApprovalPhrase(text)) return
+
+  if (state.pending !== undefined) {
+    promotePendingToApproved(state)
+  } else if (state.approved?.pendingAmendment !== undefined) {
+    promoteApprovedAmendment(state)
+  }
 }
 
 function processMessage(message: AgentMessage, state: ApprovalState): void {
@@ -318,12 +345,8 @@ function processMessage(message: AgentMessage, state: ApprovalState): void {
     return
   }
 
-  // Check for user approval phrases
   if (message.role === 'user') {
-    const text = extractUserText(message)
-    if (state.pending !== undefined && hasApprovalPhrase(text)) {
-      promotePendingToApproved(state)
-    }
+    handleUserMessage(message, state)
   }
 }
 
