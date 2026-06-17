@@ -82,8 +82,7 @@ const VALID_ACTIONS: ReadonlySet<string> = new Set([
   'complete',
 ])
 
-const APPROVAL_PHRASE_RE =
-  /\b(?:yes|proceed|approved|do it|go ahead|looks good)\b/i
+const APPROVAL_TAG_RE = /<(?:yes|approve|proceed)>/i
 
 const RISK_RANK: Readonly<Record<RiskLevel, number>> = {
   low: 1,
@@ -288,7 +287,7 @@ function promoteApprovedAmendment(state: ApprovalState): void {
 }
 
 function hasApprovalPhrase(text: string): boolean {
-  return APPROVAL_PHRASE_RE.test(text)
+  return APPROVAL_TAG_RE.test(text)
 }
 
 function handleUserMessage(message: AgentMessage, state: ApprovalState): void {
