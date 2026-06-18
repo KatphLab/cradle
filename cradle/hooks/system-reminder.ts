@@ -157,6 +157,11 @@ function handleBeforeAgentStart(
     }
   }
 
+  // Subagents don't get the default system reminder (which includes approval
+  // instructions), since they shouldn't manage proposals or ask for approval.
+  // They can still use <system-reminder> tags in their agent prompt if needed.
+  if (isCradleSubagentProcess()) return undefined
+
   state.cachedReminder = DEFAULT_SYSTEM_REMINDER
   return {
     message: createSystemReminderDisplayMessage(state.cachedReminder, display),
