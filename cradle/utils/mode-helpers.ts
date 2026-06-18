@@ -37,6 +37,14 @@ export function restoreModeEnabled(
   return false
 }
 
+/** Strip all `<system-reminder>...</system-reminder>` blocks from text. */
+export function stripSystemReminder(text: string): string {
+  return text.replaceAll(
+    /<system-reminder>[\s\S]*?<\/system-reminder>\n?/gu,
+    '',
+  )
+}
+
 function getAllToolNames(pi: Pick<ExtensionAPI, 'getAllTools'>): string[] {
   return pi.getAllTools().map((tool) => tool.name)
 }
@@ -48,8 +56,9 @@ export function registerBeforeAgentStartPrompt(
 ): void {
   pi.on('before_agent_start', (event: { systemPrompt: string }) => {
     if (!state.isEnabled()) return
+    const cleanedBase = stripSystemReminder(event.systemPrompt)
     return {
-      systemPrompt: `${event.systemPrompt}\n\n${systemPrompt}`,
+      systemPrompt: `${cleanedBase}\n\n${systemPrompt}`,
     }
   })
 }
