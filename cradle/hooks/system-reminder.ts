@@ -227,6 +227,14 @@ function handleMessageUpdate(
   state: SystemReminderState,
 ): void {
   if (isCradleSubagentProcess()) return
+
+  // A new user message resets the streaming-reminder counter so it starts fresh
+  if (event.message.role === 'user') {
+    state.streamedTokensSinceLastInjection = 0
+    state.continuationScheduled = false
+    return
+  }
+
   if (event.message.role !== 'assistant') return
 
   const assistantEvent = event.assistantMessageEvent
@@ -256,6 +264,7 @@ function scheduleContinueAfterAbort(
 ): void {
   const continueWhenIdle = (): void => {
     if (revision !== state.sessionRevision) return
+    if (!state.continuationScheduled) return
     if (!context.isIdle()) {
       setTimeout(continueWhenIdle, REMINDER_CONTINUE_POLL_INTERVAL_MS)
       return
