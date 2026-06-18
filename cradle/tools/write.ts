@@ -1,18 +1,70 @@
+import type {
+  AgentToolResult,
+  AgentToolUpdateCallback,
+} from '@earendil-works/pi-agent-core'
 import { Type } from '@earendil-works/pi-ai'
 import {
   createWriteToolDefinition,
   defineTool,
+  type ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
 import path from 'node:path'
 
 import { assertPermission } from '../config/settings.js'
 import { validateAgent } from '../lib/subagents/validate.js'
 import { checkFileBlocked } from '../utils/approval-state.js'
+import { createDeferredOperationResult } from '../utils/deferred-operations.js'
 import { normalizePath } from '../utils/helpers.js'
 import {
   renderToolCallWithMode,
   renderToolResultWithMode,
 } from '../utils/tool-render.js'
+import { isCradleSubagentProcess } from '../utils/tool.js'
+
+export interface WriteToolParameters {
+  path: string
+  content: string
+}
+
+type ToolErrorResult<T> = AgentToolResult<T> & { isError: true }
+
+export async function executeApprovedWrite(
+  toolCallId: string,
+  parameters: WriteToolParameters,
+  signal: AbortSignal | undefined,
+  onUpdate: AgentToolUpdateCallback<unknown> | undefined,
+  context: ExtensionContext,
+): Promise<AgentToolResult<unknown> | ToolErrorResult<undefined>> {
+  const filePath = path.resolve(context.cwd, normalizePath(parameters.path))
+  await assertPermission(filePath, context.cwd, 'write')
+
+  const isAgentFile =
+    filePath.endsWith('.md') &&
+    path.basename(path.dirname(filePath)) === 'agents'
+
+  if (isAgentFile) {
+    const agentSource = filePath.includes(path.join('.pi', 'agents'))
+      ? 'project'
+      : 'user'
+    const validation = validateAgent(parameters.content, agentSource)
+    if (!validation.valid) {
+      const errors = validation.errors.join('\n')
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Invalid agent definition:\n${errors}`,
+          },
+        ],
+        details: undefined,
+        isError: true,
+      }
+    }
+  }
+
+  const piWrite = createWriteToolDefinition(context.cwd)
+  return piWrite.execute(toolCallId, parameters, signal, onUpdate, context)
+}
 
 /** @public */
 export const writeTool = defineTool({
@@ -37,42 +89,26 @@ export const writeTool = defineTool({
     }),
   }),
   async execute(toolCallId, parameters, signal, onUpdate, context) {
-    const blocked = checkFileBlocked(
-      context.sessionManager,
-      parameters.path,
-      'write',
-    )
-    if (blocked) return blocked
-
-    const filePath = path.resolve(context.cwd, normalizePath(parameters.path))
-    await assertPermission(filePath, context.cwd, 'write')
-
-    const isAgentFile =
-      filePath.endsWith('.md') &&
-      path.basename(path.dirname(filePath)) === 'agents'
-
-    if (isAgentFile) {
-      const agentSource = filePath.includes(path.join('.pi', 'agents'))
-        ? 'project'
-        : 'user'
-      const validation = validateAgent(parameters.content, agentSource)
-      if (!validation.valid) {
-        const errors = validation.errors.join('\n')
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Invalid agent definition:\n${errors}`,
-            },
-          ],
-          details: undefined,
-          isError: true,
-        }
-      }
+    const blocked = isCradleSubagentProcess()
+      ? false
+      : checkFileBlocked(context.sessionManager, parameters.path, 'write')
+    if (blocked) {
+      const text = blocked.content[0]?.text ?? 'Blocked write.'
+      return createDeferredOperationResult(
+        toolCallId,
+        'write',
+        parameters,
+        text,
+      )
     }
 
-    const piWrite = createWriteToolDefinition(context.cwd)
-    return piWrite.execute(toolCallId, parameters, signal, onUpdate, context)
+    return executeApprovedWrite(
+      toolCallId,
+      parameters,
+      signal,
+      onUpdate,
+      context,
+    )
   },
 
   renderCall(args, theme, context) {
