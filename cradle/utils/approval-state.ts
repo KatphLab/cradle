@@ -3,6 +3,7 @@ import type { SessionEntry } from '@earendil-works/pi-coding-agent'
 import { buildSessionContext } from '@earendil-works/pi-coding-agent'
 
 import { normalizePath } from './helpers.js'
+import { isCradleSubagentProcess } from './tool.js'
 import { isRecord } from './type-guards.js'
 
 export type FileOperation = 'edit' | 'write'
@@ -45,10 +46,18 @@ export interface CompleteDetails {
   reason?: string
 }
 
+export interface ReplayDetails {
+  action: 'replay'
+  id: string
+  operationIds: string[]
+  replayedIds: string[]
+}
+
 export type ApprovalDetails =
   | ProposalDetails
   | AmendmentDetails
   | CompleteDetails
+  | ReplayDetails
 
 interface ApprovedProposal {
   id: string
@@ -80,6 +89,7 @@ const VALID_ACTIONS: ReadonlySet<string> = new Set([
   'proposal',
   'amendment',
   'complete',
+  'replay',
 ])
 
 const APPROVAL_TAG_RE = /<(?:yes|approve|proceed)>/i
@@ -161,6 +171,16 @@ function isCompleteDetails(object: Record<string, unknown>): boolean {
   return object['reason'] === undefined || typeof object['reason'] === 'string'
 }
 
+function isReplayDetails(object: Record<string, unknown>): boolean {
+  const operationIds = object['operationIds']
+  if (!isStringArray(operationIds)) return false
+
+  const replayedIds = object['replayedIds']
+  if (!isStringArray(replayedIds)) return false
+
+  return true
+}
+
 export function isApprovalDetails(value: unknown): value is ApprovalDetails {
   if (!isRecord(value)) return false
 
@@ -179,6 +199,9 @@ export function isApprovalDetails(value: unknown): value is ApprovalDetails {
     case 'complete': {
       return isCompleteDetails(value)
     }
+    case 'replay': {
+      return isReplayDetails(value)
+    }
     default: {
       return false
     }
@@ -193,7 +216,7 @@ function isTextBlock(block: unknown): block is { type: 'text'; text: string } {
   )
 }
 
-function extractUserText(message: AgentMessage): string {
+export function extractUserText(message: AgentMessage): string {
   if (message.role !== 'user') return ''
   const content = message.content
   if (typeof content === 'string') return content
@@ -286,7 +309,7 @@ function promoteApprovedAmendment(state: ApprovalState): void {
   }
 }
 
-function hasApprovalPhrase(text: string): boolean {
+export function hasApprovalPhrase(text: string): boolean {
   return APPROVAL_TAG_RE.test(text)
 }
 
@@ -325,6 +348,9 @@ function processMessage(message: AgentMessage, state: ApprovalState): void {
         handleComplete(message.details, state)
         break
       }
+      case 'replay': {
+        break
+      }
     }
     return
   }
@@ -349,42 +375,82 @@ export function reconstructApprovalState(
   return state
 }
 
-export function formatApprovalReminder(
-  state: ApprovalState,
-): string | undefined {
-  const approved = state.approved
-  if (approved === undefined) return undefined
-  if (approved.fileScopes.length === 0 && approved.bashScopes.length === 0) {
-    return undefined
-  }
-
-  const lines: string[] = [
-    `## Approved Scope (Proposal #${approved.id})`,
-    'The following operations are pre-approved by the user:',
-  ]
-
-  if (approved.fileScopes.length > 0) {
+function appendReminderScopes(
+  lines: string[],
+  fileScopes: FileScope[],
+  bashScopes: BashScope[],
+): void {
+  if (fileScopes.length > 0) {
     lines.push('', '### File operations')
-    for (const scope of approved.fileScopes) {
+    for (const scope of fileScopes) {
       lines.push(`- ${scope.operation} \`${scope.path}\` — ${scope.intent}`)
     }
   }
 
-  if (approved.bashScopes.length > 0) {
+  if (bashScopes.length > 0) {
     lines.push('', '### Bash operations')
-    for (const scope of approved.bashScopes) {
+    for (const scope of bashScopes) {
       lines.push(
         `- \`${scope.pattern}\` (risk=${scope.riskLevel}) — ${scope.intent}`,
       )
     }
   }
+}
+
+function appendPendingReminder(
+  lines: string[],
+  pending: PendingProposal,
+): void {
+  lines.push(
+    `## Pending Approval (Proposal #${pending.id})`,
+    'This proposal is not approved yet. Do not edit, write, run scoped bash commands, or replay deferred operations for this scope until the user replies with exactly <yes>, <approve>, or <proceed>.',
+  )
+  appendReminderScopes(lines, pending.fileScopes, pending.bashScopes)
+}
+
+function appendPendingAmendmentReminder(
+  lines: string[],
+  approved: ApprovedProposal,
+): void {
+  const amendment = approved.pendingAmendment
+  if (amendment === undefined) return
 
   lines.push(
-    '',
-    'Anything outside this scope requires an amendment proposal followed by explicit user approval.',
+    `## Pending Approval Amendment (Proposal #${approved.id})`,
+    'This amendment is not approved yet. Do not use the additional scope until the user replies with exactly <yes>, <approve>, or <proceed>.',
   )
+  appendReminderScopes(lines, amendment.fileScopes, amendment.bashScopes)
+}
 
-  return lines.join('\n')
+export function formatApprovalReminder(
+  state: ApprovalState,
+): string | undefined {
+  const lines: string[] = []
+
+  const approved = state.approved
+  if (
+    approved !== undefined &&
+    (approved.fileScopes.length > 0 || approved.bashScopes.length > 0)
+  ) {
+    lines.push(
+      `## Approved Scope (Proposal #${approved.id})`,
+      'The following operations were explicitly approved by a later user approval tag:',
+    )
+    appendReminderScopes(lines, approved.fileScopes, approved.bashScopes)
+    lines.push(
+      '',
+      'Anything outside this scope requires an amendment proposal followed by explicit user approval.',
+    )
+    appendPendingAmendmentReminder(lines, approved)
+  }
+
+  const pending = state.pending
+  if (pending !== undefined) {
+    if (lines.length > 0) lines.push('')
+    appendPendingReminder(lines, pending)
+  }
+
+  return lines.length > 0 ? lines.join('\n') : undefined
 }
 
 export function isFileApproved(
@@ -405,6 +471,7 @@ export function isBashApproved(
   command: string,
   riskLevel: RiskLevel,
 ): boolean {
+  if (isCradleSubagentProcess()) return true
   const approved = state.approved
   if (approved === undefined) return false
 

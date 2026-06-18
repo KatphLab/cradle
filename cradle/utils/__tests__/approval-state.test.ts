@@ -61,6 +61,12 @@ function makeApprovalToolResult(
   }
 }
 
+function expectApprovalTags(text: string): void {
+  expect(text).toContain('<yes>')
+  expect(text).toContain('<approve>')
+  expect(text).toContain('<proceed>')
+}
+
 const fileEditScope: FileScope = {
   path: 'src/example.ts',
   operation: 'edit',
@@ -142,10 +148,10 @@ describe('reconstructApprovalState', () => {
     expect(state).toEqual({ pending: undefined, approved: undefined })
   })
 
-  it('promotes a pending proposal to approved when a later user message contains "proceed"', () => {
+  it('promotes a pending proposal to approved when a later user message contains an approval tag', () => {
     const messages: AgentMessage[] = [
       makeApprovalToolResult(proposalDetails),
-      makeUserMessage('yes, proceed'),
+      makeUserMessage('<yes>'),
     ]
     const state = reconstructApprovalState(messages)
     expect(state.pending).toBeUndefined()
@@ -159,7 +165,7 @@ describe('reconstructApprovalState', () => {
   it('does not promote when "proceed" comes from an assistant message (no self-approval)', () => {
     const messages: AgentMessage[] = [
       makeApprovalToolResult(proposalDetails),
-      makeAssistantMessage('proceed'),
+      makeAssistantMessage('<proceed>'),
     ]
     const state = reconstructApprovalState(messages)
     expect(state.approved).toBeUndefined()
@@ -179,9 +185,9 @@ describe('reconstructApprovalState', () => {
     }
     const messages: AgentMessage[] = [
       makeApprovalToolResult(proposalDetails),
-      makeUserMessage('proceed'),
+      makeUserMessage('<proceed>'),
       makeApprovalToolResult(secondProposal),
-      makeUserMessage('proceed'),
+      makeUserMessage('<proceed>'),
     ]
     const state = reconstructApprovalState(messages)
     expect(state.approved).toEqual({
@@ -221,7 +227,7 @@ describe('reconstructApprovalState', () => {
     const messages: AgentMessage[] = [
       makeApprovalToolResult(proposalDetails),
       makeApprovalToolResult(amendment),
-      makeUserMessage('approved, go ahead'),
+      makeUserMessage('<approve>'),
     ]
     const state = reconstructApprovalState(messages)
     expect(state.approved?.id).toBe('1')
@@ -238,7 +244,7 @@ describe('reconstructApprovalState', () => {
     }
     const messages: AgentMessage[] = [
       makeApprovalToolResult(proposalDetails),
-      makeUserMessage('proceed'),
+      makeUserMessage('<proceed>'),
       makeApprovalToolResult(complete),
     ]
     const state = reconstructApprovalState(messages)
@@ -251,7 +257,7 @@ describe('isFileApproved', () => {
   it('returns true when the file path and operation match an approved scope', () => {
     const state = reconstructApprovalState([
       makeApprovalToolResult(proposalDetails),
-      makeUserMessage('proceed'),
+      makeUserMessage('<proceed>'),
     ])
     expect(isFileApproved(state, 'src/example.ts', 'edit')).toBe(true)
   })
@@ -259,7 +265,7 @@ describe('isFileApproved', () => {
   it('returns false when the file path is unapproved or the operation differs', () => {
     const state = reconstructApprovalState([
       makeApprovalToolResult(proposalDetails),
-      makeUserMessage('proceed'),
+      makeUserMessage('<proceed>'),
     ])
     expect(isFileApproved(state, 'src/example.ts', 'write')).toBe(false)
     expect(isFileApproved(state, 'src/other.ts', 'edit')).toBe(false)
@@ -271,7 +277,7 @@ describe('isBashApproved', () => {
   it('returns true when the command matches an approved pattern within the approved risk tier', () => {
     const state = reconstructApprovalState([
       makeApprovalToolResult(proposalDetails),
-      makeUserMessage('proceed'),
+      makeUserMessage('<proceed>'),
     ])
     expect(isBashApproved(state, 'pnpm test', 'medium')).toBe(true)
     expect(isBashApproved(state, 'pnpm test -- --run foo', 'low')).toBe(true)
@@ -280,7 +286,7 @@ describe('isBashApproved', () => {
   it('returns false when the attempted risk level exceeds the approved risk tier', () => {
     const state = reconstructApprovalState([
       makeApprovalToolResult(proposalDetails),
-      makeUserMessage('proceed'),
+      makeUserMessage('<proceed>'),
     ])
     expect(isBashApproved(state, 'pnpm test', 'critical')).toBe(false)
     expect(isBashApproved(state, 'pnpm test', 'high')).toBe(false)
@@ -291,13 +297,26 @@ describe('formatApprovalReminder', () => {
   it('includes approved file and bash scopes when an approval is active', () => {
     const state = reconstructApprovalState([
       makeApprovalToolResult(proposalDetails),
-      makeUserMessage('proceed'),
+      makeUserMessage('<proceed>'),
     ])
     const reminder = formatApprovalReminder(state)
     expect(reminder).toBeDefined()
     expect(reminder).toContain('Proposal #1')
     expect(reminder).toContain('edit `src/example.ts`')
     expect(reminder).toContain('`pnpm test` (risk=medium)')
-    expect(reminder).toContain('amendment proposal')
+    expect(reminder).not.toContain('Pending Approval')
+  })
+
+  it('includes pending proposal scope and accepted approval tags', () => {
+    const state = reconstructApprovalState([
+      makeApprovalToolResult(proposalDetails),
+    ])
+    const reminder = formatApprovalReminder(state)
+    expect(reminder).toBeDefined()
+    expect(reminder).toContain('Proposal #1')
+    expect(reminder).toMatch(/pending/i)
+    expectApprovalTags(reminder ?? '')
+    expect(reminder).toContain('edit `src/example.ts`')
+    expect(reminder).toContain('`pnpm test` (risk=medium)')
   })
 })

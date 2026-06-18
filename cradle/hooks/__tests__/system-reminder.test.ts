@@ -1,6 +1,5 @@
-// Isolate global settings to a temp directory to avoid cross-file pollution.
 import path from 'node:path'
-import { vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('node:os', async () => {
   const actual = await vi.importActual('node:os')
@@ -14,9 +13,10 @@ vi.mock('node:os', async () => {
 import { mkdtemp, rm } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 
+import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import type { ApprovalDetails } from '../../utils/approval-state.js'
 import {
   CONTINUE_AFTER_REMINDER_PROMPT,
   DEFAULT_SYSTEM_REMINDER,
@@ -38,6 +38,24 @@ import {
 } from './system-reminder-fixtures.js'
 
 let tempRoot: string
+
+function createApprovalToolResult(details: ApprovalDetails): AgentMessage {
+  return {
+    role: 'toolResult',
+    toolName: 'approval',
+    toolCallId: 'call_approval',
+    content: [],
+    isError: false,
+    timestamp: Date.now(),
+    details,
+  }
+}
+
+function expectApprovalTags(text: string): void {
+  expect(text).toContain('<yes>')
+  expect(text).toContain('<approve>')
+  expect(text).toContain('<proceed>')
+}
 
 describe('registerSystemReminderHook', () => {
   beforeEach(async () => {
@@ -163,6 +181,52 @@ describe('registerSystemReminderHook', () => {
 
     // Context handler filters stale reminders but does not inject new ones
     expect(result?.messages).toEqual([userMessage])
+  })
+
+  it('caches pending approval reminder for before_provider_request', async () => {
+    const handlers: RegisteredHandler[] = []
+    registerSystemReminderHook(createPi(handlers))
+
+    const notify = vi.fn()
+    const beforeHandler = getBeforeAgentStartHandler(handlers)
+    await beforeHandler(
+      {
+        systemPrompt:
+          '<system-reminder>\nAlways prefer tiny changes.\n</system-reminder>',
+      },
+      { cwd: tempRoot, ui: { notify } },
+    )
+
+    const approvalResult = createApprovalToolResult({
+      action: 'proposal',
+      id: 'pending-1',
+      fileScopes: [
+        {
+          path: 'src/example.ts',
+          operation: 'edit',
+          intent: 'test pending reminder',
+        },
+      ],
+      bashScopes: [],
+    })
+    const contextHandler = getContextHandler(handlers)
+    await contextHandler({ messages: [approvalResult] }, { cwd: tempRoot })
+
+    const providerHandler = getBeforeProviderRequestHandler(handlers)
+    const payload = {
+      messages: [{ role: 'user', content: 'test' }],
+      model: 'test',
+    }
+    providerHandler({ payload })
+
+    const reminderMessage = (payload.messages[1] ?? {}) as unknown as {
+      content: { type: string; text: string }[]
+    }
+    const text = reminderMessage.content[0]?.text ?? ''
+    expect(text).toContain('pending-1')
+    expect(text).toContain('src/example.ts')
+    expect(text).toMatch(/pending/i)
+    expectApprovalTags(text)
   })
 
   it('caches todo reminder for before_provider_request', async () => {
