@@ -29,11 +29,13 @@ Pattern definitions live in a JSON schema (`cradle/schema/shell-risk-patterns.sc
 
 ### File Tools (read, edit, write)
 
-All file tools wrap pi's built-in definitions with permission checks and path normalization, but `edit` and `write` add significant customization:
+All file tools wrap pi's built-in definitions with permission checks and path normalization, but `read`, `edit`, and `write` add significant customization:
 
-- **edit** replaces pi's single-replacement model with a batched `edits[]` array, allowing multiple targeted replacements in one call. It carries `promptSnippet` and `promptGuidelines` injected into the system prompt to nudge the model toward edit-over-write and small unique `oldText` blocks.
+- **read** returns text files as hashlines in the form `line:hash| content`. The 6-character hash anchors the visible line content for follow-up edits while preserving line text after `| `.
 
-- **write** validates agent definition files. When the target path is a `.md` file inside an `agents/` directory, cradle parses the content through `validateAgent` and rejects invalid definitions with structured errors. It also carries prompt guidelines steering the model away from write-for-partial-edits.
+- **edit** applies batched, hash-anchored line-range replacements. Each edit entry uses `{ from, fromHash, to, toHash, newText }`; the endpoint hashes must match the current `read` output, all ranges are validated atomically, and non-overlapping edits are applied bottom-to-top.
+
+- **write** validates agent definition files. When the target path is a `.md` file inside an `agents/` directory, cradle parses the content through `validateAgent` and rejects invalid definitions with structured errors. It also carries prompt guidelines steering the model toward hash-anchored `edit` for partial file changes.
 
 - **ls** adds an `ignore` parameter for exact-match entry filtering, layered on pi's built-in listing via custom filesystem operation injection.
 

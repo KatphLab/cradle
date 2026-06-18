@@ -76,7 +76,7 @@ export const writeTool = defineTool({
     'Create new files or deliberate full-file replacements; prefer edit for modifying existing files',
   promptGuidelines: [
     'Use write for new files or when the user explicitly wants a complete file replacement.',
-    'Do not use write just to modify part of an existing file; use edit with targeted replacements instead.',
+    'Do not use write just to modify part of an existing file; use edit with hash-anchored line ranges instead.',
     'Before overwriting an existing file, read it first unless the task clearly specifies full replacement content.',
   ],
   parameters: Type.Object({
