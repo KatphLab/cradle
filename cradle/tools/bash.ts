@@ -3,7 +3,9 @@ import {
   buildSessionContext,
   createBashToolDefinition,
   defineTool,
+  type ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
+import path from 'node:path'
 
 import { assertPermission } from '../config/settings.js'
 import {
@@ -12,10 +14,17 @@ import {
   type RiskLevel,
 } from '../config/shell-risk.js'
 import {
+  formatBlockedBashFileWriteMessage,
   formatBlockedBashMessage,
   isBashApproved,
   reconstructApprovalState,
+  type ApprovalState,
 } from '../utils/approval-state.js'
+import {
+  detectBashFileWrites,
+  type BashFileWriteDetection,
+} from '../utils/bash-file-write-detector.js'
+import { normalizePath } from '../utils/helpers.js'
 import {
   renderToolCallWithMode,
   renderToolResultWithMode,
@@ -52,6 +61,139 @@ function riskRank(level: RiskLevel): number {
       return 4
     }
   }
+}
+
+interface BashToolParameters {
+  command: string
+  summary?: string
+  description?: string
+  riskLevel: RiskLevel
+  riskReason: string
+  timeout?: number
+}
+
+function textResult(text: string): {
+  content: { type: 'text'; text: string }[]
+  details: undefined
+} {
+  return { content: [{ type: 'text', text }], details: undefined }
+}
+
+function reconstructToolApprovalState(
+  context: ExtensionContext,
+): ApprovalState {
+  const entries = context.sessionManager.getEntries()
+  const leafId = context.sessionManager.getLeafId()
+  const { messages } = buildSessionContext(entries, leafId)
+  return reconstructApprovalState(messages)
+}
+
+async function assessCommandRisk(
+  parameters: BashToolParameters,
+  cwd: string,
+): Promise<{
+  detected: { level: RiskLevel; reason: string } | undefined
+  effectiveRisk: RiskLevel
+  effectiveReason: string
+}> {
+  const patterns = await loadShellRiskPatterns(cwd)
+  const detected = classifyShellRisk(parameters.command, patterns)
+  return {
+    detected,
+    ...resolveEffectiveRisk(
+      parameters.riskLevel,
+      parameters.riskReason,
+      detected,
+    ),
+  }
+}
+
+interface WritePathResolution {
+  fileWrite: BashFileWriteDetection | undefined
+  writePaths: string[]
+}
+
+function resolveWritePaths(command: string, cwd: string): WritePathResolution {
+  const fileWrite = detectBashFileWrites(command)
+  const writePaths =
+    fileWrite?.paths.map((filePath) =>
+      path.resolve(cwd, normalizePath(filePath)),
+    ) ?? []
+  return { fileWrite, writePaths }
+}
+
+async function assertWritePermissions(
+  writePaths: readonly string[],
+  cwd: string,
+): Promise<void> {
+  await Promise.all(
+    writePaths.map((writePath) => assertPermission(writePath, cwd, 'write')),
+  )
+}
+
+function isFileWriteBlocked(
+  approvalState: ApprovalState,
+  parameters: BashToolParameters,
+  effectiveRisk: RiskLevel,
+  fileWrite: BashFileWriteDetection | undefined,
+  writePaths: readonly string[],
+): boolean {
+  if (fileWrite === undefined) return false
+  if (fileWrite.hasUnknownTarget) return true
+  return !isBashApproved(
+    approvalState,
+    parameters.command,
+    effectiveRisk,
+    writePaths,
+  )
+}
+
+function isApprovedScopedBashBlocked(
+  approvalState: ApprovalState,
+  parameters: BashToolParameters,
+): boolean {
+  return (
+    parameters.riskLevel !== 'low' &&
+    !isBashApproved(approvalState, parameters.command, parameters.riskLevel)
+  )
+}
+
+function shouldConfirmRisk(risk: RiskLevel): boolean {
+  return risk === 'high' || risk === 'critical'
+}
+
+function formatHighRiskPrompt(
+  summary: string,
+  parameters: BashToolParameters,
+  detected: { level: RiskLevel; reason: string } | undefined,
+  effectiveRisk: RiskLevel,
+  effectiveReason: string,
+): string {
+  const detectedText = detected
+    ? `\nDetected risk: ${detected.level} (${detected.reason})`
+    : ''
+  return `${summary}\n\nCommand: ${parameters.command}${detectedText}\nDeclared risk: ${parameters.riskLevel} (${parameters.riskReason})\nEffective risk: ${effectiveRisk} (${effectiveReason})`
+}
+
+async function confirmHighRiskCommand(
+  context: ExtensionContext,
+  summary: string,
+  parameters: BashToolParameters,
+  detected: { level: RiskLevel; reason: string } | undefined,
+  effectiveRisk: RiskLevel,
+  effectiveReason: string,
+): Promise<boolean> {
+  if (!shouldConfirmRisk(effectiveRisk)) return true
+  return context.ui.confirm(
+    `High-risk command: ${effectiveRisk}`,
+    formatHighRiskPrompt(
+      summary,
+      parameters,
+      detected,
+      effectiveRisk,
+      effectiveReason,
+    ),
+  )
 }
 
 /** @public */
@@ -98,59 +240,60 @@ export const bashTool = defineTool({
   async execute(toolCallId, parameters, signal, onUpdate, context) {
     const summary =
       parameters.summary ?? parameters.description ?? 'Bash command'
-
     await assertPermission(context.cwd, context.cwd, 'bash')
 
-    // Check approval scope for state-changing commands
-    const entries = context.sessionManager.getEntries()
-    const leafId = context.sessionManager.getLeafId()
-    const { messages } = buildSessionContext(entries, leafId)
-    const approvalState = reconstructApprovalState(messages)
-    if (
-      parameters.riskLevel !== 'low' &&
-      !isBashApproved(approvalState, parameters.command, parameters.riskLevel)
-    ) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: formatBlockedBashMessage(
-              approvalState,
-              parameters.command,
-              parameters.riskLevel,
-            ),
-          },
-        ],
-        details: undefined,
-      }
+    const approvalState = reconstructToolApprovalState(context)
+    if (isApprovedScopedBashBlocked(approvalState, parameters)) {
+      return textResult(
+        formatBlockedBashMessage(
+          approvalState,
+          parameters.command,
+          parameters.riskLevel,
+        ),
+      )
     }
 
-    const patterns = await loadShellRiskPatterns(context.cwd)
-    const detected = classifyShellRisk(parameters.command, patterns)
-
-    const { effectiveRisk, effectiveReason } = resolveEffectiveRisk(
-      parameters.riskLevel,
-      parameters.riskReason,
-      detected,
+    const { detected, effectiveRisk, effectiveReason } =
+      await assessCommandRisk(parameters, context.cwd)
+    const { fileWrite, writePaths } = resolveWritePaths(
+      parameters.command,
+      context.cwd,
     )
+    await assertWritePermissions(writePaths, context.cwd)
 
-    // Confirm high/critical commands with the user.
-    if (effectiveRisk === 'high' || effectiveRisk === 'critical') {
-      const allowed = await context.ui.confirm(
-        `High-risk command: ${effectiveRisk}`,
-        `${summary}\n\nCommand: ${parameters.command}${
-          detected
-            ? `\nDetected risk: ${detected.level} (${detected.reason})`
-            : ''
-        }\nDeclared risk: ${parameters.riskLevel} (${parameters.riskReason})\nEffective risk: ${effectiveRisk} (${effectiveReason})`,
+    if (
+      isFileWriteBlocked(
+        approvalState,
+        parameters,
+        effectiveRisk,
+        fileWrite,
+        writePaths,
       )
-      if (!allowed) {
-        return {
-          content: [
-            { type: 'text', text: `Blocked by user: ${effectiveReason}` },
-          ],
-          details: { blocked: true, reason: effectiveReason },
-        }
+    ) {
+      return textResult(
+        formatBlockedBashFileWriteMessage(
+          approvalState,
+          parameters.command,
+          writePaths,
+          fileWrite?.reasons ?? [],
+        ),
+      )
+    }
+
+    const allowed = await confirmHighRiskCommand(
+      context,
+      summary,
+      parameters,
+      detected,
+      effectiveRisk,
+      effectiveReason,
+    )
+    if (!allowed) {
+      return {
+        content: [
+          { type: 'text', text: `Blocked by user: ${effectiveReason}` },
+        ],
+        details: { blocked: true, reason: effectiveReason },
       }
     }
 
