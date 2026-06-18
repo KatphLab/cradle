@@ -13,6 +13,7 @@ import type {
   BashScope,
   FileScope,
 } from '../../utils/approval-state.js'
+import { isDeferredOperationDetails } from '../../utils/deferred-operations.js'
 import { writeTool } from '../write.js'
 
 const cwd = process.cwd()
@@ -58,7 +59,7 @@ function buildApprovedSession(
     timestamp: '2025-01-01T00:00:01Z',
     message: {
       role: 'user',
-      content: 'proceed',
+      content: '<proceed>',
       timestamp: 2,
     },
   }
@@ -195,5 +196,24 @@ describe('writeTool', () => {
     expect(result).not.toHaveProperty('isError')
     const written = await readFile(filePath, 'utf8')
     expect(written).toBe(content)
+  })
+
+  it('captures blocked writes as deferred operations', async () => {
+    const result = await execWrite('blocked.txt', 'deferred content', tempRoot)
+
+    expect(result).toHaveProperty('isError', true)
+    expect(isDeferredOperationDetails(result.details)).toBe(true)
+    expect(result.details).toMatchObject({
+      kind: 'deferred-operation',
+      id: 'deferred-test-call',
+      toolName: 'write',
+      path: 'blocked.txt',
+      operation: 'write',
+      parameters: { path: 'blocked.txt', content: 'deferred content' },
+    })
+    expect(result.content[0]).toMatchObject({
+      type: 'text',
+      text: expect.stringContaining('Deferred operation #deferred-test-call'),
+    })
   })
 })

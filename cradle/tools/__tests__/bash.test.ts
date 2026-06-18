@@ -69,7 +69,7 @@ function buildApprovedSession(
     timestamp: '2025-01-01T00:00:01Z',
     message: {
       role: 'user',
-      content: 'proceed',
+      content: '<proceed>',
       timestamp: 2,
     },
   }
