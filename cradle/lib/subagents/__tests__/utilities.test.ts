@@ -390,10 +390,11 @@ describe('subagent utilities', () => {
             stderr: 'stderr text',
             session: {
               id: 'session-1',
+              mode: 'new',
               cwd: '/repo',
               inspectCommand: 'pi --session session-1',
               continueHint:
-                'Call subagent again with agent "agent-one" and sessionId "session-1".',
+                'Call subagent_resume with agent "agent-one" and sessionId "session-1".',
             },
           }),
         ),

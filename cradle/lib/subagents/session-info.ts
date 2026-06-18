@@ -16,9 +16,10 @@ export function createSubagentSessionInfo(
 ): SubagentSessionInfo {
   const session: SubagentSessionInfo = {
     id: sessionId,
+    mode: sessionMode,
     cwd,
     inspectCommand: `pi --session ${sessionId}`,
-    continueHint: `Call subagent again with agent "${agentName}" and sessionId "${sessionId}".`,
+    continueHint: `Call subagent_resume with agent "${agentName}" and sessionId "${sessionId}".`,
   }
   if (sessionMode === 'new') {
     session.name = `subagent:${agentName}: ${previewTaskForName(task)}`

@@ -31,6 +31,7 @@ export interface UsageStats {
 
 export interface SubagentSessionInfo {
   id: string
+  mode: 'new' | 'resume'
   cwd: string
   inspectCommand: string
   continueHint: string

@@ -268,6 +268,7 @@ const eslintConfig = defineConfig([
 
             // Custom
             pageNum: true,
+            Dir: true,
           },
 
           ignore: [

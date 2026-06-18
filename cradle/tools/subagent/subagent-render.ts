@@ -85,7 +85,7 @@ function renderCallSingleText(
   const agentName = args.agent
   const preview = renderAgentPreview(args.task, 60)
   let text = theme.fg('toolTitle', theme.bold('subagent '))
-  text += theme.fg('accent', agentName)
+  text += theme.fg('accent', `new ${agentName}`)
   text += '\n  '
   text += theme.fg('dim', preview)
   return text

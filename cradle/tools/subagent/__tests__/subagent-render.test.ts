@@ -149,28 +149,16 @@ describe('buildRenderCall', () => {
     expect(textOf(rendered)).toContain(
       '<toolTitle><bold>subagent </bold></toolTitle>',
     )
-    expect(textOf(rendered)).toContain('<accent>coder</accent>')
+    expect(textOf(rendered)).toContain('<accent>new coder</accent>')
     expect(textOf(rendered)).toContain(
       '<dim>Implement a focused unit test</dim>',
     )
-
-    const resumeRendered = buildRenderCall(
-      {
-        agent: 'coder',
-        task: 'Continue debugging',
-        complexity: 'low',
-        sessionId: 'session-1',
-      },
-      theme,
-    )
-    expect(textOf(resumeRendered)).toContain('<accent>coder</accent>')
-    expect(textOf(resumeRendered)).toContain('<dim>Continue debugging</dim>')
 
     const emptyRendered = buildRenderCall(
       { agent: 'unknown', task: '', complexity: 'low' },
       theme,
     )
-    expect(textOf(emptyRendered)).toContain('<accent>unknown</accent>')
+    expect(textOf(emptyRendered)).toContain('<accent>new unknown</accent>')
     expect(textOf(emptyRendered)).toContain('<dim></dim>')
   })
 
