@@ -3,6 +3,8 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { isPlainRecord } from '../utils/type-guards.js'
+
 const PROJECT_CONFIG_FILE_PATH = path.join('.pi', 'cradle', 'settings.json')
 function getGlobalConfigPath(): string {
   return path.join(homedir(), '.pi', 'cradle', 'settings.json')
@@ -53,12 +55,8 @@ export interface GlobalSettings {
   jinaApiKey?: string
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && Boolean(value) && !Array.isArray(value)
-}
-
 function isDirectoryPermission(value: unknown): value is DirectoryPermission {
-  if (!isRecord(value)) return false
+  if (!isPlainRecord(value)) return false
   if (typeof value['path'] !== 'string') return false
   if (typeof value['read'] !== 'boolean') return false
   if (typeof value['write'] !== 'boolean') return false
@@ -67,7 +65,7 @@ function isDirectoryPermission(value: unknown): value is DirectoryPermission {
 }
 
 function isSubagentModels(value: unknown): value is SubagentModels {
-  if (!isRecord(value)) return false
+  if (!isPlainRecord(value)) return false
   const allowedKeys = new Set(['low', 'medium', 'high'])
   const keys = Object.keys(value)
   if (keys.length === 0) return false
@@ -125,7 +123,7 @@ function normalizeProjectSettings(
   value: unknown,
   cwd: string,
 ): ProjectSettings {
-  if (!isRecord(value)) return {}
+  if (!isPlainRecord(value)) return {}
 
   const rawPermissions = Array.isArray(value['permissions'])
     ? value['permissions']
@@ -177,7 +175,7 @@ export async function saveProjectSettings(
 }
 
 function normalizeApiKeys(value: unknown) {
-  if (!isRecord(value)) return {}
+  if (!isPlainRecord(value)) return {}
   const firecrawlApiKey = normalizeFirecrawlApiKey(value['firecrawlApiKey'])
   const tavilyApiKey = normalizeTavilyApiKey(value['tavilyApiKey'])
   const exaApiKey = normalizeExaApiKey(value['exaApiKey'])
@@ -204,7 +202,7 @@ function normalizeToolOutputMode(raw: unknown): ToolOutputMode | undefined {
 }
 
 function normalizeGlobalSettings(value: unknown): GlobalSettings {
-  if (!isRecord(value)) return {}
+  if (!isPlainRecord(value)) return {}
 
   const reminderTokenThreshold = normalizeReminderTokenThreshold(
     value['reminderTokenThreshold'],

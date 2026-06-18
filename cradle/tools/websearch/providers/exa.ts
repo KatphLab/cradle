@@ -1,5 +1,5 @@
 import { handleExaError } from '../../../utils/exa.js'
-import { isRecord } from '../../../utils/helpers.js'
+import { isRecord } from '../../../utils/type-guards.js'
 import type { WebSearchProvider, WebSearchResponse } from '../types.js'
 
 const EXA_SEARCH_URL = 'https://api.exa.ai/search'

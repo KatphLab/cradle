@@ -1,4 +1,4 @@
-import { isRecord } from './helpers.js'
+import { isRecord } from './type-guards.js'
 
 export function validateTavilyExtract(
   body: unknown,

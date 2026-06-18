@@ -5,6 +5,7 @@ import path from 'node:path'
 import { withFileMutationQueue } from '@earendil-works/pi-coding-agent'
 
 import type { Message } from '@earendil-works/pi-ai'
+import { isRecord } from '../../utils/type-guards.js'
 import type { DisplayItem, SingleResult } from './types.js'
 
 export const MAX_PARALLEL_TASKS = 8
@@ -228,12 +229,6 @@ export function formatToolCall(
   }
 }
 
-function isRecordStringUnknown(
-  value: unknown,
-): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
 function getTextFromMessage(message: Message): string | undefined {
   if (message.role !== 'assistant') return undefined
   if (!Array.isArray(message.content)) return undefined
@@ -297,14 +292,14 @@ export function truncateParallelOutput(output: string): string {
 }
 
 function extractDisplayItem(part: unknown): DisplayItem | undefined {
-  if (!isRecordStringUnknown(part)) return undefined
+  if (!isRecord(part)) return undefined
   if (part['type'] === 'text' && typeof part['text'] === 'string') {
     return { type: 'text', text: part['text'] }
   }
   if (
     part['type'] === 'toolCall' &&
     typeof part['name'] === 'string' &&
-    isRecordStringUnknown(part['arguments'])
+    isRecord(part['arguments'])
   ) {
     return { type: 'toolCall', name: part['name'], args: part['arguments'] }
   }

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
+import { isRecord } from '../../../utils/type-guards.js'
 import {
   createMockProcess,
   findFinalOutput,
-  isRecord,
   isTextPart,
   type MockProcess,
   waitForSpawn,

@@ -3,7 +3,82 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import type {
+  ExtensionContext,
+  SessionEntry,
+  SessionMessageEntry,
+} from '@earendil-works/pi-coding-agent'
+
+import type {
+  ApprovalDetails,
+  BashScope,
+  FileScope,
+} from '../../utils/approval-state.js'
 import { bashTool } from '../bash.js'
+
+interface SessionManagerMock {
+  getEntries: () => SessionEntry[]
+  getLeafId: () => string | null
+}
+
+function emptySessionManager(): SessionManagerMock {
+  return { getEntries: () => [], getLeafId: () => null }
+}
+
+function makeContext(
+  cwd: string,
+  confirmSpy: ReturnType<typeof vi.fn>,
+  sessionManager: SessionManagerMock = emptySessionManager(),
+): ExtensionContext {
+  return {
+    cwd,
+    ui: { confirm: confirmSpy },
+    sessionManager,
+  } as unknown as ExtensionContext
+}
+
+function buildApprovedSession(
+  fileScopes: FileScope[],
+  bashScopes: BashScope[],
+): SessionManagerMock {
+  const proposalDetails: ApprovalDetails = {
+    action: 'proposal',
+    id: 'test-proposal',
+    fileScopes,
+    bashScopes,
+  }
+  const proposalEntry: SessionMessageEntry = {
+    type: 'message',
+    id: 'proposal-1',
+    parentId: null,
+    timestamp: '2025-01-01T00:00:00Z',
+    message: {
+      role: 'toolResult',
+      toolName: 'approval',
+      toolCallId: 'call-approval-1',
+      content: [],
+      isError: false,
+      timestamp: 1,
+      details: proposalDetails,
+    },
+  }
+  const approvalEntry: SessionMessageEntry = {
+    type: 'message',
+    id: 'user-approval',
+    parentId: 'proposal-1',
+    timestamp: '2025-01-01T00:00:01Z',
+    message: {
+      role: 'user',
+      content: '<proceed>',
+      timestamp: 2,
+    },
+  }
+  const entries: SessionEntry[] = [proposalEntry, approvalEntry]
+  return {
+    getEntries: () => entries,
+    getLeafId: () => 'user-approval',
+  }
+}
 
 let withPatternsDirectory: string
 let withoutPatternsDirectory: string
@@ -56,8 +131,7 @@ describe('bashTool', () => {
       },
       new AbortController().signal,
       vi.fn(),
-      // @ts-expect-error minimal context mock
-      { cwd: withPatternsDirectory, ui: { confirm: confirmSpy } },
+      makeContext(withPatternsDirectory, confirmSpy),
     )
 
     expect(confirmSpy).not.toHaveBeenCalled()
@@ -82,8 +156,7 @@ describe('bashTool', () => {
       },
       new AbortController().signal,
       vi.fn(),
-      // @ts-expect-error minimal context mock
-      { cwd: withPatternsDirectory, ui: { confirm: confirmSpy } },
+      makeContext(withPatternsDirectory, confirmSpy),
     )
 
     expect(confirmSpy).not.toHaveBeenCalled()
@@ -103,8 +176,7 @@ describe('bashTool', () => {
       },
       new AbortController().signal,
       vi.fn(),
-      // @ts-expect-error minimal context mock
-      { cwd: withPatternsDirectory, ui: { confirm: confirmSpy } },
+      makeContext(withPatternsDirectory, confirmSpy),
     )
 
     expect(confirmSpy).toHaveBeenCalled()
@@ -116,6 +188,17 @@ describe('bashTool', () => {
 
   it('executes high-risk command when user allows', async () => {
     const confirmSpy = vi.fn().mockResolvedValue(true)
+    const sessionManager = buildApprovedSession(
+      [],
+      [
+        {
+          pattern: 'sudo',
+          riskLevel: 'high',
+          intent: 'test sudo commands',
+          allowedPaths: [],
+        },
+      ],
+    )
     const result = await bashTool.execute(
       'test-call',
       {
@@ -126,8 +209,7 @@ describe('bashTool', () => {
       },
       new AbortController().signal,
       vi.fn(),
-      // @ts-expect-error minimal context mock
-      { cwd: withPatternsDirectory, ui: { confirm: confirmSpy } },
+      makeContext(withPatternsDirectory, confirmSpy, sessionManager),
     )
 
     expect(confirmSpy).toHaveBeenCalled()
@@ -147,8 +229,7 @@ describe('bashTool', () => {
       },
       new AbortController().signal,
       vi.fn(),
-      // @ts-expect-error minimal context mock
-      { cwd: withPatternsDirectory, ui: { confirm: confirmSpy } },
+      makeContext(withPatternsDirectory, confirmSpy),
     )
 
     expect(confirmSpy).toHaveBeenCalled()
@@ -168,8 +249,7 @@ describe('bashTool', () => {
       },
       new AbortController().signal,
       vi.fn(),
-      // @ts-expect-error minimal context mock
-      { cwd: withPatternsDirectory, ui: { confirm: confirmSpy } },
+      makeContext(withPatternsDirectory, confirmSpy),
     )
 
     expect(confirmSpy).toHaveBeenCalled()
@@ -181,6 +261,17 @@ describe('bashTool', () => {
 
   it('handles medium-risk command without confirmation', async () => {
     const confirmSpy = vi.fn()
+    const sessionManager = buildApprovedSession(
+      [],
+      [
+        {
+          pattern: 'chmod 777',
+          riskLevel: 'high',
+          intent: 'test chmod commands',
+          allowedPaths: [],
+        },
+      ],
+    )
     const result = await bashTool.execute(
       'test-call',
       {
@@ -191,8 +282,7 @@ describe('bashTool', () => {
       },
       new AbortController().signal,
       vi.fn(),
-      // @ts-expect-error minimal context mock
-      { cwd: withPatternsDirectory, ui: { confirm: confirmSpy } },
+      makeContext(withPatternsDirectory, confirmSpy, sessionManager),
     )
 
     expect(confirmSpy).not.toHaveBeenCalled()
@@ -202,6 +292,17 @@ describe('bashTool', () => {
 
   it('uses declared reason when declared risk exceeds detected', async () => {
     const confirmSpy = vi.fn().mockResolvedValue(true)
+    const sessionManager = buildApprovedSession(
+      [],
+      [
+        {
+          pattern: 'chmod 777',
+          riskLevel: 'high',
+          intent: 'test chmod commands',
+          allowedPaths: [],
+        },
+      ],
+    )
     await bashTool.execute(
       'test-call',
       {
@@ -212,8 +313,7 @@ describe('bashTool', () => {
       },
       new AbortController().signal,
       vi.fn(),
-      // @ts-expect-error minimal context mock
-      { cwd: withPatternsDirectory, ui: { confirm: confirmSpy } },
+      makeContext(withPatternsDirectory, confirmSpy, sessionManager),
     )
 
     expect(confirmSpy).toHaveBeenCalled()
@@ -235,8 +335,7 @@ describe('bashTool', () => {
       },
       new AbortController().signal,
       vi.fn(),
-      // @ts-expect-error minimal context mock
-      { cwd: withoutPatternsDirectory, ui: { confirm: confirmSpy } },
+      makeContext(withoutPatternsDirectory, confirmSpy),
     )
 
     // No patterns loaded — trust the LLM's declared low risk.

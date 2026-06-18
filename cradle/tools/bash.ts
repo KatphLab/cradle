@@ -1,5 +1,6 @@
 import { Type } from '@earendil-works/pi-ai'
 import {
+  buildSessionContext,
   createBashToolDefinition,
   defineTool,
 } from '@earendil-works/pi-coding-agent'
@@ -10,6 +11,11 @@ import {
   loadShellRiskPatterns,
   type RiskLevel,
 } from '../config/shell-risk.js'
+import {
+  formatBlockedBashMessage,
+  isBashApproved,
+  reconstructApprovalState,
+} from '../utils/approval-state.js'
 import {
   renderToolCallWithMode,
   renderToolResultWithMode,
@@ -94,6 +100,31 @@ export const bashTool = defineTool({
       parameters.summary ?? parameters.description ?? 'Bash command'
 
     await assertPermission(context.cwd, context.cwd, 'bash')
+
+    // Check approval scope for state-changing commands
+    const entries = context.sessionManager.getEntries()
+    const leafId = context.sessionManager.getLeafId()
+    const { messages } = buildSessionContext(entries, leafId)
+    const approvalState = reconstructApprovalState(messages)
+    if (
+      parameters.riskLevel !== 'low' &&
+      !isBashApproved(approvalState, parameters.command, parameters.riskLevel)
+    ) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: formatBlockedBashMessage(
+              approvalState,
+              parameters.command,
+              parameters.riskLevel,
+            ),
+          },
+        ],
+        details: undefined,
+      }
+    }
+
     const patterns = await loadShellRiskPatterns(context.cwd)
     const detected = classifyShellRisk(parameters.command, patterns)
 

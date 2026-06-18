@@ -11,6 +11,7 @@ import { registerShellHook } from './hooks/shell.js'
 import { registerSpecModeHook } from './hooks/spec-mode.js'
 import { registerSystemReminderHook } from './hooks/system-reminder.js'
 import { advisorTool } from './tools/advisor.js'
+import { approvalTool } from './tools/approval.js'
 import { bashTool } from './tools/bash.js'
 import { councilTool } from './tools/council.js'
 import { discoverAgentsTool } from './tools/discover-agents.js'
@@ -55,6 +56,7 @@ export default function configureExtension(
   pi.registerTool(editTool)
   pi.registerTool(writeTool)
   pi.registerTool(bashTool)
+  pi.registerTool(approvalTool)
   pi.registerTool(todoTool)
   pi.registerTool(webFetchInternalTool)
   pi.registerTool(webFetchTool)

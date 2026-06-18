@@ -85,14 +85,14 @@ function getTextOutput(result: AgentToolResult<unknown>): string {
     .join('\n')
 }
 
-export function renderPlainTextFallback(
+function renderPlainTextFallback(
   result: AgentToolResult<unknown>,
   theme: Theme,
 ): Component {
   return new Text(theme.fg('toolOutput', getTextOutput(result)), 0, 0)
 }
 
-export function renderPreviewTextFallback(
+function renderPreviewTextFallback(
   result: AgentToolResult<unknown>,
   theme: Theme,
 ): Component {
@@ -131,4 +131,46 @@ export function renderCollapsedToolSummary(
   return shouldHideCollapsedResult(options)
     ? renderEmptyToolResult()
     : undefined
+}
+
+export function createModeRenderResult<D>(formatters: {
+  formatHeader: (
+    details: D,
+    isError: boolean,
+    isPartial: boolean,
+    theme: Theme,
+  ) => Component
+  formatHidden: (
+    isError: boolean,
+    isPartial: boolean,
+    theme: Theme,
+  ) => Component
+}): (
+  result: AgentToolResult<D>,
+  options: { expanded: boolean; isPartial: boolean },
+  theme: Theme,
+  context: { isError: boolean },
+) => Component {
+  return (result, options, theme, context) => {
+    const mode = getToolOutputMode()
+
+    if (shouldRenderFullToolResult(options)) {
+      return renderPlainTextFallback(result, theme)
+    }
+
+    if (mode === 'preview') {
+      return renderPreviewTextFallback(result, theme)
+    }
+
+    if (mode === 'header-only') {
+      return formatters.formatHeader(
+        result.details,
+        context.isError,
+        options.isPartial,
+        theme,
+      )
+    }
+
+    return formatters.formatHidden(context.isError, options.isPartial, theme)
+  }
 }

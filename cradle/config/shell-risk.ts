@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
+import { isRecord } from '../utils/type-guards.js'
+
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 
 export interface ShellRiskPattern {
@@ -18,10 +20,6 @@ const patternCache = new Map<string, ShellRiskPattern[]>()
 /** @public */
 export function clearShellRiskCache(): void {
   patternCache.clear()
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
 }
 
 function isShellRiskPatternEntry(

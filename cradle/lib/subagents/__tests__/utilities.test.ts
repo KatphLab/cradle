@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Message } from '@earendil-works/pi-ai'
 import { withFileMutationQueue } from '@earendil-works/pi-coding-agent'
 
+import { isRecord } from '../../../utils/type-guards.js'
 import type { SingleResult } from '../types.js'
 import {
   PER_TASK_OUTPUT_CAP,
@@ -52,19 +53,13 @@ type AssistantContent = AssistantTestMessage['content']
 type UserContent = Extract<Message, { role: 'user' }>['content']
 type TestMessageRole = 'assistant' | 'user'
 
-function isRecordStringUnknown(
-  value: unknown,
-): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
 function toAssistantContent(content: unknown): AssistantContent {
   if (!Array.isArray(content)) return []
 
   const assistantContent: AssistantContent = []
   let toolCallIndex = 0
   for (const part of content) {
-    if (!isRecordStringUnknown(part)) continue
+    if (!isRecord(part)) continue
 
     const text = part['text']
     if (part['type'] === 'text' && typeof text === 'string') {
@@ -77,7 +72,7 @@ function toAssistantContent(content: unknown): AssistantContent {
     if (
       part['type'] === 'toolCall' &&
       typeof toolName === 'string' &&
-      isRecordStringUnknown(toolArguments)
+      isRecord(toolArguments)
     ) {
       assistantContent.push({
         arguments: toolArguments,
@@ -97,7 +92,7 @@ function toUserContentParts(content: unknown): Exclude<UserContent, string> {
 
   const userContent: Exclude<UserContent, string> = []
   for (const part of content) {
-    if (!isRecordStringUnknown(part)) continue
+    if (!isRecord(part)) continue
 
     const text = part['text']
     if (part['type'] === 'text' && typeof text === 'string') {

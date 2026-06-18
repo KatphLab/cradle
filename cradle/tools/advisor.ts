@@ -1,11 +1,12 @@
 import { defineTool } from '@earendil-works/pi-coding-agent'
 import { Text } from '@earendil-works/pi-tui'
 import { Type, type Static } from 'typebox'
-import { getOptionalString, isRecord } from '../utils/helpers.js'
+import { getOptionalString } from '../utils/helpers.js'
 import {
   renderCollapsedToolSummary,
   shouldRenderFullToolResult,
 } from '../utils/tool-render.js'
+import { isRecord } from '../utils/type-guards.js'
 import {
   buildAdvisorRenderCall,
   buildAdvisorRenderResult,

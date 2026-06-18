@@ -7,10 +7,6 @@ export function normalizePath(inputPath: string): string {
   return inputPath.replace(/^@/, '')
 }
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
 export async function resolveSearchPath(
   parameters: { path?: string },
   context: { cwd: string },

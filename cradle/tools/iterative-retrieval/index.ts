@@ -56,8 +56,6 @@ function buildSubagentTask(parameters: {
   return taskParts.join('\n')
 }
 
-// ---- section extraction helpers ----
-
 function sectionBody(text: string, header: string): string {
   const start = text.indexOf(header)
   if (start === -1) return ''
@@ -189,8 +187,6 @@ function buildIterativeRetrievalResult(
     details,
   }
 }
-
-// ---- validation ----
 
 function validateParameters(params: {
   task: string

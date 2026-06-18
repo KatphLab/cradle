@@ -97,10 +97,6 @@ export function createMockProcess(): MockProcess {
   })
 }
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
 export function createUsage(overrides: Partial<Usage> = {}): Usage {
   const cost = overrides.cost ?? {
     cacheRead: 0,

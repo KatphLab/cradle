@@ -18,6 +18,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import { isPlainRecord } from '../../utils/type-guards.js'
 import { registerSettingsCommand } from '../settings.js'
 import {
   formatDirectoryPath,
@@ -111,15 +112,11 @@ async function invokeRegisteredHandler(
   return { notifySpy }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
 async function readSettings(
   filePath: string,
 ): Promise<Record<string, unknown>> {
   const raw: unknown = JSON.parse(await readFile(filePath, 'utf8'))
-  if (!isRecord(raw)) {
+  if (!isPlainRecord(raw)) {
     throw new Error(`Expected JSON object at ${filePath}`)
   }
   return raw
