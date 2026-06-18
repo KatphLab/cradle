@@ -106,11 +106,9 @@ const RISK_RANK: Readonly<Record<RiskLevel, number>> = {
 function isFileOperation(value: string): value is FileOperation {
   return VALID_FILE_OPERATIONS.has(value)
 }
-
 function isRiskLevel(value: string): value is RiskLevel {
   return VALID_RISK_LEVELS.has(value)
 }
-
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string')
 }

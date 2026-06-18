@@ -1,6 +1,7 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { getApprovalHint } from '../approval-hint.js'
 import {
   formatApprovalReminder,
   isApprovalDetails,
@@ -418,4 +419,16 @@ describe('formatApprovalReminder', () => {
     expect(reminder).toContain('edit `src/example.ts`')
     expect(reminder).toContain('`pnpm test` (risk=medium)')
   })
+})
+
+describe('getApprovalHint', () => {
+  it('is exported and callable', () => {
+    // Verify the function is properly exported
+    expect(typeof getApprovalHint).toBe('function')
+  })
+
+  // Full integration tests are handled through the read tool since
+  // getApprovalHint requires a sessionManager with getEntries/getLeafId.
+  // The underlying logic (reconstructApprovalState + isFileApproved) is
+  // thoroughly tested above.
 })

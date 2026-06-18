@@ -2,7 +2,8 @@ import type { AgentToolResult } from '@earendil-works/pi-agent-core'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import * as approvalHintModule from '../../utils/approval-hint.js'
 
 import { hashLineContent } from '../../utils/hashlines.js'
 import { readTool } from '../read.js'
@@ -144,5 +145,35 @@ describe('readTool', () => {
 
   it('denies reads outside allowed directories', async () => {
     await expect(execRead(deniedFile, tempRoot)).rejects.toThrow('read denied')
+  })
+
+  it('appends approval hint when file is not in approved scope', async () => {
+    const file = path.join(tempRoot, 'hint-test.txt')
+    await writeFile(file, 'content')
+
+    const hintSpy = vi
+      .spyOn(approvalHintModule, 'getApprovalHint')
+      .mockReturnValue('This file is not in the current approved scope.')
+
+    const result = await execRead('hint-test.txt', tempRoot)
+    const text = textContent(result)
+
+    expect(text).toContain(hashline(1, 'content'))
+    expect(text).toContain('<approval-hint>')
+    expect(text).toContain('This file is not in the current approved scope.')
+    expect(text).toContain('</approval-hint>')
+
+    hintSpy.mockRestore()
+  })
+
+  it('does not append approval hint when sessionManager is absent', async () => {
+    const file = path.join(tempRoot, 'approved-test.txt')
+    await writeFile(file, 'content')
+
+    const result = await execRead('approved-test.txt', tempRoot)
+    const text = textContent(result)
+
+    expect(text).toBe(hashline(1, 'content'))
+    expect(text).not.toContain('<approval-hint>')
   })
 })

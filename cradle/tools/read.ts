@@ -7,6 +7,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import { assertPermission } from '../config/settings.js'
+import { getApprovalHint } from '../utils/approval-hint.js'
 import { formatHashline, splitLines } from '../utils/hashlines.js'
 import { normalizePath } from '../utils/helpers.js'
 import {
@@ -101,15 +102,23 @@ export const readTool = defineTool({
       throw new Error('read: file appears to be binary (contains NUL bytes)')
     }
 
+    const textContent = formatTextReadOutput(
+      content,
+      parameters.offset,
+      parameters.limit,
+    )
+
+    const approvalHint = getApprovalHint(context.sessionManager, normalizedPath)
+    const fullText =
+      approvalHint === undefined
+        ? textContent
+        : `${textContent}\n\n<approval-hint>\n${approvalHint}\n</approval-hint>`
+
     return {
       content: [
         {
           type: 'text',
-          text: formatTextReadOutput(
-            content,
-            parameters.offset,
-            parameters.limit,
-          ),
+          text: fullText,
         },
       ],
       details: undefined,
