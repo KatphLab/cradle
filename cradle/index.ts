@@ -21,6 +21,8 @@ import { grepTool } from './tools/grep.js'
 import { iterativeRetrievalTool } from './tools/iterative-retrieval/index.js'
 import { lsTool } from './tools/ls.js'
 import { readTool } from './tools/read.js'
+import { subagentResumeTool } from './tools/subagent-resume.js'
+import { subagentSessionsTool } from './tools/subagent-sessions.js'
 import { subagentTool } from './tools/subagent.js'
 import { todoTool } from './tools/todo.js'
 import { webFetchInternalTool, webFetchTool } from './tools/webfetch/index.js'
@@ -63,6 +65,8 @@ export default function configureExtension(
   pi.registerTool(webSearchInternalTool)
   pi.registerTool(webSearchTool)
   pi.registerTool(subagentTool)
+  pi.registerTool(subagentSessionsTool)
+  pi.registerTool(subagentResumeTool)
   pi.registerTool(discoverAgentsTool)
   pi.registerTool(advisorTool)
   pi.registerTool(councilTool)

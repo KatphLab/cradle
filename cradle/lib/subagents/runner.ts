@@ -346,7 +346,7 @@ function processStdoutLine(
     result.session.id = sessionHeader.id
     result.session.cwd = sessionHeader.cwd
     result.session.inspectCommand = `pi --session ${sessionHeader.id}`
-    result.session.continueHint = `Call subagent again with agent "${result.agent}" and sessionId "${sessionHeader.id}".`
+    result.session.continueHint = `Call subagent_resume with agent "${result.agent}" and sessionId "${sessionHeader.id}".`
     return
   }
 

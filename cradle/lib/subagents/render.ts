@@ -128,9 +128,10 @@ function formatErrorMessage(errorMessage: string, theme: ThemeLike): string {
 function formatSessionLine(result: SingleResult, theme: ThemeLike): string {
   const session = result.session
   if (session === undefined) return ''
+  const mode = session.mode === 'resume' ? 'resumed' : 'new'
   return theme.fg(
     'muted',
-    `Session: ${session.id} · inspect: ${session.inspectCommand}`,
+    `Session (${mode}): ${session.id} · inspect: ${session.inspectCommand}`,
   )
 }
 

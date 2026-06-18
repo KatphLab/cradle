@@ -1,4 +1,4 @@
-import { appendFile, mkdir } from 'node:fs/promises'
+import { appendFile, mkdir, readFile } from 'node:fs/promises'
 
 import {
   getAgentDir,
@@ -6,11 +6,15 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { appendSubagentRunRecord } from '../run-index.js'
+import {
+  appendSubagentRunRecord,
+  listSubagentRunRecords,
+} from '../run-index.js'
 
 vi.mock('node:fs/promises', () => ({
   appendFile: vi.fn(),
   mkdir: vi.fn(),
+  readFile: vi.fn(),
 }))
 
 vi.mock('@earendil-works/pi-coding-agent', () => ({
@@ -69,5 +73,32 @@ describe('appendSubagentRunRecord', () => {
     ).resolves.toBeUndefined()
 
     expect(appendFile).not.toHaveBeenCalled()
+  })
+  it('lists valid subagent run records and ignores invalid lines', async () => {
+    vi.mocked(readFile).mockResolvedValueOnce(
+      [
+        JSON.stringify({
+          runId: 'run-1',
+          agent: 'writer',
+          task: 'write',
+          cwd: '/repo',
+          sessionId: 'session-1',
+          status: 'succeeded',
+          timestamp: '2026-01-01T00:00:00.000Z',
+        }),
+        'not json',
+        JSON.stringify({ runId: 'missing-fields' }),
+      ].join('\n'),
+    )
+
+    await expect(listSubagentRunRecords()).resolves.toEqual([
+      expect.objectContaining({ sessionId: 'session-1', agent: 'writer' }),
+    ])
+  })
+
+  it('returns an empty list when the diagnostics index cannot be read', async () => {
+    vi.mocked(readFile).mockRejectedValueOnce(new Error('missing'))
+
+    await expect(listSubagentRunRecords()).resolves.toEqual([])
   })
 })

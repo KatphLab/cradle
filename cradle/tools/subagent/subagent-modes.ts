@@ -38,9 +38,6 @@ const ChainTaskParameter = Type.String({
 const CwdParameter = Type.String({
   description: 'Working directory for the agent process',
 })
-const SessionIdParameter = Type.String({
-  description: 'Existing subagent session id to continue',
-})
 
 const TaskItem = Type.Object(
   {
@@ -68,7 +65,6 @@ export const SubagentParameters = Type.Object(
     task: Type.Optional(TaskParameter),
     complexity: Type.Optional(ComplexitySchema),
     cwd: Type.Optional(CwdParameter),
-    sessionId: Type.Optional(SessionIdParameter),
     tasks: Type.Optional(
       Type.Array(TaskItem, {
         description:
@@ -91,9 +87,8 @@ type ChainItemParameters = Static<typeof ChainItem>
 export interface SingleModeParameters {
   agent: string
   task: string
-  complexity?: TaskComplexity
+  complexity: TaskComplexity
   cwd?: string
-  sessionId?: string
 }
 
 export interface ParallelModeParameters {
@@ -118,8 +113,7 @@ function hasSingleModeFields(parameters: SubagentToolParameters): boolean {
     parameters.agent !== undefined ||
     parameters.task !== undefined ||
     parameters.complexity !== undefined ||
-    parameters.cwd !== undefined ||
-    parameters.sessionId !== undefined
+    parameters.cwd !== undefined
   )
 }
 
@@ -142,22 +136,16 @@ export function resolveSubagentMode(
 export function toSingleMode(
   parameters: SubagentToolParameters,
 ): SingleModeParameters {
-  const { agent, task, complexity, sessionId } = parameters
+  const { agent, task, complexity } = parameters
   if (agent === undefined || task === undefined) {
     throw new Error('Missing agent or task in single mode')
   }
-  if (complexity === undefined && sessionId === undefined) {
-    throw new Error(
-      'Missing complexity in single mode (required for new sessions, leave empty when continuing with sessionId)',
-    )
+  if (complexity === undefined) {
+    throw new Error('Missing complexity in single mode')
   }
 
-  const singleParameters: SingleModeParameters = { agent, task }
-  if (complexity !== undefined) singleParameters.complexity = complexity
+  const singleParameters: SingleModeParameters = { agent, task, complexity }
   if (parameters.cwd !== undefined) singleParameters.cwd = parameters.cwd
-  if (sessionId !== undefined) {
-    singleParameters.sessionId = sessionId
-  }
   return singleParameters
 }
 
@@ -223,7 +211,7 @@ export async function handleSingleMode(
     agentName,
     task,
     cwd: parameters.cwd,
-    sessionId: parameters.sessionId,
+    sessionId: undefined,
     step: undefined,
     signal,
     onUpdate,
