@@ -73,7 +73,7 @@ export const subagentTool = defineTool({
   label: 'Subagent',
   description: [
     'Delegate tasks to specialized subagents with isolated, persisted sessions.',
-    'Modes: single (agent + task, optionally sessionId to continue a prior subagent session), parallel (tasks array), chain (sequential with {previous} placeholder).',
+    'Modes: single (agent + task + complexity, optionally sessionId to continue a prior subagent session), parallel (tasks array), chain (sequential with {previous} placeholder).',
     'Failed results include session details for later inspection or continuation.',
   ].join(' '),
   parameters: SubagentParameters,

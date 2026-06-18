@@ -91,7 +91,7 @@ type ChainItemParameters = Static<typeof ChainItem>
 export interface SingleModeParameters {
   agent: string
   task: string
-  complexity: TaskComplexity
+  complexity?: TaskComplexity
   cwd?: string
   sessionId?: string
 }
@@ -111,7 +111,7 @@ export type SubagentToolParameters = Static<typeof SubagentParameters>
 type SubagentMode = 'single' | 'parallel' | 'chain'
 
 const MODE_SELECTION_ERROR =
-  'Specify exactly one subagent mode: single (agent + task), parallel (tasks), or chain (chain).'
+  'Specify exactly one subagent mode: single (agent + task + complexity), parallel (tasks), or chain (chain).'
 
 function hasSingleModeFields(parameters: SubagentToolParameters): boolean {
   return (
@@ -142,15 +142,21 @@ export function resolveSubagentMode(
 export function toSingleMode(
   parameters: SubagentToolParameters,
 ): SingleModeParameters {
-  const { agent, task, complexity } = parameters
-  if (agent === undefined || task === undefined || complexity === undefined) {
-    throw new Error('Missing agent, task, or complexity in single mode')
+  const { agent, task, complexity, sessionId } = parameters
+  if (agent === undefined || task === undefined) {
+    throw new Error('Missing agent or task in single mode')
+  }
+  if (complexity === undefined && sessionId === undefined) {
+    throw new Error(
+      'Missing complexity in single mode (required for new sessions, leave empty when continuing with sessionId)',
+    )
   }
 
-  const singleParameters: SingleModeParameters = { agent, task, complexity }
+  const singleParameters: SingleModeParameters = { agent, task }
+  if (complexity !== undefined) singleParameters.complexity = complexity
   if (parameters.cwd !== undefined) singleParameters.cwd = parameters.cwd
-  if (parameters.sessionId !== undefined) {
-    singleParameters.sessionId = parameters.sessionId
+  if (sessionId !== undefined) {
+    singleParameters.sessionId = sessionId
   }
   return singleParameters
 }

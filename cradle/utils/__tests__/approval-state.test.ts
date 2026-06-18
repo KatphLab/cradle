@@ -1,6 +1,7 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-
+import { getApprovalHint } from '../approval-hint.js'
 import {
   formatApprovalReminder,
   isApprovalDetails,
@@ -271,6 +272,105 @@ describe('isFileApproved', () => {
     expect(isFileApproved(state, 'src/other.ts', 'edit')).toBe(false)
     expect(isFileApproved(state, 'src/other.ts', 'write')).toBe(false)
   })
+
+  it('matches when scope has relative path and file path is absolute', () => {
+    const relativeScope: FileScope = {
+      path: 'src/example.ts',
+      operation: 'edit',
+      intent: 'refactor',
+    }
+    const state = reconstructApprovalState([
+      makeApprovalToolResult({
+        action: 'proposal',
+        id: '1',
+        fileScopes: [relativeScope],
+        bashScopes: [],
+      }),
+      makeUserMessage('<proceed>'),
+    ])
+    const absolutePath = path.resolve('src/example.ts')
+    expect(isFileApproved(state, absolutePath, 'edit')).toBe(true)
+  })
+
+  it('matches when scope has absolute path and file path is relative', () => {
+    const absoluteScope: FileScope = {
+      path: path.resolve('src/example.ts'),
+      operation: 'edit',
+      intent: 'refactor',
+    }
+    const state = reconstructApprovalState([
+      makeApprovalToolResult({
+        action: 'proposal',
+        id: '1',
+        fileScopes: [absoluteScope],
+        bashScopes: [],
+      }),
+      makeUserMessage('<proceed>'),
+    ])
+    expect(isFileApproved(state, 'src/example.ts', 'edit')).toBe(true)
+  })
+
+  it('matches glob patterns like mr-description-*.md', () => {
+    const globScope: FileScope = {
+      path: 'mr-description-*.md',
+      operation: 'write',
+      intent: 'write temporary PR description',
+    }
+    const state = reconstructApprovalState([
+      makeApprovalToolResult({
+        action: 'proposal',
+        id: '1',
+        fileScopes: [globScope],
+        bashScopes: [],
+      }),
+      makeUserMessage('<proceed>'),
+    ])
+    expect(isFileApproved(state, 'mr-description-12345.md', 'write')).toBe(true)
+    expect(isFileApproved(state, 'mr-description-abc.md', 'write')).toBe(true)
+    expect(isFileApproved(state, 'other-file.md', 'write')).toBe(false)
+  })
+
+  it('matches glob patterns with path separators', () => {
+    const globScope: FileScope = {
+      path: 'src/**/*.test.ts',
+      operation: 'edit',
+      intent: 'edit test files',
+    }
+    const state = reconstructApprovalState([
+      makeApprovalToolResult({
+        action: 'proposal',
+        id: '1',
+        fileScopes: [globScope],
+        bashScopes: [],
+      }),
+      makeUserMessage('<proceed>'),
+    ])
+    expect(isFileApproved(state, 'src/utils/helper.test.ts', 'edit')).toBe(true)
+    expect(isFileApproved(state, 'src/lib/deep/nested.test.ts', 'edit')).toBe(
+      true,
+    )
+    expect(isFileApproved(state, 'src/production.ts', 'edit')).toBe(false)
+  })
+
+  it('matches glob patterns with ? wildcard', () => {
+    const globScope: FileScope = {
+      path: 'file?.txt',
+      operation: 'write',
+      intent: 'write numbered files',
+    }
+    const state = reconstructApprovalState([
+      makeApprovalToolResult({
+        action: 'proposal',
+        id: '1',
+        fileScopes: [globScope],
+        bashScopes: [],
+      }),
+      makeUserMessage('<proceed>'),
+    ])
+    expect(isFileApproved(state, 'file1.txt', 'write')).toBe(true)
+    expect(isFileApproved(state, 'fileA.txt', 'write')).toBe(true)
+    expect(isFileApproved(state, 'file12.txt', 'write')).toBe(false)
+  })
 })
 
 describe('isBashApproved', () => {
@@ -319,4 +419,16 @@ describe('formatApprovalReminder', () => {
     expect(reminder).toContain('edit `src/example.ts`')
     expect(reminder).toContain('`pnpm test` (risk=medium)')
   })
+})
+
+describe('getApprovalHint', () => {
+  it('is exported and callable', () => {
+    // Verify the function is properly exported
+    expect(typeof getApprovalHint).toBe('function')
+  })
+
+  // Full integration tests are handled through the read tool since
+  // getApprovalHint requires a sessionManager with getEntries/getLeafId.
+  // The underlying logic (reconstructApprovalState + isFileApproved) is
+  // thoroughly tested above.
 })

@@ -234,7 +234,7 @@ function applyToolResultMessage(
   if (message.role !== 'toolResult') return false
 
   const details: unknown = message.details
-  if (message.isError && isDeferredOperationDetails(details)) {
+  if (isDeferredOperationDetails(details)) {
     operationsById.set(details.id, details)
     return true
   }

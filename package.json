@@ -40,6 +40,7 @@
     "fix": "pnpm format && pnpm lint:fix && pnpm knip:fix"
   },
   "dependencies": {
+    "picomatch": "^4.0.4",
     "turndown": "^7.2.4"
   },
   "peerDependencies": {
@@ -51,6 +52,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
+    "@types/picomatch": "^4.0.3",
     "@types/turndown": "^5.0.6",
     "@vitest/coverage-v8": "^4.1.4",
     "danger": "^13.0.7",

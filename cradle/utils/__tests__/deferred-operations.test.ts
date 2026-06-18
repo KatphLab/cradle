@@ -16,7 +16,7 @@ function makeDeferredToolResult(
     toolName: details.toolName,
     toolCallId: details.id,
     content: [],
-    isError: true,
+    isError: false,
     timestamp: 1,
     details,
   }

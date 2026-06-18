@@ -190,7 +190,7 @@ describe('subagentTool', () => {
         undefined,
         context,
       ),
-    ).rejects.toThrow('Missing agent, task, or complexity in single mode')
+    ).rejects.toThrow('Missing agent or task in single mode')
     await expect(
       subagentTool.execute(
         'call-3',
@@ -199,7 +199,7 @@ describe('subagentTool', () => {
         undefined,
         context,
       ),
-    ).rejects.toThrow('Missing agent, task, or complexity in single mode')
+    ).rejects.toThrow('Missing agent or task in single mode')
 
     expect(handleSingleMode).not.toHaveBeenCalled()
     expect(handleParallelMode).not.toHaveBeenCalled()
