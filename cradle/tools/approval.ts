@@ -3,10 +3,12 @@ import { Type } from '@earendil-works/pi-ai'
 import {
   buildSessionContext,
   defineTool,
+  type ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
 import { Text } from '@earendil-works/pi-tui'
 
 import {
+  isFileApproved,
   reconstructApprovalState,
   type AmendmentDetails,
   type ApprovalDetails,
@@ -15,9 +17,16 @@ import {
   type CompleteDetails,
   type FileScope,
   type ProposalDetails,
+  type ReplayDetails,
 } from '../utils/approval-state.js'
+import {
+  reconstructDeferredOperations,
+  type DeferredOperationDetails,
+} from '../utils/deferred-operations.js'
+import { executeApprovedEdit } from './edit.js'
+import { executeApprovedWrite } from './write.js'
 
-type ApprovalToolAction = 'proposal' | 'amendment' | 'complete'
+type ApprovalToolAction = 'proposal' | 'amendment' | 'complete' | 'replay'
 
 export interface ApprovalToolParameters {
   action: ApprovalToolAction
@@ -26,6 +35,7 @@ export interface ApprovalToolParameters {
   fileScopes?: FileScope[]
   bashScopes?: BashScope[]
   reason?: string
+  operationIds?: string[]
 }
 
 const fileOperationSchema = Type.Union(
@@ -77,10 +87,11 @@ const parametersSchema = Type.Object(
         Type.Literal('proposal'),
         Type.Literal('amendment'),
         Type.Literal('complete'),
+        Type.Literal('replay'),
       ],
       {
         description:
-          'Approval lifecycle action: record a new proposal, amend an existing one, or mark one complete.',
+          'Approval lifecycle action: record a new proposal, amend an existing one, replay deferred operations, or mark one complete.',
       },
     ),
     id: Type.String({ description: 'Stable proposal identifier' }),
@@ -96,6 +107,11 @@ const parametersSchema = Type.Object(
     reason: Type.Optional(
       Type.String({
         description: 'Optional note attached to the complete action',
+      }),
+    ),
+    operationIds: Type.Optional(
+      Type.Array(Type.String(), {
+        description: 'Deferred operation ids to replay',
       }),
     ),
   },
@@ -143,7 +159,22 @@ function buildCompleteDetails(
   return { action: 'complete', id: parameters.id }
 }
 
-function buildDetails(parameters: ApprovalToolParameters): ApprovalDetails {
+function buildReplayDetails(
+  parameters: ApprovalToolParameters,
+  replayedIds: string[],
+): ReplayDetails {
+  return {
+    action: 'replay',
+    id: parameters.id,
+    operationIds: parameters.operationIds ?? [],
+    replayedIds,
+  }
+}
+
+function buildDetails(
+  parameters: ApprovalToolParameters,
+  replayedIds: string[] = [],
+): ApprovalDetails {
   switch (parameters.action) {
     case 'proposal': {
       return buildProposalDetails(parameters)
@@ -153,6 +184,9 @@ function buildDetails(parameters: ApprovalToolParameters): ApprovalDetails {
     }
     case 'complete': {
       return buildCompleteDetails(parameters)
+    }
+    case 'replay': {
+      return buildReplayDetails(parameters, replayedIds)
     }
   }
 }
@@ -209,7 +243,7 @@ function formatApprovalResponse(parameters: ApprovalToolParameters): string {
         'I need approval for the following scope:',
         ...formatRequestedScope(parameters),
         '',
-        'Confirm if you want me to proceed.',
+        'Reply with exactly `<yes>`, `<approve>`, or `<proceed>` to approve this scope. Until then, this proposal is not authorization.',
       )
       return lines.join('\n')
     }
@@ -220,11 +254,16 @@ function formatApprovalResponse(parameters: ApprovalToolParameters): string {
         'I need approval for this additional scope:',
         ...formatRequestedScope(parameters),
         '',
-        'Confirm if you want me to proceed.',
+        'Reply with exactly `<yes>`, `<approve>`, or `<proceed>` to approve this additional scope. Until then, this amendment is not authorization.',
       ].join('\n')
     }
     case 'complete': {
       return `Proposal #${parameters.id} marked complete.`
+    }
+    case 'replay': {
+      const ids = parameters.operationIds ?? []
+      const formattedIds = ids.map((id) => `#${id}`).join(', ')
+      return `Replayed deferred operation(s): ${formattedIds}.`
     }
   }
 }
@@ -238,16 +277,122 @@ function formatResultText(result: AgentToolResult<ApprovalDetails>): string {
     .join('\n')
 }
 
+function reconstructSession(context: {
+  sessionManager: {
+    getEntries: () => Parameters<typeof buildSessionContext>[0]
+    getLeafId: () => string | null
+  }
+}): { state: ApprovalState; deferred: DeferredOperationDetails[] } {
+  const entries = context.sessionManager.getEntries()
+  const leafId = context.sessionManager.getLeafId()
+  const { messages } = buildSessionContext(entries, leafId)
+  return {
+    state: reconstructApprovalState(messages),
+    deferred: reconstructDeferredOperations(messages).operations,
+  }
+}
+
 function reconstructState(context: {
   sessionManager: {
     getEntries: () => Parameters<typeof buildSessionContext>[0]
     getLeafId: () => string | null
   }
 }): ApprovalState {
-  const entries = context.sessionManager.getEntries()
-  const leafId = context.sessionManager.getLeafId()
-  const { messages } = buildSessionContext(entries, leafId)
-  return reconstructApprovalState(messages)
+  return reconstructSession(context).state
+}
+
+async function executeDeferredOperation(
+  operation: DeferredOperationDetails,
+  context: ExtensionContext,
+): Promise<AgentToolResult<unknown>> {
+  if (operation.toolName === 'edit') {
+    return executeApprovedEdit(
+      `replay-${operation.id}`,
+      operation.parameters,
+      context.signal,
+      undefined,
+      context,
+    )
+  }
+
+  return executeApprovedWrite(
+    `replay-${operation.id}`,
+    operation.parameters,
+    context.signal,
+    undefined,
+    context,
+  )
+}
+
+async function executeReplay(
+  parameters: ApprovalToolParameters,
+  context: ExtensionContext,
+): Promise<AgentToolResult<ApprovalDetails>> {
+  const operationIds = parameters.operationIds ?? []
+  if (operationIds.length === 0) {
+    throw new Error(`Approval replay #${parameters.id} requires operationIds.`)
+  }
+
+  const { state, deferred } = reconstructSession(context)
+  const approvedId = state.approved?.id
+  if (approvedId !== parameters.id) {
+    const approvedLabel = approvedId === undefined ? 'none' : `#${approvedId}`
+    throw new Error(
+      `Cannot replay approval #${parameters.id}: currently approved proposal is ${approvedLabel}.`,
+    )
+  }
+
+  const operationsById = new Map(
+    deferred.map((operation) => [operation.id, operation]),
+  )
+  const selectedOperations = operationIds.map((id) => {
+    const operation = operationsById.get(id)
+    if (operation === undefined) {
+      throw new Error(`Cannot replay deferred operation #${id}: not found.`)
+    }
+    if (!isFileApproved(state, operation.path, operation.operation)) {
+      throw new Error(
+        `Cannot replay deferred operation #${id}: ${operation.operation} to \`${operation.path}\` is outside the active approved scope.`,
+      )
+    }
+    return operation
+  })
+
+  const replayedIds: string[] = []
+  const lines: string[] = []
+
+  for (const operation of selectedOperations) {
+    const result = await executeDeferredOperation(operation, context)
+    if ('isError' in result && result.isError === true) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: [
+              ...lines,
+              `Deferred operation #${operation.id} failed during replay.`,
+              ...result.content
+                .filter(
+                  (item): item is { type: 'text'; text: string } =>
+                    item.type === 'text',
+                )
+                .map((item) => item.text),
+            ].join('\n'),
+          },
+        ],
+        details: buildReplayDetails(parameters, replayedIds),
+        isError: true,
+      } as AgentToolResult<ApprovalDetails>
+    }
+
+    replayedIds.push(operation.id)
+    lines.push(`Replayed deferred operation #${operation.id}.`)
+  }
+
+  return {
+    content: [{ type: 'text', text: lines.join('\n') }],
+    details: buildReplayDetails(parameters, replayedIds),
+  }
 }
 
 /** @public */
@@ -258,8 +403,9 @@ export const approvalTool = defineTool({
     'Manage the user-approved scope that gates subsequent file and bash operations. ' +
     'Use action="proposal" to record a new proposal listing the files you intend to edit/write and the bash commands you intend to run, with intent for each. ' +
     'Use action="amendment" to extend the scope of a pending or approved proposal. ' +
+    'Use action="replay" with operationIds to replay previously blocked write/edit calls after their file scope is approved. ' +
     'Use action="complete" once the proposal is fully delivered; the approved scope is then cleared. ' +
-    'The tool never approves a proposal itself: approval is derived from later user messages containing phrases such as "proceed" or "yes", and applies only to the most recent pending proposal.',
+    'The tool never approves a proposal itself: approval is derived from later user messages containing tags such as "<proceed>" or "<yes>", and applies only to the most recent pending proposal.',
   parameters: parametersSchema,
   execute(
     _toolCallId,
@@ -267,10 +413,7 @@ export const approvalTool = defineTool({
     _signal,
     _onUpdate,
     context,
-  ): Promise<{
-    content: { type: 'text'; text: string }[]
-    details: ApprovalDetails
-  }> {
+  ): Promise<AgentToolResult<ApprovalDetails>> {
     if (
       (parameters.action === 'proposal' || parameters.action === 'amendment') &&
       countScopes(parameters) === 0
@@ -294,6 +437,10 @@ export const approvalTool = defineTool({
           ),
         )
       }
+    }
+
+    if (parameters.action === 'replay') {
+      return executeReplay(parameters, context)
     }
 
     const details = buildDetails(parameters)
