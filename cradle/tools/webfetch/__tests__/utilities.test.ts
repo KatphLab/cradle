@@ -1,7 +1,8 @@
-import { readFile, writeFile } from 'node:fs/promises'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 
-import { rm } from 'node:fs/promises'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { CacheMetadata } from '../types.js'
 import {
   artifactPath,
@@ -17,14 +18,24 @@ import {
   writeToCache,
 } from '../utilities.js'
 
+const mockedHome = vi.hoisted(() => ({ path: '' }))
+
+vi.mock('node:os', async () => {
+  const actual = await vi.importActual('node:os')
+  return { ...actual, homedir: () => mockedHome.path }
+})
+
+let testHome: string
 let cacheDirectory: string
 
 beforeAll(async () => {
+  testHome = await mkdtemp(path.join(tmpdir(), 'cradle-webfetch-cache-'))
+  mockedHome.path = testHome
   cacheDirectory = await ensureCacheDirectoryPath()
 })
 
 afterAll(async () => {
-  await rm(cacheDirectory, { force: true, recursive: true })
+  await rm(testHome, { force: true, recursive: true })
 })
 
 describe('webfetch utilities', () => {
