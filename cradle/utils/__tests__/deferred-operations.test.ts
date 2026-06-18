@@ -74,7 +74,18 @@ describe('reconstructDeferredOperations', () => {
     const deferred = createDeferredOperationResult(
       'call-1',
       'edit',
-      { path: 'src/example.ts', edits: [{ oldText: 'old', newText: 'new' }] },
+      {
+        path: 'src/example.ts',
+        edits: [
+          {
+            from: 1,
+            fromHash: 'abc123',
+            to: 1,
+            toHash: 'abc123',
+            newText: 'new',
+          },
+        ],
+      },
       'Blocked edit.',
     ).details
 

@@ -16,7 +16,13 @@ export type DeferredToolName = 'edit' | 'write'
 
 export interface DeferredEditParameters {
   path: string
-  edits: { oldText: string; newText: string }[]
+  edits: {
+    from: number
+    fromHash: string
+    to: number
+    toHash: string
+    newText: string
+  }[]
 }
 
 export interface DeferredWriteParameters {
@@ -70,7 +76,10 @@ function isEditParameter(value: unknown): value is DeferredEditParameters {
     edits.every(
       (edit) =>
         isRecord(edit) &&
-        typeof edit['oldText'] === 'string' &&
+        typeof edit['from'] === 'number' &&
+        typeof edit['fromHash'] === 'string' &&
+        typeof edit['to'] === 'number' &&
+        typeof edit['toHash'] === 'string' &&
         typeof edit['newText'] === 'string',
     )
   )
@@ -147,7 +156,7 @@ function buildDeferredResult<T extends DeferredOperationDetails>(
         type: 'text',
         text: [
           blockedText,
-          `Deferred operation #${details.id} was captured. After approval, replay it with approval action=\"replay\" and operationIds=[\"${details.id}\"].`,
+          `Deferred operation #${details.id} was captured. After approval, replay it with approval action="replay" and operationIds=["${details.id}"].`,
         ].join('\n'),
       },
     ],
