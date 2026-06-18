@@ -1,11 +1,13 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { SessionEntry } from '@earendil-works/pi-coding-agent'
 import { buildSessionContext } from '@earendil-works/pi-coding-agent'
+import picomatch from 'picomatch'
+
+import path from 'node:path'
 
 import { normalizePath } from './helpers.js'
 import { isCradleSubagentProcess } from './tool.js'
 import { isRecord } from './type-guards.js'
-
 export type FileOperation = 'edit' | 'write'
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
@@ -453,6 +455,26 @@ export function formatApprovalReminder(
   return lines.length > 0 ? lines.join('\n') : undefined
 }
 
+/**
+ * Check if a file path matches a scope path, supporting:
+ * - Exact match (after resolving to absolute)
+ * - Glob patterns (e.g., `mr-description-*.md`)
+ */
+function pathsMatch(scopePath: string, filePath: string): boolean {
+  // Normalize both paths to absolute for consistent comparison
+  const normalizedScope = path.resolve(scopePath)
+  const normalizedFile = path.resolve(filePath)
+
+  // Exact match after normalization
+  if (normalizedScope === normalizedFile) return true
+
+  // Glob match: if scope contains glob characters, use picomatch
+  if (picomatch.isMatch(filePath, scopePath)) return true
+  if (picomatch.isMatch(normalizedFile, normalizedScope)) return true
+
+  return false
+}
+
 export function isFileApproved(
   state: ApprovalState,
   filePath: string,
@@ -461,8 +483,12 @@ export function isFileApproved(
   const approved = state.approved
   if (approved === undefined) return false
 
+  const normalizedFilePath = path.resolve(filePath)
+
   return approved.fileScopes.some(
-    (scope) => scope.path === filePath && scope.operation === operation,
+    (scope) =>
+      pathsMatch(scope.path, normalizedFilePath) &&
+      scope.operation === operation,
   )
 }
 
