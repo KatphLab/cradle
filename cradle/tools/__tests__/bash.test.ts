@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -342,5 +342,83 @@ describe('bashTool', () => {
     expect(confirmSpy).not.toHaveBeenCalled()
     expect(result.content).toHaveLength(1)
     expect(result.content[0]).toMatchObject({ type: 'text' })
+  })
+
+  it('blocks low-risk shell redirects without approved allowed paths', async () => {
+    const confirmSpy = vi.fn()
+    const targetPath = path.join(withoutPatternsDirectory, 'blocked.txt')
+    const result = await bashTool.execute(
+      'test-call',
+      {
+        command: `printf blocked > ${targetPath}`,
+        summary: 'Write through redirect',
+        riskLevel: 'low',
+        riskReason: 'Model claimed harmless',
+      },
+      new AbortController().signal,
+      vi.fn(),
+      makeContext(withoutPatternsDirectory, confirmSpy),
+    )
+
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(result.content[0]).toMatchObject({
+      type: 'text',
+      text: expect.stringContaining('appears to write files'),
+    })
+  })
+
+  it('allows shell redirects only when the bash scope allowedPaths include the target', async () => {
+    const confirmSpy = vi.fn()
+    const targetPath = path.join(withoutPatternsDirectory, 'allowed.txt')
+    const sessionManager = buildApprovedSession(
+      [],
+      [
+        {
+          pattern: 'printf allowed',
+          riskLevel: 'low',
+          intent: 'test approved redirect',
+          allowedPaths: [targetPath],
+        },
+      ],
+    )
+
+    const result = await bashTool.execute(
+      'test-call',
+      {
+        command: `printf allowed > ${targetPath}`,
+        summary: 'Write through approved redirect',
+        riskLevel: 'low',
+        riskReason: 'Approved test write',
+      },
+      new AbortController().signal,
+      vi.fn(),
+      makeContext(withoutPatternsDirectory, confirmSpy, sessionManager),
+    )
+
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(result.content).toHaveLength(1)
+    await expect(readFile(targetPath, 'utf8')).resolves.toBe('allowed')
+  })
+
+  it('blocks inline script file writes because the target cannot be verified', async () => {
+    const confirmSpy = vi.fn()
+    const result = await bashTool.execute(
+      'test-call',
+      {
+        command: `python -c "open('bypass.txt', 'w').write('bad')"`,
+        summary: 'Write through Python',
+        riskLevel: 'low',
+        riskReason: 'Model claimed harmless',
+      },
+      new AbortController().signal,
+      vi.fn(),
+      makeContext(withoutPatternsDirectory, confirmSpy),
+    )
+
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(result.content[0]).toMatchObject({
+      type: 'text',
+      text: expect.stringContaining('unknown paths'),
+    })
   })
 })

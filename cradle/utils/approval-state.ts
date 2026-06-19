@@ -490,10 +490,27 @@ export function isFileApproved(
   )
 }
 
+function commandMatchesBashScope(scope: BashScope, command: string): boolean {
+  return scope.pattern === command || command.includes(scope.pattern)
+}
+
+function bashScopeAllowsPaths(
+  scope: BashScope,
+  writePaths: readonly string[],
+): boolean {
+  if (writePaths.length === 0) return true
+  if (scope.allowedPaths.length === 0) return false
+
+  return writePaths.every((filePath) =>
+    scope.allowedPaths.some((allowedPath) => pathsMatch(allowedPath, filePath)),
+  )
+}
+
 export function isBashApproved(
   state: ApprovalState,
   command: string,
   riskLevel: RiskLevel,
+  writePaths: readonly string[] = [],
 ): boolean {
   if (isCradleSubagentProcess()) return true
   const approved = state.approved
@@ -503,9 +520,8 @@ export function isBashApproved(
 
   return approved.bashScopes.some((scope) => {
     if (RISK_RANK[scope.riskLevel] < attemptedRank) return false
-    if (scope.pattern === command) return true
-    if (command.includes(scope.pattern)) return true
-    return false
+    if (!commandMatchesBashScope(scope, command)) return false
+    return bashScopeAllowsPaths(scope, writePaths)
   })
 }
 
@@ -521,6 +537,22 @@ function formatBlockedFileMessage(
   return `Blocked: ${operation} to \`${filePath}\` is outside the active approved scope.${reference} Create an amendment proposal listing this path, operation, and intent, then wait for user approval.`
 }
 
+export function formatBlockedBashFileWriteMessage(
+  state: ApprovalState,
+  command: string,
+  writePaths: readonly string[],
+  reasons: readonly string[],
+): string {
+  const pendingId = state.pending?.id ?? state.approved?.id
+  const reference =
+    pendingId === undefined ? '' : ` See Proposal #${pendingId}.`
+  const pathText =
+    writePaths.length === 0 ? 'unknown paths' : writePaths.join(', ')
+  const reasonText = reasons.length === 0 ? 'file write' : reasons.join(', ')
+
+  return `Blocked: bash command \`${command}\` appears to write files (${reasonText}) to ${pathText}, but those paths are outside the bash scope allowedPaths.${reference} Use edit/write for file changes or create an amendment proposal listing this bash command pattern, risk level, intent, and allowed paths, then wait for user approval.`
+}
+
 export function formatBlockedBashMessage(
   state: ApprovalState,
   command: string,
@@ -533,37 +565,33 @@ export function formatBlockedBashMessage(
   return `Blocked: bash command \`${command}\` (risk=${riskLevel}) is outside the active approved scope.${reference} Create an amendment proposal listing this command pattern, risk level, intent, and allowed paths, then wait for user approval.`
 }
 
+interface BlockedFileResult {
+  content: { type: 'text'; text: string }[]
+  details: undefined
+  isError: true
+}
+
+function createBlockedFileResult(text: string): BlockedFileResult {
+  return {
+    content: [{ type: 'text', text }],
+    details: undefined,
+    isError: true,
+  }
+}
+
 export function checkFileBlocked(
   sessionManager: { getEntries(): SessionEntry[]; getLeafId(): string | null },
   filePath: string,
   operation: FileOperation,
-):
-  | {
-      content: { type: 'text'; text: string }[]
-      details: undefined
-      isError: true
-    }
-  | undefined {
+): BlockedFileResult | undefined {
   const entries = sessionManager.getEntries()
   const leafId = sessionManager.getLeafId()
   const { messages } = buildSessionContext(entries, leafId)
   const approvalState = reconstructApprovalState(messages)
   const normalizedPath = normalizePath(filePath)
-  if (!isFileApproved(approvalState, normalizedPath, operation)) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: formatBlockedFileMessage(
-            approvalState,
-            normalizedPath,
-            operation,
-          ),
-        },
-      ],
-      details: undefined,
-      isError: true,
-    }
-  }
-  return undefined
+  if (isFileApproved(approvalState, normalizedPath, operation)) return undefined
+
+  return createBlockedFileResult(
+    formatBlockedFileMessage(approvalState, normalizedPath, operation),
+  )
 }

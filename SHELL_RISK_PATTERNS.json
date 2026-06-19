@@ -15,6 +15,31 @@
     "reason": "Direct disk write can destroy filesystems and data"
   },
   {
+    "pattern": "\\b(?:python3?|node|ruby)\\b.*\\s(?:-c|-e)\\s.*(?:\\bopen\\s*\\(|\\.write_(?:text|bytes)\\s*\\(|\\bwriteFile(?:Sync)?\\s*\\(|File\\.write\\s*\\()",
+    "level": "high",
+    "reason": "Inline interpreter command appears capable of writing files and can bypass edit/write approval"
+  },
+  {
+    "pattern": "\\bsed\\b.*(?:\\s-i\\b|\\s-i[^\\s]*|--in-place)",
+    "level": "high",
+    "reason": "sed in-place editing modifies files through bash and can bypass edit/write approval"
+  },
+  {
+    "pattern": "\\bperl\\b.*-[A-Za-z]*i[A-Za-z]*\\b",
+    "level": "high",
+    "reason": "Perl in-place editing modifies files through bash and can bypass edit/write approval"
+  },
+  {
+    "pattern": "(?:^|\\s)(?:[0-9]?>|>>)\\s*(?!&|/dev/null\\b)",
+    "level": "medium",
+    "reason": "Shell redirection writes command output to a file"
+  },
+  {
+    "pattern": "\\btee\\b\\s+(?:-[A-Za-z]+\\s+)*(?!/dev/null\\b)\\S+",
+    "level": "medium",
+    "reason": "tee writes command output to files"
+  },
+  {
     "pattern": "\\b(mkfs|mkswap|wipefs|shred)\\b",
     "level": "critical",
     "reason": "Disk formatting, swap creation, or secure deletion destroys existing data"

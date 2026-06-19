@@ -9,6 +9,7 @@ import { registerCompactionHook } from './hooks/compaction.js'
 import { registerOrchestratorModeHook } from './hooks/orchestrator-mode.js'
 import { registerShellHook } from './hooks/shell.js'
 import { registerSpecModeHook } from './hooks/spec-mode.js'
+import { registerSubagentUsageHook } from './hooks/subagent-usage.js'
 import { registerSystemReminderHook } from './hooks/system-reminder.js'
 import { advisorTool } from './tools/advisor.js'
 import { approvalTool } from './tools/approval.js'
@@ -85,4 +86,5 @@ export default function configureExtension(
   registerCompactionHook(pi)
   registerSpecModeHook(pi, specModeState)
   registerOrchestratorModeHook(pi, orchestratorModeState)
+  registerSubagentUsageHook(pi)
 }
