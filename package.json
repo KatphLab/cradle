@@ -11,14 +11,14 @@
   },
   "pi": {
     "extensions": [
-      "./cradle"
+      "./cradle",
+      "./pi-agnes"
     ],
     "skills": [
       "./skills"
     ]
   },
   "scripts": {
-    "dev": "tsx watch cradle/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint . --cache",
@@ -29,8 +29,8 @@
     "prepare": "husky",
     "knip": "knip",
     "knip:fix": "knip --fix",
-    "depcruise": "depcruise cradle",
-    "dupcheck": "jscpd cradle",
+    "depcruise": "depcruise cradle pi-agnes",
+    "dupcheck": "jscpd cradle pi-agnes",
     "test": "vitest run",
     "test:ci": "vitest run --coverage",
     "test:watch": "vitest",

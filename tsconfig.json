@@ -19,13 +19,13 @@
     "allowUnreachableCode": false,
     "noEmit": false,
     "outDir": "dist",
-    "rootDir": "cradle",
+    "rootDir": ".",
     "esModuleInterop": true,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "include": ["cradle/**/*.ts", "cradle/**/*.mts"],
+  "include": ["cradle/**/*.ts", "cradle/**/*.mts", "pi-agnes/**/*.ts"],
   "exclude": ["node_modules", "dist", "coverage", ".worktrees"]
 }
