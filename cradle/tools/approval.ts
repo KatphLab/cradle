@@ -27,6 +27,9 @@ import { executeApprovedWrite } from './write.js'
 
 type ApprovalToolAction = 'proposal' | 'complete' | 'replay'
 
+const MAX_FILE_SCOPES_PER_PROPOSAL = 4
+const MAX_BASH_SCOPES_PER_PROPOSAL = 4
+
 export interface ApprovalToolParameters {
   action: ApprovalToolAction
   id: string
@@ -179,6 +182,24 @@ function countScopes(parameters: ApprovalToolParameters): number {
   )
 }
 
+function assertProposalWithinScopeLimits(
+  parameters: ApprovalToolParameters,
+): void {
+  const fileScopeCount = parameters.fileScopes?.length ?? 0
+  if (fileScopeCount > MAX_FILE_SCOPES_PER_PROPOSAL) {
+    throw new Error(
+      `Approval proposal #${parameters.id} has ${fileScopeCount} file scopes, but the maximum is ${MAX_FILE_SCOPES_PER_PROPOSAL}. Split the work into smaller sequential steps.`,
+    )
+  }
+
+  const bashScopeCount = parameters.bashScopes?.length ?? 0
+  if (bashScopeCount > MAX_BASH_SCOPES_PER_PROPOSAL) {
+    throw new Error(
+      `Approval proposal #${parameters.id} has ${bashScopeCount} bash scopes, but the maximum is ${MAX_BASH_SCOPES_PER_PROPOSAL}. Split the work into smaller sequential steps.`,
+    )
+  }
+}
+
 function formatFileScopes(scopes: FileScope[]): string[] {
   if (scopes.length === 0) return []
 
@@ -271,6 +292,68 @@ function reconstructState(context: {
   }
 }): ApprovalState {
   return reconstructSession(context).state
+}
+
+function rejectWithError(error: unknown): Promise<never> {
+  const rejection = error instanceof Error ? error : new Error(String(error))
+  return Promise.reject(rejection)
+}
+
+function rejectEmptyProposal(
+  parameters: ApprovalToolParameters,
+): Promise<never> | undefined {
+  if (parameters.action !== 'proposal' || countScopes(parameters) > 0) {
+    return undefined
+  }
+
+  return Promise.reject(
+    new Error(
+      `Approval ${parameters.action} #${parameters.id} requires at least one file or bash scope.`,
+    ),
+  )
+}
+
+function rejectOversizedProposal(
+  parameters: ApprovalToolParameters,
+): Promise<never> | undefined {
+  if (parameters.action !== 'proposal') return undefined
+
+  try {
+    assertProposalWithinScopeLimits(parameters)
+  } catch (error) {
+    return rejectWithError(error)
+  }
+
+  return undefined
+}
+
+function rejectMismatchedComplete(
+  parameters: ApprovalToolParameters,
+  context: Parameters<typeof reconstructState>[0],
+): Promise<never> | undefined {
+  if (parameters.action !== 'complete') return undefined
+
+  const state = reconstructState(context)
+  const approvedId = state.approved?.id
+  if (approvedId === parameters.id) return undefined
+
+  const approvedLabel = approvedId === undefined ? 'none' : `#${approvedId}`
+  return Promise.reject(
+    new Error(
+      `Cannot complete approval #${parameters.id}: currently approved proposal is ${approvedLabel}.`,
+    ),
+  )
+}
+
+function rejectInvalidApprovalParameters(
+  parameters: ApprovalToolParameters,
+  context: Parameters<typeof reconstructState>[0],
+): Promise<never> | undefined {
+  return (
+    rejectEmptyProposal(parameters) ??
+    rejectOversizedProposal(parameters) ??
+    rejectMismatchedComplete(parameters, context)
+  )
 }
 
 async function executeDeferredOperation(
@@ -374,7 +457,7 @@ export const approvalTool = defineTool({
   description:
     'Manage the user-approved scope that gates subsequent file and bash operations. ' +
     'Use action="proposal" to record a new proposal listing the files you intend to edit/write and the bash commands you intend to run, with intent for each. ' +
-    'Create a new proposal for any new, changed, or additional scope; the latest approved proposal replaces the active scope. ' +
+    'Create a new proposal for any new, changed, or additional scope; the latest approved proposal replaces the active scope. Keep proposals to one plan step, with at most 4 file scopes and 4 bash scopes. ' +
     'Use action="replay" with operationIds to replay previously blocked write/edit calls after their file scope is approved. ' +
     'Use action="complete" once the proposal is fully delivered; the approved scope is then cleared. ' +
     'The tool never approves a proposal itself: approval is derived from later user messages containing tags such as "<proceed>" or "<yes>", and applies only to the most recent pending proposal.',
@@ -386,27 +469,11 @@ export const approvalTool = defineTool({
     _onUpdate,
     context,
   ): Promise<AgentToolResult<ApprovalDetails>> {
-    if (parameters.action === 'proposal' && countScopes(parameters) === 0) {
-      return Promise.reject(
-        new Error(
-          `Approval ${parameters.action} #${parameters.id} requires at least one file or bash scope.`,
-        ),
-      )
-    }
-
-    if (parameters.action === 'complete') {
-      const state = reconstructState(context)
-      const approvedId = state.approved?.id
-      if (approvedId !== parameters.id) {
-        const approvedLabel =
-          approvedId === undefined ? 'none' : `#${approvedId}`
-        return Promise.reject(
-          new Error(
-            `Cannot complete approval #${parameters.id}: currently approved proposal is ${approvedLabel}.`,
-          ),
-        )
-      }
-    }
+    const validationRejection = rejectInvalidApprovalParameters(
+      parameters,
+      context,
+    )
+    if (validationRejection !== undefined) return validationRejection
 
     if (parameters.action === 'replay') {
       return executeReplay(parameters, context)
