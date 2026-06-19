@@ -10,7 +10,6 @@ import { Text } from '@earendil-works/pi-tui'
 import {
   isFileApproved,
   reconstructApprovalState,
-  type AmendmentDetails,
   type ApprovalDetails,
   type ApprovalState,
   type BashScope,
@@ -26,7 +25,7 @@ import {
 import { executeApprovedEdit } from './edit.js'
 import { executeApprovedWrite } from './write.js'
 
-type ApprovalToolAction = 'proposal' | 'amendment' | 'complete' | 'replay'
+type ApprovalToolAction = 'proposal' | 'complete' | 'replay'
 
 export interface ApprovalToolParameters {
   action: ApprovalToolAction
@@ -85,13 +84,12 @@ const parametersSchema = Type.Object(
     action: Type.Union(
       [
         Type.Literal('proposal'),
-        Type.Literal('amendment'),
         Type.Literal('complete'),
         Type.Literal('replay'),
       ],
       {
         description:
-          'Approval lifecycle action: record a new proposal, amend an existing one, replay deferred operations, or mark one complete.',
+          'Approval lifecycle action: record a new proposal, replay deferred operations, or mark one complete.',
       },
     ),
     id: Type.String({ description: 'Stable proposal identifier' }),
@@ -133,19 +131,6 @@ function buildProposalDetails(
   return base
 }
 
-function buildAmendmentDetails(
-  parameters: ApprovalToolParameters,
-): AmendmentDetails {
-  const base: AmendmentDetails = { action: 'amendment', id: parameters.id }
-  if (parameters.fileScopes !== undefined) {
-    return { ...base, fileScopes: parameters.fileScopes }
-  }
-  if (parameters.bashScopes !== undefined) {
-    return { ...base, bashScopes: parameters.bashScopes }
-  }
-  return base
-}
-
 function buildCompleteDetails(
   parameters: ApprovalToolParameters,
 ): CompleteDetails {
@@ -178,9 +163,6 @@ function buildDetails(
   switch (parameters.action) {
     case 'proposal': {
       return buildProposalDetails(parameters)
-    }
-    case 'amendment': {
-      return buildAmendmentDetails(parameters)
     }
     case 'complete': {
       return buildCompleteDetails(parameters)
@@ -246,16 +228,6 @@ function formatApprovalResponse(parameters: ApprovalToolParameters): string {
         'Reply with exactly `<yes>`, `<approve>`, or `<proceed>` to approve this scope. Until then, this proposal is not authorization.',
       )
       return lines.join('\n')
-    }
-    case 'amendment': {
-      return [
-        `## Approval amendment #${parameters.id}`,
-        '',
-        'I need approval for this additional scope:',
-        ...formatRequestedScope(parameters),
-        '',
-        'Reply with exactly `<yes>`, `<approve>`, or `<proceed>` to approve this additional scope. Until then, this amendment is not authorization.',
-      ].join('\n')
     }
     case 'complete': {
       return `Proposal #${parameters.id} marked complete.`
@@ -402,7 +374,7 @@ export const approvalTool = defineTool({
   description:
     'Manage the user-approved scope that gates subsequent file and bash operations. ' +
     'Use action="proposal" to record a new proposal listing the files you intend to edit/write and the bash commands you intend to run, with intent for each. ' +
-    'Use action="amendment" to extend the scope of a pending or approved proposal. ' +
+    'Create a new proposal for any new, changed, or additional scope; the latest approved proposal replaces the active scope. ' +
     'Use action="replay" with operationIds to replay previously blocked write/edit calls after their file scope is approved. ' +
     'Use action="complete" once the proposal is fully delivered; the approved scope is then cleared. ' +
     'The tool never approves a proposal itself: approval is derived from later user messages containing tags such as "<proceed>" or "<yes>", and applies only to the most recent pending proposal.',
@@ -414,10 +386,7 @@ export const approvalTool = defineTool({
     _onUpdate,
     context,
   ): Promise<AgentToolResult<ApprovalDetails>> {
-    if (
-      (parameters.action === 'proposal' || parameters.action === 'amendment') &&
-      countScopes(parameters) === 0
-    ) {
+    if (parameters.action === 'proposal' && countScopes(parameters) === 0) {
       return Promise.reject(
         new Error(
           `Approval ${parameters.action} #${parameters.id} requires at least one file or bash scope.`,

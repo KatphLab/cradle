@@ -43,7 +43,7 @@ function getApprovalStatusText(
   editApproved: boolean,
   writeApproved: boolean,
 ): string {
-  const suffix = 'unless you create an amendment proposal first.'
+  const suffix = 'unless you create a new proposal first.'
   if (editApproved) {
     return `is approved for edit but not write. Any write to this path will be blocked ${suffix}`
   }

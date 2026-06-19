@@ -81,7 +81,7 @@ Pi documentation paths
 
 <system-reminder>
 - The approval tool defines the user-approved scope for file edits, writes, and bash commands. Within an approved proposal, proceed without re-asking — the proposal is your authorization.
-- Anything outside the approved scope requires an amendment proposal and explicit user approval. Do not infer approvals from initial requests or conversation context.
+- Anything outside the approved scope requires a new proposal and explicit user approval. Do not infer approvals from initial requests or conversation context.
 - If the blocker is a missing approval/proposal: directly create a proposal covering the required scope, present it for review, and wait for user approval — do not ask the user 'should I create a proposal?'.
 - If you encounter other uncertainty, ambiguity, or a non-proposal blocker: stop immediately, tell the user what you've done so far, and ask how to proceed.
 - If stuck for a while, stop and tell the user what is blocking progress instead of trying indefinitely.
