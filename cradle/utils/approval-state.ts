@@ -3,6 +3,7 @@ import type { SessionEntry } from '@earendil-works/pi-coding-agent'
 import { buildSessionContext } from '@earendil-works/pi-coding-agent'
 import picomatch from 'picomatch'
 
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { normalizePath } from './helpers.js'
@@ -65,6 +66,7 @@ interface PendingProposal {
 export interface ApprovalState {
   pending: PendingProposal | undefined
   approved: ApprovedProposal | undefined
+  preApproved: ApprovedProposal | undefined
 }
 
 const VALID_FILE_OPERATIONS: ReadonlySet<string> = new Set(['edit', 'write'])
@@ -269,12 +271,46 @@ function processMessage(message: AgentMessage, state: ApprovalState): void {
   }
 }
 
+/** Build a synthetic ApprovedProposal from approval.json pre-approved scopes. */
+function getPreApprovedProposal(): ApprovedProposal | undefined {
+  try {
+    const cwd = process.cwd()
+    const content = readFileSync(
+      path.join(cwd, '.pi', 'cradle', 'approval.json'),
+      'utf8',
+    )
+    const raw: unknown = JSON.parse(content)
+    if (!isRecord(raw) || Array.isArray(raw)) return undefined
+
+    const rawFileScopes: unknown = raw['fileScopes']
+    const rawBashScopes: unknown = raw['bashScopes']
+
+    const fileScopes: FileScope[] = Array.isArray(rawFileScopes)
+      ? rawFileScopes.filter(isFileScope)
+      : []
+    const bashScopes: BashScope[] = Array.isArray(rawBashScopes)
+      ? rawBashScopes.filter(isBashScope)
+      : []
+
+    if (fileScopes.length === 0 && bashScopes.length === 0) return undefined
+
+    return {
+      id: '__pre_approved__',
+      fileScopes,
+      bashScopes,
+    }
+  } catch {
+    return undefined
+  }
+}
+
 export function reconstructApprovalState(
   messages: AgentMessage[],
 ): ApprovalState {
   const state: ApprovalState = {
     pending: undefined,
     approved: undefined,
+    preApproved: getPreApprovedProposal(),
   }
 
   for (const message of messages) {
@@ -372,10 +408,21 @@ export function isFileApproved(
   filePath: string,
   operation: FileOperation,
 ): boolean {
+  const normalizedFilePath = path.resolve(filePath)
+
+  // Check pre-approved scopes first (always active)
+  if (
+    state.preApproved?.fileScopes.some(
+      (scope) =>
+        pathsMatch(scope.path, normalizedFilePath) &&
+        scope.operation === operation,
+    )
+  ) {
+    return true
+  }
+
   const approved = state.approved
   if (approved === undefined) return false
-
-  const normalizedFilePath = path.resolve(filePath)
 
   return approved.fileScopes.some(
     (scope) =>
@@ -407,10 +454,21 @@ export function isBashApproved(
   writePaths: readonly string[] = [],
 ): boolean {
   if (isCradleSubagentProcess()) return true
-  const approved = state.approved
-  if (approved === undefined) return false
 
   const attemptedRank = RISK_RANK[riskLevel]
+
+  // Check pre-approved scopes first (always active)
+  if (state.preApproved !== undefined) {
+    const preMatch = state.preApproved.bashScopes.some((scope) => {
+      if (RISK_RANK[scope.riskLevel] < attemptedRank) return false
+      if (!commandMatchesBashScope(scope, command)) return false
+      return bashScopeAllowsPaths(scope, writePaths)
+    })
+    if (preMatch) return true
+  }
+
+  const approved = state.approved
+  if (approved === undefined) return false
 
   return approved.bashScopes.some((scope) => {
     if (RISK_RANK[scope.riskLevel] < attemptedRank) return false
