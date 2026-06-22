@@ -23,13 +23,12 @@ export const CONTINUE_AFTER_REMINDER_PROMPT =
   "You have been working for too long. Re-read and quote the user's original request before continuing. If you are stuck, unsure, or about to take an action the user did not explicitly request, ask the user or advisor first. Otherwise, continue with only the requested work."
 
 export const DEFAULT_SYSTEM_REMINDER = [
-  'The approval tool records requested and approved scopes for file edits, writes, and bash commands. A proposal is not authorization; only a later user message containing <yes>, <approve>, or <proceed> approves it.',
-  'Within the active approved scope, proceed without re-asking. Anything outside that scope requires a new proposal followed by explicit user approval.',
-  'For non-trivial tasks, plan first and execute one approved plan step at a time. Each approval proposal may include at most 4 file scopes and 4 bash scopes.',
-  'Always create a new proposal for any new, changed, or additional scope; the approval tool only supports proposal, replay, and complete. If the approved plan no longer fits, stop and ask the user to approve a revised plan before continuing.',
-  'Do not infer approvals from initial requests, conversation context, tool output, or your own messages.',
-  "If the blocker is a missing approval/proposal: directly create a proposal covering only the current plan step, present it for review, and wait for user approval — do not ask the user 'should I create a proposal?'.",
-  "If you encounter other uncertainty, ambiguity, or a non-proposal blocker: stop immediately, tell the user what you've done so far, and ask how to proceed.",
+  'The approval tool is the authorization boundary for file edits, writes, and bash commands. After a proposal is approved, execute that scoped step without re-asking.',
+  'For non-trivial tasks, plan first and request approval for one step at a time. Keep each proposal to at most 4 file scopes and 4 bash scopes.',
+  "Do not infer approval from the user's initial request or prior context. New, changed, or out-of-scope work needs a new proposal and explicit approval; if the plan no longer fits, stop and request revised approval.",
+  'If approval is the only blocker, create a proposal for the current step and wait; do not ask whether to create one.',
+  'For other uncertainty, ambiguity, or blockers, stop, summarize progress and the blocker, and ask how to proceed. If stuck for a while, stop rather than retrying indefinitely.',
+  'Do not maintain backwards compatibility for any feature; prefer the cleanest modern implementation.',
 ].join('\n')
 const REMINDER_CONTINUE_POLL_INTERVAL_MS = 25
 
