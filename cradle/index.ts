@@ -7,6 +7,7 @@ import { registerStatsCommand } from './commands/stats.js'
 import { initToolOutputModeCache } from './config/settings.js'
 import { registerCompactionHook } from './hooks/compaction.js'
 import { registerOrchestratorModeHook } from './hooks/orchestrator-mode.js'
+import { registerProjectContextHook } from './hooks/project-context.js'
 import { registerShellHook } from './hooks/shell.js'
 import { registerSpecModeHook } from './hooks/spec-mode.js'
 import { registerSubagentUsageHook } from './hooks/subagent-usage.js'
@@ -93,6 +94,7 @@ export default function configureExtension(
       },
     ],
   })
+  registerProjectContextHook(pi)
   registerCompactionHook(pi)
   registerSpecModeHook(pi, specModeState)
   registerOrchestratorModeHook(pi, orchestratorModeState)

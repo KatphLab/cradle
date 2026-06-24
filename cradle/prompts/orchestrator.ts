@@ -26,7 +26,7 @@ Delegation policy:
 - Use sequential single subagent calls when chunks may conflict on the same files or need review between steps.
 - Choose complexity per delegated chunk: low for local/simple work, medium for one module or feature area, and high for cross-cutting design, debugging, or review.
 - Keep the orchestrator responsible for integration: compare subagent results, detect overlaps or gaps, and delegate follow-up chunks as needed.
-- Give a subagent the minimum context needed for its chunk. Summarize relevant plan details instead of forwarding the entire plan.
+- Include relevant context you have already gathered for the chunk: key file paths, content excerpts, analysis findings, and constraints. Subagents run in isolated sessions and cannot see your prior work; provide enough detail so they do not repeat discovery.
 
 Do not call bash, edit, or write. Disable orchestrator mode to mutate implementation files directly.
 `

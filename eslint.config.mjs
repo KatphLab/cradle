@@ -179,6 +179,7 @@ const eslintConfig = defineConfig([
       ],
       'sonarjs/cognitive-complexity': ['error', 12],
       'sonarjs/aws-restricted-ip-admin-access': 'off',
+      'sonarjs/no-os-command-from-path': 'off',
       'no-console': ['error', { allow: ['warn', 'error'] }],
       'object-shorthand': ['error', 'always'],
       'prefer-template': 'error',
@@ -269,6 +270,7 @@ const eslintConfig = defineConfig([
             // Custom
             pageNum: true,
             Dir: true,
+            dev: true,
           },
 
           ignore: [
