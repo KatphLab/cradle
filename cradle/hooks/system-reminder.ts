@@ -298,7 +298,7 @@ function handleMessageUpdate(
   if (event.message.role !== 'assistant') return
 
   const assistantEvent = event.assistantMessageEvent
-  if (!isStringDelta(assistantEvent)) return
+  if (!isThinkingDelta(assistantEvent)) return
   const deltaTokens = Math.ceil(assistantEvent.delta.length / 4)
 
   state.streamedTokensSinceLastInjection += deltaTokens
@@ -415,10 +415,14 @@ function createSystemReminderDisplayMessage(
   }
 }
 
-function isStringDelta(value: unknown): value is { delta: string } {
+function isThinkingDelta(
+  value: unknown,
+): value is { type: 'thinking_delta'; delta: string } {
   return (
     typeof value === 'object' &&
     value !== null &&
+    'type' in value &&
+    value.type === 'thinking_delta' &&
     'delta' in value &&
     typeof value.delta === 'string' &&
     value.delta.length > 0
