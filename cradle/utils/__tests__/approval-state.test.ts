@@ -100,15 +100,6 @@ describe('isApprovalDetails', () => {
     expect(isApprovalDetails(proposalDetails)).toBe(true)
   })
 
-  it('accepts a valid amendment with file scopes only', () => {
-    const amendment: ApprovalDetails = {
-      action: 'amendment',
-      id: '1',
-      fileScopes: [fileWriteScope],
-    }
-    expect(isApprovalDetails(amendment)).toBe(true)
-  })
-
   it('rejects malformed details (unknown action, missing fields, bad operation)', () => {
     const cases: unknown[] = [
       null,
@@ -135,7 +126,7 @@ describe('isApprovalDetails', () => {
           },
         ],
       },
-      { action: 'amendment', id: 42 },
+      { action: 'scope-change', id: '1' },
     ]
     for (const value of cases) {
       expect(isApprovalDetails(value)).toBe(false)
@@ -217,24 +208,6 @@ describe('reconstructApprovalState', () => {
       bashScopes: [],
     })
     expect(state.approved).toBeUndefined()
-  })
-
-  it('amends the eventual approval scope when an amendment is recorded before user approval', () => {
-    const amendment: ApprovalDetails = {
-      action: 'amendment',
-      id: '1',
-      fileScopes: [fileWriteScope],
-    }
-    const messages: AgentMessage[] = [
-      makeApprovalToolResult(proposalDetails),
-      makeApprovalToolResult(amendment),
-      makeUserMessage('<approve>'),
-    ]
-    const state = reconstructApprovalState(messages)
-    expect(state.approved?.id).toBe('1')
-    expect(state.approved?.fileScopes).toEqual([fileEditScope, fileWriteScope])
-    expect(state.approved?.bashScopes).toEqual([bashScope])
-    expect(state.pending).toBeUndefined()
   })
 
   it('clears the approved state when a complete action is recorded', () => {

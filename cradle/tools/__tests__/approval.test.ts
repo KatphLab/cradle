@@ -68,17 +68,28 @@ const fileEditScope: FileScope = {
   intent: 'refactor helper',
 }
 
-const fileWriteScope: FileScope = {
-  path: 'src/new.ts',
-  operation: 'write',
-  intent: 'add new file',
-}
-
 const bashScope: BashScope = {
   pattern: 'pnpm test',
   riskLevel: 'medium',
   intent: 'run unit tests',
   allowedPaths: ['coverage/'],
+}
+
+function fileScope(index: number): FileScope {
+  return {
+    path: `src/file-${index}.ts`,
+    operation: 'edit',
+    intent: `edit file ${index}`,
+  }
+}
+
+function bashScopeFor(index: number): BashScope {
+  return {
+    pattern: `pnpm test ${index}`,
+    riskLevel: 'medium',
+    intent: `run test ${index}`,
+    allowedPaths: [],
+  }
 }
 
 let tempRoot: string
@@ -211,9 +222,48 @@ describe('approvalTool — proposal action', () => {
     expect(text).toContain('### Bash operations')
   })
 
+  it('accepts proposal with four file scopes and four bash scopes', async () => {
+    const fileScopes = [1, 2, 3, 4].map((index) => fileScope(index))
+    const bashScopes = [1, 2, 3, 4].map((index) => bashScopeFor(index))
+
+    const result = await executeApproval({
+      action: 'proposal',
+      id: '4',
+      fileScopes,
+      bashScopes,
+    })
+
+    expect(result.details).toMatchObject({
+      action: 'proposal',
+      id: '4',
+      fileScopes,
+      bashScopes,
+    })
+  })
+
+  it('rejects proposal with more than four file scopes', async () => {
+    await expect(
+      executeApproval({
+        action: 'proposal',
+        id: '5',
+        fileScopes: [1, 2, 3, 4, 5].map((index) => fileScope(index)),
+      }),
+    ).rejects.toThrow(/5 file scopes, but the maximum is 4/)
+  })
+
+  it('rejects proposal with more than four bash scopes', async () => {
+    await expect(
+      executeApproval({
+        action: 'proposal',
+        id: '6',
+        bashScopes: [1, 2, 3, 4, 5].map((index) => bashScopeFor(index)),
+      }),
+    ).rejects.toThrow(/5 bash scopes, but the maximum is 4/)
+  })
+
   it('rejects proposal with no scopes at all', async () => {
     await expect(
-      executeApproval({ action: 'proposal', id: '4' }),
+      executeApproval({ action: 'proposal', id: '7' }),
     ).rejects.toThrow(/at least one file or bash scope/)
   })
 
@@ -221,58 +271,7 @@ describe('approvalTool — proposal action', () => {
     await expect(
       executeApproval({
         action: 'proposal',
-        id: '5',
-        fileScopes: [],
-        bashScopes: [],
-      }),
-    ).rejects.toThrow(/at least one file or bash scope/)
-  })
-})
-
-describe('approvalTool — amendment action', () => {
-  it('records amendment details with file scopes', async () => {
-    const result = await executeApproval({
-      action: 'amendment',
-      id: '1',
-      fileScopes: [fileWriteScope],
-    })
-
-    expect(result.details).toEqual({
-      action: 'amendment',
-      id: '1',
-      fileScopes: [fileWriteScope],
-    })
-    const text = firstTextContent(result)
-    expect(text).toContain('## Approval amendment #1')
-    expect(text).toContain('- write `src/new.ts` — add new file')
-    expectApprovalTags(text)
-  })
-
-  it('records amendment details with bash scopes', async () => {
-    const result = await executeApproval({
-      action: 'amendment',
-      id: '1',
-      bashScopes: [bashScope],
-    })
-
-    expect(result.details).toEqual({
-      action: 'amendment',
-      id: '1',
-      bashScopes: [bashScope],
-    })
-  })
-
-  it('rejects amendment with no scopes at all', async () => {
-    await expect(
-      executeApproval({ action: 'amendment', id: '1' }),
-    ).rejects.toThrow(/at least one file or bash scope/)
-  })
-
-  it('rejects amendment with empty file and bash arrays', async () => {
-    await expect(
-      executeApproval({
-        action: 'amendment',
-        id: '1',
+        id: '8',
         fileScopes: [],
         bashScopes: [],
       }),

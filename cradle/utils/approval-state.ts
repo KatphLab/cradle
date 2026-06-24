@@ -3,6 +3,7 @@ import type { SessionEntry } from '@earendil-works/pi-coding-agent'
 import { buildSessionContext } from '@earendil-works/pi-coding-agent'
 import picomatch from 'picomatch'
 
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { normalizePath } from './helpers.js'
@@ -35,13 +36,6 @@ export interface ProposalDetails {
   bashScopes: BashScope[]
 }
 
-export interface AmendmentDetails {
-  action: 'amendment'
-  id: string
-  fileScopes?: FileScope[]
-  bashScopes?: BashScope[]
-}
-
 export interface CompleteDetails {
   action: 'complete'
   id: string
@@ -55,29 +49,24 @@ export interface ReplayDetails {
   replayedIds: string[]
 }
 
-export type ApprovalDetails =
-  | ProposalDetails
-  | AmendmentDetails
-  | CompleteDetails
-  | ReplayDetails
+export type ApprovalDetails = ProposalDetails | CompleteDetails | ReplayDetails
 
 interface ApprovedProposal {
   id: string
   fileScopes: FileScope[]
   bashScopes: BashScope[]
-  pendingAmendment?: { fileScopes: FileScope[]; bashScopes: BashScope[] }
 }
 
 interface PendingProposal {
   id: string
   fileScopes: FileScope[]
   bashScopes: BashScope[]
-  pendingAmendment?: { fileScopes: FileScope[]; bashScopes: BashScope[] }
 }
 
 export interface ApprovalState {
   pending: PendingProposal | undefined
   approved: ApprovedProposal | undefined
+  preApproved: ApprovedProposal | undefined
 }
 
 const VALID_FILE_OPERATIONS: ReadonlySet<string> = new Set(['edit', 'write'])
@@ -89,7 +78,6 @@ const VALID_RISK_LEVELS: ReadonlySet<string> = new Set([
 ])
 const VALID_ACTIONS: ReadonlySet<string> = new Set([
   'proposal',
-  'amendment',
   'complete',
   'replay',
 ])
@@ -152,21 +140,6 @@ function isProposalDetails(object: Record<string, unknown>): boolean {
   )
 }
 
-function isAmendmentDetails(object: Record<string, unknown>): boolean {
-  const fileScopes = object['fileScopes']
-  if (fileScopes !== undefined) {
-    if (!Array.isArray(fileScopes)) return false
-    if (!fileScopes.every(isFileScope)) return false
-  }
-
-  const bashScopes = object['bashScopes']
-  if (bashScopes !== undefined) {
-    if (!Array.isArray(bashScopes)) return false
-    if (!bashScopes.every(isBashScope)) return false
-  }
-  return true
-}
-
 function isCompleteDetails(object: Record<string, unknown>): boolean {
   return object['reason'] === undefined || typeof object['reason'] === 'string'
 }
@@ -192,9 +165,6 @@ export function isApprovalDetails(value: unknown): value is ApprovalDetails {
   switch (action) {
     case 'proposal': {
       return isProposalDetails(value)
-    }
-    case 'amendment': {
-      return isAmendmentDetails(value)
     }
     case 'complete': {
       return isCompleteDetails(value)
@@ -243,31 +213,6 @@ function handleProposal(details: ProposalDetails, state: ApprovalState): void {
   }
 }
 
-function handleAmendment(
-  details: AmendmentDetails,
-  state: ApprovalState,
-): void {
-  const amendmentScopes: { fileScopes: FileScope[]; bashScopes: BashScope[] } =
-    {
-      fileScopes: details.fileScopes ?? [],
-      bashScopes: details.bashScopes ?? [],
-    }
-
-  // Attach to approved proposal if one exists
-  if (state.approved === undefined) {
-    // Otherwise attach to pending
-    const p = state.pending
-    if (p !== undefined) {
-      p.pendingAmendment = amendmentScopes
-    }
-  } else {
-    state.approved = {
-      ...state.approved,
-      pendingAmendment: amendmentScopes,
-    }
-  }
-}
-
 function handleComplete(_details: CompleteDetails, state: ApprovalState): void {
   state.approved = undefined
 }
@@ -276,37 +221,12 @@ function promotePendingToApproved(state: ApprovalState): void {
   const p = state.pending
   if (p === undefined) return
 
-  const approvedFileScopes = [...p.fileScopes]
-  const approvedBashScopes = [...p.bashScopes]
-  const amend = p.pendingAmendment
-
-  if (amend !== undefined) {
-    approvedFileScopes.push(...amend.fileScopes)
-    approvedBashScopes.push(...amend.bashScopes)
-  }
-
   state.approved = {
     id: p.id,
-    fileScopes: approvedFileScopes,
-    bashScopes: approvedBashScopes,
+    fileScopes: [...p.fileScopes],
+    bashScopes: [...p.bashScopes],
   }
   state.pending = undefined
-}
-
-function promoteApprovedAmendment(state: ApprovalState): void {
-  const a = state.approved
-  if (a === undefined) return
-  const amend = a.pendingAmendment
-  if (amend === undefined) return
-
-  const mergedFileScopes = [...a.fileScopes, ...amend.fileScopes]
-  const mergedBashScopes = [...a.bashScopes, ...amend.bashScopes]
-
-  state.approved = {
-    id: a.id,
-    fileScopes: mergedFileScopes,
-    bashScopes: mergedBashScopes,
-  }
 }
 
 export function hasApprovalPhrase(text: string): boolean {
@@ -326,11 +246,6 @@ function handleUserMessage(message: AgentMessage, state: ApprovalState): void {
       state.pending = undefined
     }
   }
-
-  // Also handle approving a pending amendment on an already-approved proposal
-  if (hasTag && state.approved?.pendingAmendment !== undefined) {
-    promoteApprovedAmendment(state)
-  }
 }
 
 function processMessage(message: AgentMessage, state: ApprovalState): void {
@@ -338,10 +253,6 @@ function processMessage(message: AgentMessage, state: ApprovalState): void {
     switch (message.details.action) {
       case 'proposal': {
         handleProposal(message.details, state)
-        break
-      }
-      case 'amendment': {
-        handleAmendment(message.details, state)
         break
       }
       case 'complete': {
@@ -360,12 +271,46 @@ function processMessage(message: AgentMessage, state: ApprovalState): void {
   }
 }
 
+/** Build a synthetic ApprovedProposal from approval.json pre-approved scopes. */
+function getPreApprovedProposal(): ApprovedProposal | undefined {
+  try {
+    const cwd = process.cwd()
+    const content = readFileSync(
+      path.join(cwd, '.pi', 'cradle', 'approval.json'),
+      'utf8',
+    )
+    const raw: unknown = JSON.parse(content)
+    if (!isRecord(raw) || Array.isArray(raw)) return undefined
+
+    const rawFileScopes: unknown = raw['fileScopes']
+    const rawBashScopes: unknown = raw['bashScopes']
+
+    const fileScopes: FileScope[] = Array.isArray(rawFileScopes)
+      ? rawFileScopes.filter(isFileScope)
+      : []
+    const bashScopes: BashScope[] = Array.isArray(rawBashScopes)
+      ? rawBashScopes.filter(isBashScope)
+      : []
+
+    if (fileScopes.length === 0 && bashScopes.length === 0) return undefined
+
+    return {
+      id: '__pre_approved__',
+      fileScopes,
+      bashScopes,
+    }
+  } catch {
+    return undefined
+  }
+}
+
 export function reconstructApprovalState(
   messages: AgentMessage[],
 ): ApprovalState {
   const state: ApprovalState = {
     pending: undefined,
     approved: undefined,
+    preApproved: getPreApprovedProposal(),
   }
 
   for (const message of messages) {
@@ -408,20 +353,6 @@ function appendPendingReminder(
   appendReminderScopes(lines, pending.fileScopes, pending.bashScopes)
 }
 
-function appendPendingAmendmentReminder(
-  lines: string[],
-  approved: ApprovedProposal,
-): void {
-  const amendment = approved.pendingAmendment
-  if (amendment === undefined) return
-
-  lines.push(
-    `## Pending Approval Amendment (Proposal #${approved.id})`,
-    'This amendment is not approved yet. Do not use the additional scope until the user replies with exactly <yes>, <approve>, or <proceed>.',
-  )
-  appendReminderScopes(lines, amendment.fileScopes, amendment.bashScopes)
-}
-
 export function formatApprovalReminder(
   state: ApprovalState,
 ): string | undefined {
@@ -439,9 +370,8 @@ export function formatApprovalReminder(
     appendReminderScopes(lines, approved.fileScopes, approved.bashScopes)
     lines.push(
       '',
-      'Anything outside this scope requires an amendment proposal followed by explicit user approval.',
+      'Anything outside this scope requires a new proposal followed by explicit user approval.',
     )
-    appendPendingAmendmentReminder(lines, approved)
   }
 
   const pending = state.pending
@@ -478,10 +408,21 @@ export function isFileApproved(
   filePath: string,
   operation: FileOperation,
 ): boolean {
+  const normalizedFilePath = path.resolve(filePath)
+
+  // Check pre-approved scopes first (always active)
+  if (
+    state.preApproved?.fileScopes.some(
+      (scope) =>
+        pathsMatch(scope.path, normalizedFilePath) &&
+        scope.operation === operation,
+    )
+  ) {
+    return true
+  }
+
   const approved = state.approved
   if (approved === undefined) return false
-
-  const normalizedFilePath = path.resolve(filePath)
 
   return approved.fileScopes.some(
     (scope) =>
@@ -513,10 +454,21 @@ export function isBashApproved(
   writePaths: readonly string[] = [],
 ): boolean {
   if (isCradleSubagentProcess()) return true
-  const approved = state.approved
-  if (approved === undefined) return false
 
   const attemptedRank = RISK_RANK[riskLevel]
+
+  // Check pre-approved scopes first (always active)
+  if (state.preApproved !== undefined) {
+    const preMatch = state.preApproved.bashScopes.some((scope) => {
+      if (RISK_RANK[scope.riskLevel] < attemptedRank) return false
+      if (!commandMatchesBashScope(scope, command)) return false
+      return bashScopeAllowsPaths(scope, writePaths)
+    })
+    if (preMatch) return true
+  }
+
+  const approved = state.approved
+  if (approved === undefined) return false
 
   return approved.bashScopes.some((scope) => {
     if (RISK_RANK[scope.riskLevel] < attemptedRank) return false
@@ -534,7 +486,7 @@ function formatBlockedFileMessage(
   const reference =
     pendingId === undefined ? '' : ` See Proposal #${pendingId}.`
 
-  return `Blocked: ${operation} to \`${filePath}\` is outside the active approved scope.${reference} Create an amendment proposal listing this path, operation, and intent, then wait for user approval.`
+  return `Blocked: ${operation} to \`${filePath}\` is outside the active approved scope.${reference} Create a new proposal listing this path, operation, and intent, then wait for user approval.`
 }
 
 export function formatBlockedBashFileWriteMessage(
@@ -550,7 +502,7 @@ export function formatBlockedBashFileWriteMessage(
     writePaths.length === 0 ? 'unknown paths' : writePaths.join(', ')
   const reasonText = reasons.length === 0 ? 'file write' : reasons.join(', ')
 
-  return `Blocked: bash command \`${command}\` appears to write files (${reasonText}) to ${pathText}, but those paths are outside the bash scope allowedPaths.${reference} Use edit/write for file changes or create an amendment proposal listing this bash command pattern, risk level, intent, and allowed paths, then wait for user approval.`
+  return `Blocked: bash command \`${command}\` appears to write files (${reasonText}) to ${pathText}, but those paths are outside the bash scope allowedPaths.${reference} Use edit/write for file changes or create a new proposal listing this bash command pattern, risk level, intent, and allowed paths, then wait for user approval.`
 }
 
 export function formatBlockedBashMessage(
@@ -562,7 +514,7 @@ export function formatBlockedBashMessage(
   const reference =
     pendingId === undefined ? '' : ` See Proposal #${pendingId}.`
 
-  return `Blocked: bash command \`${command}\` (risk=${riskLevel}) is outside the active approved scope.${reference} Create an amendment proposal listing this command pattern, risk level, intent, and allowed paths, then wait for user approval.`
+  return `Blocked: bash command \`${command}\` (risk=${riskLevel}) is outside the active approved scope.${reference} Create a new proposal listing this command pattern, risk level, intent, and allowed paths, then wait for user approval.`
 }
 
 interface BlockedFileResult {

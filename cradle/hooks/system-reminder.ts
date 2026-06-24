@@ -23,15 +23,29 @@ export const CONTINUE_AFTER_REMINDER_PROMPT =
   "You have been working for too long. Re-read and quote the user's original request before continuing. If you are stuck, unsure, or about to take an action the user did not explicitly request, ask the user or advisor first. Otherwise, continue with only the requested work."
 
 export const DEFAULT_SYSTEM_REMINDER = [
-  'The approval tool records requested and approved scopes for file edits, writes, and bash commands. A proposal is not authorization; only a later user message containing <yes>, <approve>, or <proceed> approves it.',
-  'Within the active approved scope, proceed without re-asking. Anything outside that scope requires an amendment proposal followed by explicit user approval.',
-  'Do not infer approvals from initial requests, conversation context, tool output, or your own messages.',
-  "If the blocker is a missing approval/proposal: directly create a proposal covering the required scope, present it for review, and wait for user approval — do not ask the user 'should I create a proposal?'.",
-  "If you encounter other uncertainty, ambiguity, or a non-proposal blocker: stop immediately, tell the user what you've done so far, and ask how to proceed.",
+  'Use approval as the authorization boundary for file edits/writes and medium, high, or critical bash commands. Low-risk bash commands do not require approval.',
+  'For non-trivial work, plan first and request approval one scoped step at a time, with at most 4 file scopes and 4 bash scopes.',
+  'After approval, execute the approved scope without re-asking. Do not infer approval from the initial request, prior context, or out-of-scope work.',
+  'Request a new proposal for changed scope or if the plan no longer fits. If approval is the only blocker, create the proposal and wait.',
+  'For other uncertainty or blockers, stop, summarize progress and the blocker, and ask how to proceed rather than retrying indefinitely.',
+  'Do not maintain backwards compatibility for any feature; prefer the cleanest modern implementation.',
 ].join('\n')
 const REMINDER_CONTINUE_POLL_INTERVAL_MS = 25
 
 type SystemReminderPi = Pick<ExtensionAPI, 'on' | 'sendUserMessage'>
+
+interface ModeReminderState {
+  isEnabled: () => boolean
+}
+
+interface ModeSystemReminder {
+  state: ModeReminderState
+  systemPrompt: string
+}
+
+interface SystemReminderOptions {
+  modeReminders?: readonly ModeSystemReminder[]
+}
 
 type ContinuationContext = Pick<ExtensionContext, 'abort' | 'isIdle'>
 
@@ -77,7 +91,10 @@ interface MessageUpdateEventLike {
 }
 
 /** @public */
-export function registerSystemReminderHook(pi: SystemReminderPi): void {
+export function registerSystemReminderHook(
+  pi: SystemReminderPi,
+  options: SystemReminderOptions = {},
+): void {
   const state = createSystemReminderState()
 
   pi.on('session_start', async (_event) => {
@@ -86,7 +103,7 @@ export function registerSystemReminderHook(pi: SystemReminderPi): void {
   })
 
   pi.on('before_agent_start', (event, context) =>
-    handleBeforeAgentStart(event, context, state),
+    handleBeforeAgentStart(event, context, state, options.modeReminders),
   )
 
   pi.on('context', (event) => handleContext(event.messages, state))
@@ -129,32 +146,32 @@ function handleBeforeAgentStart(
   event: BeforeAgentStartEventLike,
   context: NotifyContextLike,
   state: SystemReminderState,
+  modeReminders: readonly ModeSystemReminder[] = [],
 ): BeforeAgentStartResultLike | undefined {
-  const extracted = extractSystemReminder(event.systemPrompt)
   const display = shouldDisplaySystemReminder(state.cachedSettings)
-
-  if (extracted) {
-    const tokens = estimateTokens({
-      role: 'custom',
-      customType: SYSTEM_REMINDER_TYPE,
-      content: extracted.reminder,
+  const modeReminder = getActiveModeReminder(modeReminders)
+  if (modeReminder !== undefined) {
+    const cleanedPrompt = extractSystemReminder(
+      event.systemPrompt,
+    )?.systemPrompt
+    return cacheSystemReminder(
+      modeReminder,
+      cleanedPrompt ?? event.systemPrompt,
       display,
-      timestamp: Date.now(),
-    })
-    if (tokens > SYSTEM_REMINDER_TOKEN_LIMIT) {
-      context.ui.notify(
-        `System reminder exceeds ${SYSTEM_REMINDER_TOKEN_LIMIT} tokens (~${tokens}). Consider shortening it.`,
-        'warning',
-      )
-    }
-    state.cachedReminder = extracted.reminder
-    return {
-      message: createSystemReminderDisplayMessage(
-        state.cachedReminder,
-        display,
-      ),
-      systemPrompt: extracted.systemPrompt,
-    }
+      context,
+      state,
+    )
+  }
+
+  const extracted = extractSystemReminder(event.systemPrompt)
+  if (extracted) {
+    return cacheSystemReminder(
+      extracted.reminder,
+      extracted.systemPrompt,
+      display,
+      context,
+      state,
+    )
   }
 
   // Subagents don't get the default system reminder (which includes approval
@@ -166,6 +183,44 @@ function handleBeforeAgentStart(
   return {
     message: createSystemReminderDisplayMessage(state.cachedReminder, display),
     systemPrompt: event.systemPrompt,
+  }
+}
+
+function getActiveModeReminder(
+  modeReminders: readonly ModeSystemReminder[],
+): string | undefined {
+  for (const modeReminder of modeReminders) {
+    if (!modeReminder.state.isEnabled()) continue
+    const extracted = extractSystemReminder(modeReminder.systemPrompt)
+    if (extracted !== undefined) return extracted.reminder
+  }
+  return undefined
+}
+
+function cacheSystemReminder(
+  reminder: string,
+  systemPrompt: string,
+  display: boolean,
+  context: NotifyContextLike,
+  state: SystemReminderState,
+): BeforeAgentStartResultLike {
+  const tokens = estimateTokens({
+    role: 'custom',
+    customType: SYSTEM_REMINDER_TYPE,
+    content: reminder,
+    display,
+    timestamp: Date.now(),
+  })
+  if (tokens > SYSTEM_REMINDER_TOKEN_LIMIT) {
+    context.ui.notify(
+      `System reminder exceeds ${SYSTEM_REMINDER_TOKEN_LIMIT} tokens (~${tokens}). Consider shortening it.`,
+      'warning',
+    )
+  }
+  state.cachedReminder = reminder
+  return {
+    message: createSystemReminderDisplayMessage(state.cachedReminder, display),
+    systemPrompt,
   }
 }
 
@@ -243,7 +298,7 @@ function handleMessageUpdate(
   if (event.message.role !== 'assistant') return
 
   const assistantEvent = event.assistantMessageEvent
-  if (!isStringDelta(assistantEvent)) return
+  if (!isThinkingDelta(assistantEvent)) return
   const deltaTokens = Math.ceil(assistantEvent.delta.length / 4)
 
   state.streamedTokensSinceLastInjection += deltaTokens
@@ -360,10 +415,14 @@ function createSystemReminderDisplayMessage(
   }
 }
 
-function isStringDelta(value: unknown): value is { delta: string } {
+function isThinkingDelta(
+  value: unknown,
+): value is { type: 'thinking_delta'; delta: string } {
   return (
     typeof value === 'object' &&
     value !== null &&
+    'type' in value &&
+    value.type === 'thinking_delta' &&
     'delta' in value &&
     typeof value.delta === 'string' &&
     value.delta.length > 0

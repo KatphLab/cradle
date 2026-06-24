@@ -134,6 +134,46 @@ describe('registerSystemReminderHook', () => {
     expect(result?.message?.content).toContain(DEFAULT_SYSTEM_REMINDER[0])
   })
 
+  it('uses active mode reminder instead of base system reminder tags', async () => {
+    const handlers: RegisteredHandler[] = []
+    const modeSystemPrompt = `Spec mode prompt.
+<system-reminder>
+Spec mode reminder.
+</system-reminder>`
+    registerSystemReminderHook(createPi(handlers), {
+      modeReminders: [
+        { state: { isEnabled: () => true }, systemPrompt: modeSystemPrompt },
+      ],
+    })
+
+    const notify = vi.fn()
+    const beforeHandler = getBeforeAgentStartHandler(handlers)
+    const beforeResult = await beforeHandler(
+      {
+        systemPrompt:
+          'Base prompt.\n<system-reminder>AGENTS reminder.</system-reminder>',
+      },
+      { cwd: tempRoot, ui: { notify } },
+    )
+
+    expect(beforeResult?.systemPrompt).toBe('Base prompt.\n')
+    expect(beforeResult?.message?.content).toContain('Spec mode reminder.')
+    expect(beforeResult?.message?.content).not.toContain('AGENTS reminder.')
+
+    const providerHandler = getBeforeProviderRequestHandler(handlers)
+    const payload = {
+      messages: [{ role: 'user', content: 'plan this' }],
+      model: 'test',
+    }
+    providerHandler({ payload })
+
+    const reminderMessage = (payload.messages[1] ?? {}) as unknown as {
+      content: { type: string; text: string }[]
+    }
+    const text = reminderMessage.content[0]?.text ?? ''
+    expect(text).toContain('Spec mode reminder.')
+    expect(text).not.toContain('AGENTS reminder.')
+  })
   it('removes stale reminders from context', async () => {
     const handlers: RegisteredHandler[] = []
     registerSystemReminderHook(createPi(handlers))
