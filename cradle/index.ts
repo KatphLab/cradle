@@ -11,6 +11,8 @@ import { registerShellHook } from './hooks/shell.js'
 import { registerSpecModeHook } from './hooks/spec-mode.js'
 import { registerSubagentUsageHook } from './hooks/subagent-usage.js'
 import { registerSystemReminderHook } from './hooks/system-reminder.js'
+import { ORCHESTRATOR_MODE_SYSTEM_PROMPT } from './prompts/orchestrator.js'
+import { SPEC_MODE_SYSTEM_PROMPT } from './prompts/spec.js'
 import { advisorTool } from './tools/advisor.js'
 import { approvalTool } from './tools/approval.js'
 import { bashTool } from './tools/bash.js'
@@ -82,7 +84,15 @@ export default function configureExtension(
   registerSpecCommand(pi, specModeState)
   registerOrchestratorCommand(pi, orchestratorModeState)
   registerShellHook(pi)
-  registerSystemReminderHook(pi)
+  registerSystemReminderHook(pi, {
+    modeReminders: [
+      { state: specModeState, systemPrompt: SPEC_MODE_SYSTEM_PROMPT },
+      {
+        state: orchestratorModeState,
+        systemPrompt: ORCHESTRATOR_MODE_SYSTEM_PROMPT,
+      },
+    ],
+  })
   registerCompactionHook(pi)
   registerSpecModeHook(pi, specModeState)
   registerOrchestratorModeHook(pi, orchestratorModeState)

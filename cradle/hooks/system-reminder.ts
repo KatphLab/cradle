@@ -34,6 +34,19 @@ const REMINDER_CONTINUE_POLL_INTERVAL_MS = 25
 
 type SystemReminderPi = Pick<ExtensionAPI, 'on' | 'sendUserMessage'>
 
+interface ModeReminderState {
+  isEnabled: () => boolean
+}
+
+interface ModeSystemReminder {
+  state: ModeReminderState
+  systemPrompt: string
+}
+
+interface SystemReminderOptions {
+  modeReminders?: readonly ModeSystemReminder[]
+}
+
 type ContinuationContext = Pick<ExtensionContext, 'abort' | 'isIdle'>
 
 interface SystemReminderState {
@@ -78,7 +91,10 @@ interface MessageUpdateEventLike {
 }
 
 /** @public */
-export function registerSystemReminderHook(pi: SystemReminderPi): void {
+export function registerSystemReminderHook(
+  pi: SystemReminderPi,
+  options: SystemReminderOptions = {},
+): void {
   const state = createSystemReminderState()
 
   pi.on('session_start', async (_event) => {
@@ -87,7 +103,7 @@ export function registerSystemReminderHook(pi: SystemReminderPi): void {
   })
 
   pi.on('before_agent_start', (event, context) =>
-    handleBeforeAgentStart(event, context, state),
+    handleBeforeAgentStart(event, context, state, options.modeReminders),
   )
 
   pi.on('context', (event) => handleContext(event.messages, state))
@@ -130,32 +146,32 @@ function handleBeforeAgentStart(
   event: BeforeAgentStartEventLike,
   context: NotifyContextLike,
   state: SystemReminderState,
+  modeReminders: readonly ModeSystemReminder[] = [],
 ): BeforeAgentStartResultLike | undefined {
-  const extracted = extractSystemReminder(event.systemPrompt)
   const display = shouldDisplaySystemReminder(state.cachedSettings)
-
-  if (extracted) {
-    const tokens = estimateTokens({
-      role: 'custom',
-      customType: SYSTEM_REMINDER_TYPE,
-      content: extracted.reminder,
+  const modeReminder = getActiveModeReminder(modeReminders)
+  if (modeReminder !== undefined) {
+    const cleanedPrompt = extractSystemReminder(
+      event.systemPrompt,
+    )?.systemPrompt
+    return cacheSystemReminder(
+      modeReminder,
+      cleanedPrompt ?? event.systemPrompt,
       display,
-      timestamp: Date.now(),
-    })
-    if (tokens > SYSTEM_REMINDER_TOKEN_LIMIT) {
-      context.ui.notify(
-        `System reminder exceeds ${SYSTEM_REMINDER_TOKEN_LIMIT} tokens (~${tokens}). Consider shortening it.`,
-        'warning',
-      )
-    }
-    state.cachedReminder = extracted.reminder
-    return {
-      message: createSystemReminderDisplayMessage(
-        state.cachedReminder,
-        display,
-      ),
-      systemPrompt: extracted.systemPrompt,
-    }
+      context,
+      state,
+    )
+  }
+
+  const extracted = extractSystemReminder(event.systemPrompt)
+  if (extracted) {
+    return cacheSystemReminder(
+      extracted.reminder,
+      extracted.systemPrompt,
+      display,
+      context,
+      state,
+    )
   }
 
   // Subagents don't get the default system reminder (which includes approval
@@ -167,6 +183,44 @@ function handleBeforeAgentStart(
   return {
     message: createSystemReminderDisplayMessage(state.cachedReminder, display),
     systemPrompt: event.systemPrompt,
+  }
+}
+
+function getActiveModeReminder(
+  modeReminders: readonly ModeSystemReminder[],
+): string | undefined {
+  for (const modeReminder of modeReminders) {
+    if (!modeReminder.state.isEnabled()) continue
+    const extracted = extractSystemReminder(modeReminder.systemPrompt)
+    if (extracted !== undefined) return extracted.reminder
+  }
+  return undefined
+}
+
+function cacheSystemReminder(
+  reminder: string,
+  systemPrompt: string,
+  display: boolean,
+  context: NotifyContextLike,
+  state: SystemReminderState,
+): BeforeAgentStartResultLike {
+  const tokens = estimateTokens({
+    role: 'custom',
+    customType: SYSTEM_REMINDER_TYPE,
+    content: reminder,
+    display,
+    timestamp: Date.now(),
+  })
+  if (tokens > SYSTEM_REMINDER_TOKEN_LIMIT) {
+    context.ui.notify(
+      `System reminder exceeds ${SYSTEM_REMINDER_TOKEN_LIMIT} tokens (~${tokens}). Consider shortening it.`,
+      'warning',
+    )
+  }
+  state.cachedReminder = reminder
+  return {
+    message: createSystemReminderDisplayMessage(state.cachedReminder, display),
+    systemPrompt,
   }
 }
 

@@ -57,8 +57,9 @@ export function registerBeforeAgentStartPrompt(
   pi.on('before_agent_start', (event: { systemPrompt: string }) => {
     if (!state.isEnabled()) return
     const cleanedBase = stripSystemReminder(event.systemPrompt)
+    const cleanedModePrompt = stripSystemReminder(systemPrompt)
     return {
-      systemPrompt: `${cleanedBase}\n\n${systemPrompt}`,
+      systemPrompt: `${cleanedBase}\n\n${cleanedModePrompt}`,
     }
   })
 }
